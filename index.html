@@ -24,6 +24,9 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 
+    <input type="file" id="fileImportEncuestas" class="hidden" accept=".xlsx, .xls">
+    <input type="file" id="fileImportColegios" class="hidden" accept=".xlsx, .xls">
+
     <nav class="bg-white shadow-sm mb-8">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
@@ -32,23 +35,38 @@
                         <img src="https://static.wixstatic.com/media/d57e78_219ec29b27f94a2387b75dc63be7ec3a~mv2.png" alt="Santillana" class="h-8 object-contain">
                     </div>
                     <div class="hidden sm:flex sm:space-x-8 h-full">
-                        <button onclick="window.switchTab('formTab')" id="btn-formTab" class="tab-active text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium">
+                        <button onclick="App.switchTab('formTab')" id="btn-formTab" class="tab-active text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium">
                             Encuesta Colegios
                         </button>
-                        <button onclick="window.attemptLogin('admin')" id="btn-dashTab" class="text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium">
+                        <button onclick="App.attemptLogin('admin')" id="btn-dashTab" class="text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium">
                             Dashboard
                         </button>
-                        <button onclick="window.attemptLogin('coach')" id="btn-coachTab" class="text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium">
+                        <button onclick="App.attemptLogin('coach')" id="btn-coachTab" class="text-gray-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium">
                             Coach
                         </button>
                     </div>
                 </div>
+                <div id="user-controls" class="hidden items-center gap-4">
+                    <button onclick="App.openChangePasswordModal()" class="text-gray-500 hover:text-santillana-blue font-medium text-sm transition-colors hidden sm:block">
+                        <i class="fa-solid fa-key mr-1"></i> Contraseña
+                    </button>
+                    <button onclick="App.openChangePasswordModal()" class="text-gray-500 hover:text-santillana-blue font-medium text-lg transition-colors sm:hidden">
+                        <i class="fa-solid fa-key"></i>
+                    </button>
+
+                    <button onclick="App.logout()" class="text-red-500 hover:text-red-700 font-medium text-sm transition-colors hidden sm:block">
+                        <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Salir
+                    </button>
+                    <button onclick="App.logout()" class="text-red-500 hover:text-red-700 font-medium text-lg transition-colors sm:hidden">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
             </div>
         </div>
         <div class="sm:hidden flex space-x-4 p-4 border-t overflow-x-auto">
-            <button onclick="window.switchTab('formTab')" class="text-santillana-orange font-medium text-sm whitespace-nowrap">Encuesta Colegios</button>
-            <button onclick="window.attemptLogin('admin')" class="text-gray-500 font-medium text-sm whitespace-nowrap">Dashboard</button>
-            <button onclick="window.attemptLogin('coach')" class="text-gray-500 font-medium text-sm whitespace-nowrap">Coach</button>
+            <button onclick="App.switchTab('formTab')" class="text-santillana-orange font-medium text-sm whitespace-nowrap">Encuesta</button>
+            <button onclick="App.attemptLogin('admin')" class="text-gray-500 font-medium text-sm whitespace-nowrap">Dashboard</button>
+            <button onclick="App.attemptLogin('coach')" class="text-gray-500 font-medium text-sm whitespace-nowrap">Coach</button>
         </div>
     </nav>
 
@@ -59,7 +77,7 @@
                 <h2 class="text-2xl font-bold text-santillana-blue mb-2">Feedback Intervención Coach</h2>
                 <p class="text-gray-500 mb-8">Por favor, complete la siguiente información sobre la sesión realizada.</p>
 
-                <form id="encuestaForm" onsubmit="window.submitForm(event)">
+                <form id="encuestaForm" onsubmit="App.submitForm(event)">
                     <div class="mb-6">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Ciclo formativo que están trabajando <span class="text-red-500">*</span></label>
                         <select id="ciclo" required class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
@@ -76,7 +94,7 @@
 
                     <div class="mb-6 relative">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">1. Nombre del Colegio <span class="text-red-500">*</span></label>
-                        <input type="text" id="q1_colegio" required autocomplete="off" placeholder="Empiece a escribir su colegio..." oninput="window.handleColegioInput()" onfocus="window.handleColegioInput()" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
+                        <input type="text" id="q1_colegio" required autocomplete="off" placeholder="Empiece a escribir su colegio..." oninput="App.handleColegioInput()" onfocus="App.handleColegioInput()" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
                         <ul id="listaColegiosCustom" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto hidden mt-1"></ul>
                     </div>
 
@@ -95,7 +113,7 @@
 
                     <div class="mb-6">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">4. Nombre del Coach <span class="text-red-500">*</span></label>
-                        <select id="q4_coach" required onchange="window.handleCoachChange()" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
+                        <select id="q4_coach" required onchange="App.handleCoachChange()" class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
                             <option value="">Seleccione el coach...</option>
                         </select>
                     </div>
@@ -161,20 +179,17 @@
                     <i class="fa-solid fa-circle-user text-2xl mr-3 text-orange-400"></i>
                     <span class="font-medium text-lg">Bienvenido, <b id="display_coach_name" class="text-orange-400">Coach</b></span>
                 </div>
-                <button onclick="window.openChangePasswordModal()" class="text-sm bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded transition-colors border border-white border-opacity-30">
-                    <i class="fa-solid fa-key mr-1"></i> Cambiar Contraseña
-                </button>
             </div>
 
             <div id="adminSubNav" class="flex border-b border-gray-200 mb-6 hidden">
-                <button onclick="window.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-3 px-6 border-b-2 border-[#FF5A00] text-[#FF5A00] font-bold text-sm tracking-wide">Panel de Resultados</button>
-                <button onclick="window.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-3 px-6 border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium text-sm tracking-wide transition-colors">Edición (Base de Datos)</button>
+                <button onclick="App.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-3 px-6 border-b-2 border-[#FF5A00] text-[#FF5A00] font-bold text-sm tracking-wide">Panel de Resultados</button>
+                <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-3 px-6 border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium text-sm tracking-wide transition-colors">Edición (Base de Datos)</button>
             </div>
 
             <div id="subTabResultados" class="block fade-in">
                 <div class="flex flex-col lg:flex-row justify-between lg:items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold text-santillana-blue">Panel de Resultados</h2>
-                    <button onclick="window.mostrarColegiosPendientes()" class="bg-santillana-orange hover-bg-santillana-orange text-white px-4 py-2 rounded-md font-medium text-sm shadow-sm transition-colors">
+                    <button onclick="App.mostrarColegiosPendientes()" class="bg-santillana-orange hover-bg-santillana-orange text-white px-4 py-2 rounded-md font-medium text-sm shadow-sm transition-colors">
                         <i class="fa-solid fa-eye-slash mr-1"></i> Ver Colegios Pendientes
                     </button>
                 </div>
@@ -182,19 +197,19 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
                     <div id="container_filter_coach" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col justify-center gap-1">
                         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fa-solid fa-user-tie text-santillana-blue mr-1"></i> Filtrar por Coach</label>
-                        <select id="filter_coach" onchange="window.handleDashFilterChange('coach')" class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] truncate">
+                        <select id="filter_coach" onchange="App.handleDashFilterChange('coach')" class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] truncate">
                             <option value="">Todos los Coaches</option>
                         </select>
                     </div>
                     <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col justify-center gap-1">
                         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fa-solid fa-school text-santillana-blue mr-1"></i> Filtrar por Colegio</label>
-                        <select id="filter_colegio" onchange="window.handleDashFilterChange('colegio')" class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] truncate">
+                        <select id="filter_colegio" onchange="App.handleDashFilterChange('colegio')" class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] truncate">
                             <option value="">Todos los Colegios</option>
                         </select>
                     </div>
                     <div id="container_filter_taller" class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex flex-col justify-center gap-1 opacity-50 transition-opacity duration-300">
                         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider"><i class="fa-solid fa-chalkboard text-santillana-blue mr-1"></i> Número de Taller</label>
-                        <select id="filter_taller" disabled onchange="window.updateDashboard()" class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] cursor-not-allowed truncate">
+                        <select id="filter_taller" disabled onchange="App.updateDashboard()" class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF5A00] cursor-not-allowed truncate">
                             <option value="">Requiere seleccionar colegio...</option>
                             <option value="Taller 1">Taller 1</option>
                             <option value="Taller 2">Taller 2</option>
@@ -240,7 +255,7 @@
                     <div class="bg-white rounded-lg shadow p-6 flex flex-col">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="text-lg font-bold text-santillana-blue">Sugerencias y Feedback</h3>
-                            <button onclick="window.generarResumenIA()" class="text-xs bg-santillana-blue hover:bg-blue-800 text-white px-3 py-1.5 rounded transition-colors shadow-sm whitespace-nowrap">
+                            <button onclick="App.generarResumenIA()" class="text-xs bg-santillana-blue hover:bg-blue-800 text-white px-3 py-1.5 rounded transition-colors shadow-sm whitespace-nowrap">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Resumen IA
                             </button>
                         </div>
@@ -254,9 +269,9 @@
                     <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-wrap gap-2">
                         <h3 class="text-lg font-bold text-santillana-blue">Registros Recientes</h3>
                         <div class="flex gap-2">
-                            <button onclick="window.openImportModal()" id="btn_import_data" class="text-sm text-blue-600 hover:text-blue-800 hidden"><i class="fa-solid fa-upload mr-1"></i> Importar</button>
-                            <button onclick="window.exportToExcel()" id="btn_export_data" class="text-sm text-green-600 hover:text-green-800 hidden"><i class="fa-solid fa-file-excel mr-1"></i> Exportar</button>
-                            <button onclick="window.clearData()" id="btn_clear_data" class="text-sm text-red-600 hover:text-red-800 hidden"><i class="fa-solid fa-trash mr-1"></i> Borrar Todo</button>
+                            <button onclick="App.triggerImportEncuestas()" id="btn_import_data" class="text-sm text-blue-600 hover:text-blue-800 hidden"><i class="fa-solid fa-upload mr-1"></i> Importar</button>
+                            <button onclick="App.exportToExcel()" id="btn_export_data" class="text-sm text-green-600 hover:text-green-800 hidden"><i class="fa-solid fa-file-excel mr-1"></i> Exportar</button>
+                            <button onclick="App.clearData()" id="btn_clear_data" class="text-sm text-red-600 hover:text-red-800 hidden"><i class="fa-solid fa-trash mr-1"></i> Borrar Todo</button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -271,20 +286,24 @@
             </div>
 
             <div id="subTabEdicion" class="hidden fade-in">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
                     <h2 class="text-2xl font-bold text-santillana-blue">Base de Datos Institucional</h2>
-                    <button onclick="window.triggerAddAction()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-plus mr-1"></i> Agregar Nuevo</button>
+                    <div class="flex gap-2">
+                        <button onclick="App.triggerImportColegios()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-upload mr-1"></i> Importar Colegios</button>
+                        <button onclick="App.exportColegios()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-file-excel mr-1"></i> Exportar Colegios</button>
+                        <button onclick="App.triggerAddAction()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-plus mr-1"></i> Agregar Nuevo</button>
+                    </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow overflow-hidden">
                     <div class="flex border-b border-gray-200 bg-gray-50 px-4 pt-4">
-                        <button onclick="window.switchEdicionView('colegios')" id="btn_view_colegios" class="px-6 py-2 border-b-2 border-[#FF5A00] text-[#FF5A00] font-bold text-sm">Gestionar Colegios</button>
-                        <button onclick="window.switchEdicionView('coaches')" id="btn_view_coaches" class="px-6 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium text-sm transition-colors">Gestionar Coaches</button>
+                        <button onclick="App.switchEdicionView('colegios')" id="btn_view_colegios" class="px-6 py-2 border-b-2 border-[#FF5A00] text-[#FF5A00] font-bold text-sm">Gestionar Colegios</button>
+                        <button onclick="App.switchEdicionView('coaches')" id="btn_view_coaches" class="px-6 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium text-sm transition-colors">Gestionar Coaches</button>
                     </div>
                     <div class="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
                         <div class="relative w-full max-w-sm">
                             <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400"></i>
-                            <input type="text" id="search_edicion" oninput="window.renderActiveEdicionTable()" placeholder="Buscar en la tabla..." class="w-full pl-10 pr-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-[#FF5A00] focus:outline-none bg-gray-50">
+                            <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" placeholder="Buscar en la tabla..." class="w-full pl-10 pr-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-[#FF5A00] focus:outline-none bg-gray-50">
                         </div>
                     </div>
                     <div class="overflow-x-auto max-h-[600px]">
@@ -330,8 +349,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
           apiKey: "AIzaSyDrVXpZfLwm0iddsaQWyXzRCvZ0bXkwviA",
           authDomain: "encuesta-santillana.firebaseapp.com",
@@ -340,22 +360,25 @@
           messagingSenderId: "354271667135",
           appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Variables Globales Expuestas
-        window.colegiosBD = [];
-        window.coachesAuth = [];
-        window.encuestasData = [];
-        window.currentUserRole = null;
-        window.currentCoachName = "";
-        window.currentCoachEmail = "";
-        window.currentEdicionView = 'colegios';
-        window.currentFilteredData = [];
+        // --- ENCAPSULAMIENTO DE ESTADO ---
+        const State = {
+            adminUsers: [],
+            colegiosBD: [],
+            coachesAuth: [],
+            encuestasData: [],
+            encuestasLoaded: false,
+            currentUserRole: null,
+            currentUserEmail: "", // Correo de la sesión activa (admin o coach)
+            currentCoachName: "", // Usado específicamente para métricas del coach
+            currentEdicionView: 'colegios',
+            currentFilteredData: []
+        };
 
-        // Datos Iniciales por Defecto
-        const adminUsers = [
+        // --- DATOS POR DEFECTO ORIGINALES ---
+        const defaultAdminUsers = [
             { email: "elopez@santillana.com", pass: "admin123" },
             { email: "jbecerra@santillana.com", pass: "admin123" },
             { email: "jgarzon@santillana.com", pass: "admin123" }
@@ -967,180 +990,80 @@
 
         const defaultColegiosBD = rawColegiosBD.map(col => ({ ...col, docentes: 0 }));
 
-        // --- INICIALIZACIÓN DE FIREBASE ---
+        // --- LÓGICA DE INICIO Y FIREBASE ---
         async function initApp() {
             try {
-                // Obtener datos maestros (Colegios y Coaches) desde un solo documento para facilitar edición
                 const configDoc = await getDocs(collection(db, "sistema"));
                 let loadedConfig = false;
 
                 configDoc.forEach((d) => {
                     if(d.id === "db_maestra") {
-                        window.colegiosBD = d.data().colegios || defaultColegiosBD;
-                        window.coachesAuth = d.data().coaches || defaultCoachesAuth;
+                        State.colegiosBD = d.data().colegios || defaultColegiosBD;
+                        State.coachesAuth = d.data().coaches || defaultCoachesAuth;
+                        State.adminUsers = d.data().admins || defaultAdminUsers;
                         loadedConfig = true;
                     }
                 });
 
                 if(!loadedConfig) {
-                    window.colegiosBD = defaultColegiosBD;
-                    window.coachesAuth = defaultCoachesAuth;
-                    // Guardar por primera vez si no existe
-                    await window.guardarSistemaDB();
+                    State.colegiosBD = defaultColegiosBD;
+                    State.coachesAuth = defaultCoachesAuth;
+                    State.adminUsers = defaultAdminUsers;
+                    await guardarSistemaDB();
                 }
 
-                // Obtener encuestas
-                const encuestasSnap = await getDocs(collection(db, "encuestas"));
-                window.encuestasData = [];
-                encuestasSnap.forEach((d) => {
-                    window.encuestasData.push({ id: d.id, ...d.data() });
-                });
-
-                // UI
-                window.poblarCoaches();
-                generarRatingInputs('q6');
-                generarRatingInputs('q7');
-                generarRatingInputs('q8');
-                generarRatingInputs('q9');
+                App.poblarCoaches();
+                generarRatingInputs('q6'); generarRatingInputs('q7');
+                generarRatingInputs('q8'); generarRatingInputs('q9');
             } catch (error) {
                 console.error("Error cargando Firebase:", error);
-                alert("Error cargando la base de datos.");
+                alert("Error de conexión. Revisa tu internet o la configuración de Firebase.");
             }
         }
 
-        window.guardarSistemaDB = async function() {
+        async function fetchEncuestas() {
+            if (State.encuestasLoaded) return; 
+            
+            try {
+                let q;
+                if (State.currentUserRole === 'admin') {
+                    q = collection(db, "encuestas"); 
+                } else {
+                    q = query(collection(db, "encuestas"), where("coach", "==", State.currentCoachName));
+                }
+                
+                const encuestasSnap = await getDocs(q);
+                State.encuestasData = [];
+                encuestasSnap.forEach((d) => {
+                    State.encuestasData.push({ id: d.id, ...d.data() });
+                });
+                
+                State.encuestasData.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+                State.encuestasLoaded = true;
+            } catch (error) {
+                console.error("Error cargando encuestas", error);
+            }
+        }
+
+        async function guardarSistemaDB() {
             try {
                 await setDoc(doc(db, "sistema", "db_maestra"), {
-                    colegios: window.colegiosBD,
-                    coaches: window.coachesAuth
+                    colegios: State.colegiosBD,
+                    coaches: State.coachesAuth,
+                    admins: State.adminUsers
                 });
             } catch (error) {
                 console.error("Error guardando db maestra", error);
             }
-        };
+        }
 
-        // --- FUNCIONES FORMULARIO ---
-        window.submitForm = async function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnSubmitForm');
-            btn.innerText = "Guardando...";
-            btn.disabled = true;
-
-            const formData = {
-                fecha: new Date().toLocaleString(),
-                ciclo: document.getElementById('ciclo').value,
-                colegio: document.getElementById('q1_colegio').value.trim(),
-                asistente: document.getElementById('q2_asistente').value.trim(),
-                perfil: document.querySelector('input[name="q3_perfil"]:checked').value,
-                coach: document.getElementById('q4_coach').value,
-                numTaller: document.getElementById('q5_numTaller').value,
-                taller: document.getElementById('q5_taller').value.trim(),
-                q6: parseInt(document.querySelector('input[name="q6"]:checked').value),
-                q7: parseInt(document.querySelector('input[name="q7"]:checked').value),
-                q8: parseInt(document.querySelector('input[name="q8"]:checked').value),
-                q9: parseInt(document.querySelector('input[name="q9"]:checked').value),
-                sugerencias: document.getElementById('q10_sugerencias').value.trim()
-            };
-
-            try {
-                const docRef = await addDoc(collection(db, "encuestas"), formData);
-                window.encuestasData.push({ id: docRef.id, ...formData });
-                
-                document.getElementById('encuestaForm').reset();
-                window.poblarCoaches(); 
-                const msg = document.getElementById('successMsg');
-                msg.classList.remove('hidden');
-                setTimeout(() => { msg.classList.add('hidden'); }, 5000);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                window.updateDashboard();
-            } catch (error) {
-                console.error(error);
-                alert("Error al guardar encuesta");
-            } finally {
-                btn.innerText = "Enviar Feedback";
-                btn.disabled = false;
-            }
-        };
-
-        function getRegiones() { return [...new Set(window.colegiosBD.map(c => c.regional).filter(r => r && r.trim() !== ""))].sort(); }
+        // Utilidades Internas
+        function getRegiones() { return [...new Set(State.colegiosBD.map(c => c.regional).filter(r => r && r.trim() !== ""))].sort(); }
         function getCoaches(regional = "") {
-            let list = window.colegiosBD;
+            let list = State.colegiosBD;
             if(regional) list = list.filter(c => c.regional === regional);
             return [...new Set(list.map(c => c.coach).filter(c => c && c.trim() !== ""))].sort();
         }
-
-        window.poblarCoaches = function(filtroColegio = "") {
-            const select = document.getElementById('q4_coach');
-            if(!select) return;
-            select.innerHTML = '<option value="">Seleccione el coach...</option>';
-            let lista = window.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-            if (filtroColegio) lista = lista.filter(item => item.colegio === filtroColegio);
-            const regiones = [...new Set(lista.map(c => c.regional))];
-            regiones.forEach(region => {
-                const optGroup = document.createElement('optgroup');
-                optGroup.label = region;
-                const coachesEnRegion = [...new Set(lista.filter(c => c.regional === region).map(c => c.coach))];
-                coachesEnRegion.forEach(coach => {
-                    const option = document.createElement('option');
-                    option.value = coach; option.textContent = coach;
-                    optGroup.appendChild(option);
-                });
-                if (coachesEnRegion.length > 0) select.appendChild(optGroup);
-            });
-        };
-
-        window.handleColegioInput = function() {
-            const inputVal = document.getElementById('q1_colegio').value.toLowerCase();
-            const customList = document.getElementById('listaColegiosCustom');
-            customList.innerHTML = '';
-            if (inputVal.length === 0) {
-                customList.classList.add('hidden');
-                if (document.getElementById('q4_coach').value === "") window.poblarCoaches();
-                return;
-            }
-            const coachFilter = document.getElementById('q4_coach').value;
-            let lista = window.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-            if (coachFilter) lista = lista.filter(item => item.coach === coachFilter);
-            const matches = [...new Set(lista.map(item => item.colegio))].filter(col => col.toLowerCase().includes(inputVal));
-
-            if (matches.length > 0) {
-                matches.forEach(col => {
-                    const li = document.createElement('li');
-                    li.className = 'px-3 py-2 cursor-pointer hover:bg-orange-50 text-sm text-gray-700 border-b border-gray-100 last:border-none';
-                    li.textContent = col;
-                    li.onmousedown = (e) => { e.preventDefault(); window.selectColegio(col); };
-                    customList.appendChild(li);
-                });
-                customList.classList.remove('hidden');
-            } else {
-                const li = document.createElement('li');
-                li.className = 'px-3 py-2 text-sm text-gray-500 italic';
-                li.textContent = 'No se encontraron colegios...';
-                customList.appendChild(li); customList.classList.remove('hidden');
-            }
-        };
-
-        window.selectColegio = function(nombre) {
-            document.getElementById('q1_colegio').value = nombre;
-            document.getElementById('listaColegiosCustom').classList.add('hidden');
-            const infoColegio = window.colegiosBD.find(c => c.colegio === nombre);
-            if (infoColegio) {
-                const selectCoach = document.getElementById('q4_coach');
-                if (!Array.from(selectCoach.options).some(opt => opt.value === infoColegio.coach)) window.poblarCoaches(nombre);
-                selectCoach.value = infoColegio.coach;
-            }
-        };
-
-        window.handleCoachChange = function() {
-            const coachSeleccionado = document.getElementById('q4_coach').value;
-            const colegioActual = document.getElementById('q1_colegio').value;
-            if (colegioActual && coachSeleccionado) {
-                if (!window.colegiosBD.some(c => c.colegio === colegioActual && c.coach === coachSeleccionado)) {
-                    document.getElementById('q1_colegio').value = '';
-                }
-            }
-        };
-
         function generarRatingInputs(questionId) {
             const container = document.getElementById(questionId + '_group');
             if(!container) return;
@@ -1152,453 +1075,659 @@
             }
         }
 
-        // --- INTERFAZ / UI GLOBALES ---
-        window.showModal = function(title, bodyHtml, buttonsHtml) {
-            document.getElementById('modalHeader').innerHTML = title;
-            document.getElementById('modalBody').innerHTML = bodyHtml;
-            document.getElementById('modalFooter').innerHTML = buttonsHtml;
-            document.getElementById('customModal').classList.remove('hidden');
-        };
-        window.hideModal = function() { document.getElementById('customModal').classList.add('hidden'); };
-
-        window.switchTab = function(tabId) {
-            document.getElementById('formTab').classList.add('hidden');
-            document.getElementById('dashTab').classList.add('hidden');
-            ['btn-formTab','btn-dashTab','btn-coachTab'].forEach(btn => document.getElementById(btn).classList.remove('tab-active', 'text-santillana-orange', 'border-[#FF5A00]'));
-            document.getElementById(tabId).classList.remove('hidden');
+        // --- CONTROLADOR UI EXPUESTO (NAMESPACE APP) ---
+        window.App = {
             
-            if(tabId === 'formTab') document.getElementById('btn-formTab').classList.add('tab-active');
-            else if (tabId === 'dashTab') {
-                if(window.currentUserRole === 'admin') { document.getElementById('btn-dashTab').classList.add('tab-active'); window.setupAdminDashboard(); }
-                else if (window.currentUserRole === 'coach') { document.getElementById('btn-coachTab').classList.add('tab-active'); window.setupCoachDashboard(); }
-            }
-        };
-
-        // --- AUTH ---
-        window.attemptLogin = function(role) {
-            if (window.currentUserRole === role) { window.switchTab('dashTab'); return; }
-            const title = role === 'admin' ? "Acceso Dashboard (Coordinadores)" : "Acceso Coach";
-            window.showModal(
-                title,
-                `<p class="mb-3 text-sm text-gray-600">Ingrese sus credenciales para acceder:</p>
-                 <div class="space-y-3">
-                     <input type="email" id="loginEmail" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]" placeholder="Correo Electrónico">
-                     <input type="password" id="loginPwd" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]" placeholder="Contraseña">
-                 </div>
-                 <p id="loginError" class="text-red-500 text-sm mt-2 hidden">Credenciales incorrectas.</p>`,
-                `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md">Cancelar</button>
-                 <button onclick="window.verifyLogin('${role}')" class="px-4 py-2 bg-santillana-orange text-white rounded-md">Ingresar</button>`
-            );
-        };
-
-        window.verifyLogin = function(role) {
-            const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-            const pass = document.getElementById('loginPwd').value;
-            if(role === 'admin') {
-                if (adminUsers.find(u => u.email === email && u.pass === pass)) {
-                    window.currentUserRole = 'admin'; window.hideModal(); window.switchTab('dashTab');
-                } else document.getElementById('loginError').classList.remove('hidden');
-            } else {
-                const coach = window.coachesAuth.find(c => c.email.toLowerCase() === email && c.pass === pass);
-                if (coach) {
-                    window.currentUserRole = 'coach'; window.currentCoachName = coach.nombre; window.currentCoachEmail = coach.email;
-                    window.hideModal(); window.switchTab('dashTab');
-                } else document.getElementById('loginError').classList.remove('hidden');
-            }
-        };
-
-        // --- DASHBOARDS ---
-        window.setupAdminDashboard = function() {
-            document.getElementById('adminSubNav').classList.remove('hidden');
-            document.getElementById('coachWelcomeBar').classList.add('hidden');
-            document.getElementById('container_filter_coach').classList.remove('hidden');
-            window.poblarFiltrosDashboard();
-            window.switchDashSubTab('resultados');
-            ['btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.remove('hidden'));
-        };
-
-        window.setupCoachDashboard = function() {
-            document.getElementById('adminSubNav').classList.add('hidden');
-            document.getElementById('coachWelcomeBar').classList.remove('hidden');
-            document.getElementById('display_coach_name').innerText = window.currentCoachName;
-            document.getElementById('container_filter_coach').classList.add('hidden');
-            
-            const selCoach = document.getElementById('filter_coach');
-            selCoach.innerHTML = `<option value="${window.currentCoachName}">${window.currentCoachName}</option>`;
-            selCoach.value = window.currentCoachName;
-            
-            window.poblarFiltroColegiosDash(window.currentCoachName);
-            document.getElementById('subTabEdicion').classList.add('hidden');
-            document.getElementById('subTabResultados').classList.remove('hidden');
-            ['btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            window.updateDashboard();
-        };
-
-        window.openChangePasswordModal = function() {
-            window.showModal("Cambiar Contraseña",
-                `<div class="space-y-3"><input type="password" id="new_pass" class="w-full border rounded-md px-3 py-2" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-md px-3 py-2" placeholder="Confirmar"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden">Las contraseñas no coinciden.</p>`,
-                `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="window.saveNewPassword()" class="px-4 py-2 bg-santillana-orange text-white rounded">Guardar</button>`
-            );
-        };
-
-        window.saveNewPassword = async function() {
-            const p1 = document.getElementById('new_pass').value;
-            const p2 = document.getElementById('new_pass_confirm').value;
-            if(!p1 || p1 !== p2) { document.getElementById('pass_error').classList.remove('hidden'); return; }
-            
-            const idx = window.coachesAuth.findIndex(c => c.email === window.currentCoachEmail);
-            if(idx !== -1) {
-                window.coachesAuth[idx].pass = p1;
-                await window.guardarSistemaDB();
-                window.showModal("Éxito", "<p>Contraseña actualizada.</p>", `<button onclick="window.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Aceptar</button>`);
-            }
-        };
-
-        window.switchDashSubTab = function(subTabId) {
-            ['subTabResultados','subTabEdicion'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            ['btn-sub-resultados','btn-sub-edicion'].forEach(id => {
-                document.getElementById(id).classList.replace('border-[#FF5A00]', 'border-transparent');
-                document.getElementById(id).classList.remove('text-[#FF5A00]'); document.getElementById(id).classList.add('text-gray-500');
-            });
-            if(subTabId === 'resultados') {
-                document.getElementById('subTabResultados').classList.remove('hidden');
-                document.getElementById('btn-sub-resultados').classList.replace('border-transparent', 'border-[#FF5A00]');
-                document.getElementById('btn-sub-resultados').classList.remove('text-gray-500'); document.getElementById('btn-sub-resultados').classList.add('text-[#FF5A00]');
-                window.updateDashboard();
-            } else {
-                document.getElementById('subTabEdicion').classList.remove('hidden');
-                document.getElementById('btn-sub-edicion').classList.replace('border-transparent', 'border-[#FF5A00]');
-                document.getElementById('btn-sub-edicion').classList.remove('text-gray-500'); document.getElementById('btn-sub-edicion').classList.add('text-[#FF5A00]');
-                window.switchEdicionView('colegios');
-            }
-        };
-
-        window.poblarFiltrosDashboard = function() {
-            const selectCoach = document.getElementById('filter_coach');
-            if(!selectCoach || window.currentUserRole === 'coach') return; 
-            selectCoach.innerHTML = '<option value="">Todos los Coaches</option>';
-            getRegiones().forEach(region => {
-                const optGroup = document.createElement('optgroup'); optGroup.label = region;
-                const coachesRegion = getCoaches(region);
-                coachesRegion.forEach(coach => {
-                    const opt = document.createElement('option'); opt.value = coach; opt.textContent = coach;
-                    optGroup.appendChild(opt);
-                });
-                if(coachesRegion.length > 0) selectCoach.appendChild(optGroup);
-            });
-            window.poblarFiltroColegiosDash(""); 
-        };
-
-        window.poblarFiltroColegiosDash = function(coachFiltro) {
-            const selectColegio = document.getElementById('filter_colegio');
-            if(!selectColegio) return;
-            selectColegio.innerHTML = '<option value="">Todos los Colegios</option>';
-            let lista = window.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-            if (coachFiltro) lista = lista.filter(c => c.coach === coachFiltro);
-            [...new Set(lista.map(c => c.colegio))].sort().forEach(col => {
-                const opt = document.createElement('option'); opt.value = col; opt.textContent = col;
-                selectColegio.appendChild(opt);
-            });
-        };
-
-        window.handleDashFilterChange = function(source) {
-            if (source === 'coach') {
-                window.poblarFiltroColegiosDash(document.getElementById('filter_coach').value);
-                document.getElementById('filter_colegio').value = "";
-                const tSel = document.getElementById('filter_taller'); tSel.value = ""; tSel.disabled = true; tSel.classList.add('cursor-not-allowed');
-                document.getElementById('container_filter_taller').classList.add('opacity-50'); tSel.options[0].text = "Requiere seleccionar colegio...";
-            } else if (source === 'colegio') {
-                const col = document.getElementById('filter_colegio').value;
-                const tSel = document.getElementById('filter_taller');
-                if (col !== "") { tSel.disabled = false; tSel.classList.remove('cursor-not-allowed'); document.getElementById('container_filter_taller').classList.remove('opacity-50'); tSel.options[0].text = "Todos los Talleres"; }
-                else { tSel.value = ""; tSel.disabled = true; tSel.classList.add('cursor-not-allowed'); document.getElementById('container_filter_taller').classList.add('opacity-50'); tSel.options[0].text = "Requiere seleccionar colegio..."; }
-            }
-            window.updateDashboard();
-        };
-
-        window.updateDashboard = function() {
-            let data = window.encuestasData;
-            const coachFilter = document.getElementById('filter_coach')?.value || "";
-            const colegioFilter = document.getElementById('filter_colegio')?.value || "";
-            const tallerFilter = document.getElementById('filter_taller')?.value || "";
-
-            if (coachFilter !== "") data = data.filter(d => d.coach === coachFilter);
-            if (colegioFilter !== "") data = data.filter(d => d.colegio === colegioFilter);
-            if (tallerFilter !== "") data = data.filter(d => d.numTaller === tallerFilter);
-            window.currentFilteredData = data; 
-
-            let baseColegiosImpacto = window.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-            if (coachFilter !== "") baseColegiosImpacto = baseColegiosImpacto.filter(c => c.coach === coachFilter);
-            if (colegioFilter !== "") baseColegiosImpacto = baseColegiosImpacto.filter(c => c.colegio === colegioFilter);
-            
-            const metaDocentes = baseColegiosImpacto.reduce((sum, col) => sum + (parseInt(col.docentes) || 0), 0);
-            document.getElementById('display_meta_global').innerText = metaDocentes;
-
-            const totalDocs = data.filter(d => d.perfil === 'Docente').length;
-            const totalDirs = data.filter(d => d.perfil === 'Directivo').length;
-            const colegiosUnicos = new Set(data.map(d => d.colegio.toLowerCase())).size;
-            const talleresUnicos = new Set(data.map(d => d.taller.toLowerCase())).size;
-
-            const impacto = Math.min(((totalDocs + totalDirs) / (metaDocentes || 1)) * 100, 100).toFixed(1);
-
-            document.getElementById('dash_docentes').innerText = totalDocs;
-            document.getElementById('dash_directivos').innerText = totalDirs;
-            document.getElementById('dash_colegios').innerText = colegiosUnicos;
-            document.getElementById('dash_talleres').innerText = talleresUnicos;
-            document.getElementById('dash_impacto').innerText = metaDocentes > 0 ? impacto + '%' : 'N/A';
-
-            if(data.length > 0) {
-                const avg6 = (data.reduce((acc, val) => acc + val.q6, 0) / data.length).toFixed(1);
-                const avg7 = (data.reduce((acc, val) => acc + val.q7, 0) / data.length).toFixed(1);
-                const avg8 = (data.reduce((acc, val) => acc + val.q8, 0) / data.length).toFixed(1);
-                const avg9 = (data.reduce((acc, val) => acc + val.q9, 0) / data.length).toFixed(1);
-
-                document.getElementById('avg_q6').innerText = avg6; document.getElementById('bar_q6').style.width = (avg6 / 5 * 100) + '%';
-                document.getElementById('avg_q7').innerText = avg7; document.getElementById('bar_q7').style.width = (avg7 / 5 * 100) + '%';
-                document.getElementById('avg_q8').innerText = avg8; document.getElementById('bar_q8').style.width = (avg8 / 5 * 100) + '%';
-                document.getElementById('avg_q9').innerText = avg9; document.getElementById('bar_q9').style.width = (avg9 / 5 * 100) + '%';
-            } else {
-                ['q6','q7','q8','q9'].forEach(q => { document.getElementById(`avg_${q}`).innerText = "0.0"; document.getElementById(`bar_${q}`).style.width = "0%"; });
-            }
-
-            const headRegistro = document.getElementById('tabla_registros_head');
-            const thAsistente = window.currentUserRole === 'admin' ? '<th class="px-6 py-3">Asistente</th>' : '';
-            headRegistro.innerHTML = `<tr><th class="px-6 py-3">Fecha</th><th class="px-6 py-3">Colegio</th>${thAsistente}<th class="px-6 py-3">Perfil</th><th class="px-6 py-3">Coach</th><th class="px-6 py-3">Taller</th></tr>`;
-
-            const tabla = document.getElementById('tabla_registros');
-            const listaComent = document.getElementById('comentarios_list');
-            tabla.innerHTML = ''; listaComent.innerHTML = '';
-
-            if(data.length === 0) {
-                tabla.innerHTML = `<tr class="bg-white border-b"><td colspan="${window.currentUserRole === 'admin' ? '6' : '5'}" class="px-6 py-4 text-center">No hay datos disponibles.</td></tr>`;
-                listaComent.innerHTML = '<p class="text-gray-500 text-sm italic">Aún no hay comentarios registrados.</p>';
-                return;
-            }
-
-            [...data].reverse().forEach(row => {
-                const badgeTaller = row.numTaller ? `<span class="px-2 py-0.5 bg-gray-200 rounded text-xs font-semibold mr-1">${row.numTaller}</span><br>` : '';
-                const tdAsistente = window.currentUserRole === 'admin' ? `<td class="px-6 py-4">${row.asistente}</td>` : '';
-                tabla.innerHTML += `<tr class="bg-white border-b hover:bg-orange-50 transition-colors"><td class="px-6 py-4 whitespace-nowrap">${row.fecha.split(',')[0]}</td><td class="px-6 py-4 font-medium text-gray-900">${row.colegio}</td>${tdAsistente}<td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs ${row.perfil==='Docente'?'bg-blue-100 text-blue-800':'bg-green-100 text-green-800'}">${row.perfil}</span></td><td class="px-6 py-4">${row.coach}</td><td class="px-6 py-4 text-xs">${badgeTaller}${row.taller}</td></tr>`;
-                if(row.sugerencias.length > 2) {
-                    const nameDisplay = window.currentUserRole === 'admin' ? `${row.asistente} (${row.perfil})` : `Participante (${row.perfil})`;
-                    listaComent.innerHTML += `<div class="bg-gray-50 p-3 rounded text-sm border-l-2 border-[#FF5A00]"><strong>${nameDisplay} - ${row.numTaller}:</strong> "${row.sugerencias}"</div>`;
+            // --- NAVEGACIÓN Y LOGIN ---
+            switchTab: function(tabId) {
+                document.getElementById('formTab').classList.add('hidden');
+                document.getElementById('dashTab').classList.add('hidden');
+                ['btn-formTab','btn-dashTab','btn-coachTab'].forEach(btn => document.getElementById(btn).classList.remove('tab-active', 'text-santillana-orange', 'border-[#FF5A00]'));
+                document.getElementById(tabId).classList.remove('hidden');
+                
+                if(tabId === 'formTab') document.getElementById('btn-formTab').classList.add('tab-active');
+                else if (tabId === 'dashTab') {
+                    if(State.currentUserRole === 'admin') { document.getElementById('btn-dashTab').classList.add('tab-active'); App.setupAdminDashboard(); }
+                    else if (State.currentUserRole === 'coach') { document.getElementById('btn-coachTab').classList.add('tab-active'); App.setupCoachDashboard(); }
                 }
-            });
-        };
+            },
 
-        // --- EDICIÓN (CRUD DB) ---
-        window.switchEdicionView = function(view) {
-            window.currentEdicionView = view;
-            ['tabla_edicion_colegios_wrapper','tabla_edicion_coaches_wrapper'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            ['btn_view_colegios','btn_view_coaches'].forEach(id => {
-                document.getElementById(id).classList.replace('border-[#FF5A00]', 'border-transparent');
-                document.getElementById(id).classList.replace('text-[#FF5A00]', 'text-gray-500');
-            });
-            if (view === 'colegios') { document.getElementById('tabla_edicion_colegios_wrapper').classList.remove('hidden'); document.getElementById('btn_view_colegios').classList.replace('border-transparent', 'border-[#FF5A00]'); document.getElementById('btn_view_colegios').classList.replace('text-gray-500', 'text-[#FF5A00]'); }
-            else { document.getElementById('tabla_edicion_coaches_wrapper').classList.remove('hidden'); document.getElementById('btn_view_coaches').classList.replace('border-transparent', 'border-[#FF5A00]'); document.getElementById('btn_view_coaches').classList.replace('text-gray-500', 'text-[#FF5A00]'); }
-            window.renderActiveEdicionTable();
-        };
+            attemptLogin: function(role) {
+                if (State.currentUserRole === role) { App.switchTab('dashTab'); return; }
+                const title = role === 'admin' ? "Acceso Dashboard (Coordinadores)" : "Acceso Coach";
+                App.showModal(
+                    title,
+                    `<p class="mb-3 text-sm text-gray-600">Ingrese sus credenciales para acceder:</p>
+                     <div class="space-y-3">
+                         <input type="email" id="loginEmail" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]" placeholder="Correo Electrónico">
+                         <input type="password" id="loginPwd" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]" placeholder="Contraseña">
+                     </div>
+                     <p id="loginError" class="text-red-500 text-sm mt-2 hidden">Credenciales incorrectas.</p>`,
+                    `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md">Cancelar</button>
+                     <button onclick="App.verifyLogin('${role}')" class="px-4 py-2 bg-santillana-orange text-white rounded-md">Ingresar</button>`
+                );
+            },
 
-        window.renderActiveEdicionTable = function() {
-            if (window.currentEdicionView === 'colegios') {
-                const tbody = document.getElementById('tabla_edicion_colegios'); tbody.innerHTML = '';
-                const search = document.getElementById('search_edicion').value.toLowerCase();
-                let count = 0;
-                window.colegiosBD.forEach((row, idx) => {
-                    if(row.colegio === "[NUEVO COACH SIN COLEGIO]") return;
-                    if (search === '' || row.colegio.toLowerCase().includes(search) || row.coach.toLowerCase().includes(search) || row.regional.toLowerCase().includes(search)) {
-                        count++;
-                        tbody.innerHTML += `<tr class="bg-white border-b hover:bg-orange-50 transition-colors w-full table table-fixed"><td class="px-6 py-3 w-1/3 truncate" title="${row.colegio}">${row.colegio}</td><td class="px-6 py-3 w-1/6"><span class="px-2 py-1 bg-gray-100 rounded text-xs">${row.regional}</span></td><td class="px-6 py-3 w-1/4 truncate" title="${row.coach}">${row.coach}</td><td class="px-6 py-3 w-1/12 text-center">${row.docentes || 0}</td><td class="px-6 py-3 w-1/6 text-center"><button onclick="window.openEditColegioModal(${idx})" class="text-santillana-blue mx-1 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="window.confirmDeleteColegio(${idx})" class="text-red-500 mx-1 p-1"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            verifyLogin: function(role) {
+                const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+                const pass = document.getElementById('loginPwd').value;
+                let success = false;
+
+                if(role === 'admin') {
+                    const admin = State.adminUsers.find(u => u.email === email && u.pass === pass);
+                    if (admin) {
+                        State.currentUserRole = 'admin'; 
+                        State.currentUserEmail = admin.email;
+                        success = true;
+                    }
+                } else {
+                    const coach = State.coachesAuth.find(c => c.email.toLowerCase() === email && c.pass === pass);
+                    if (coach) {
+                        State.currentUserRole = 'coach'; 
+                        State.currentCoachName = coach.nombre; 
+                        State.currentUserEmail = coach.email; 
+                        success = true;
+                    }
+                }
+
+                if (success) {
+                    App.hideModal(); 
+                    State.encuestasLoaded = false;
+                    document.getElementById('user-controls').classList.remove('hidden');
+                    document.getElementById('user-controls').classList.add('flex');
+                    App.switchTab('dashTab');
+                } else {
+                    document.getElementById('loginError').classList.remove('hidden');
+                }
+            },
+
+            logout: function() {
+                State.currentUserRole = null;
+                State.currentUserEmail = "";
+                State.currentCoachName = "";
+                State.encuestasData = [];
+                State.encuestasLoaded = false;
+                
+                document.getElementById('user-controls').classList.add('hidden');
+                document.getElementById('user-controls').classList.remove('flex');
+                App.switchTab('formTab');
+            },
+
+            openChangePasswordModal: function() {
+                App.showModal("Cambiar Contraseña",
+                    `<div class="space-y-3">
+                        <input type="password" id="new_pass" class="w-full border rounded-md px-3 py-2" placeholder="Nueva contraseña">
+                        <input type="password" id="new_pass_confirm" class="w-full border rounded-md px-3 py-2" placeholder="Confirmar nueva contraseña">
+                    </div>
+                    <p id="pass_error" class="text-red-500 text-sm mt-2 hidden">Las contraseñas no coinciden o están vacías.</p>`,
+                    `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                     <button onclick="App.saveNewPassword()" class="px-4 py-2 bg-santillana-orange text-white rounded">Guardar</button>`
+                );
+            },
+
+            saveNewPassword: async function() {
+                const p1 = document.getElementById('new_pass').value;
+                const p2 = document.getElementById('new_pass_confirm').value;
+                if(!p1 || p1 !== p2) { document.getElementById('pass_error').classList.remove('hidden'); return; }
+                
+                let updated = false;
+
+                if (State.currentUserRole === 'admin') {
+                    const idx = State.adminUsers.findIndex(u => u.email === State.currentUserEmail);
+                    if(idx !== -1) {
+                        State.adminUsers[idx].pass = p1;
+                        updated = true;
+                    }
+                } else if (State.currentUserRole === 'coach') {
+                    const idx = State.coachesAuth.findIndex(c => c.email === State.currentUserEmail);
+                    if(idx !== -1) {
+                        State.coachesAuth[idx].pass = p1;
+                        updated = true;
+                    }
+                }
+                
+                if (updated) {
+                    await guardarSistemaDB();
+                    App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada correctamente.</p>", `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Aceptar</button>`);
+                }
+            },
+
+            // --- FORMULARIO ENCUESTA ---
+            poblarCoaches: function(filtroColegio = "") {
+                const select = document.getElementById('q4_coach');
+                if(!select) return;
+                select.innerHTML = '<option value="">Seleccione el coach...</option>';
+                let lista = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+                if (filtroColegio) lista = lista.filter(item => item.colegio === filtroColegio);
+                const regiones = [...new Set(lista.map(c => c.regional))];
+                regiones.forEach(region => {
+                    const optGroup = document.createElement('optgroup');
+                    optGroup.label = region;
+                    const coachesEnRegion = [...new Set(lista.filter(c => c.regional === region).map(c => c.coach))];
+                    coachesEnRegion.forEach(coach => {
+                        const option = document.createElement('option');
+                        option.value = coach; option.textContent = coach;
+                        optGroup.appendChild(option);
+                    });
+                    if (coachesEnRegion.length > 0) select.appendChild(optGroup);
+                });
+            },
+
+            handleColegioInput: function() {
+                const inputVal = document.getElementById('q1_colegio').value.toLowerCase();
+                const customList = document.getElementById('listaColegiosCustom');
+                customList.innerHTML = '';
+                if (inputVal.length === 0) {
+                    customList.classList.add('hidden');
+                    if (document.getElementById('q4_coach').value === "") App.poblarCoaches();
+                    return;
+                }
+                const coachFilter = document.getElementById('q4_coach').value;
+                let lista = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+                if (coachFilter) lista = lista.filter(item => item.coach === coachFilter);
+                const matches = [...new Set(lista.map(item => item.colegio))].filter(col => col.toLowerCase().includes(inputVal));
+
+                if (matches.length > 0) {
+                    matches.forEach(col => {
+                        const li = document.createElement('li');
+                        li.className = 'px-3 py-2 cursor-pointer hover:bg-orange-50 text-sm text-gray-700 border-b border-gray-100 last:border-none';
+                        li.textContent = col;
+                        li.onmousedown = (e) => { e.preventDefault(); App.selectColegio(col); };
+                        customList.appendChild(li);
+                    });
+                    customList.classList.remove('hidden');
+                } else {
+                    const li = document.createElement('li');
+                    li.className = 'px-3 py-2 text-sm text-gray-500 italic';
+                    li.textContent = 'No se encontraron colegios...';
+                    customList.appendChild(li); customList.classList.remove('hidden');
+                }
+            },
+
+            selectColegio: function(nombre) {
+                document.getElementById('q1_colegio').value = nombre;
+                document.getElementById('listaColegiosCustom').classList.add('hidden');
+                const infoColegio = State.colegiosBD.find(c => c.colegio === nombre);
+                if (infoColegio) {
+                    const selectCoach = document.getElementById('q4_coach');
+                    if (!Array.from(selectCoach.options).some(opt => opt.value === infoColegio.coach)) App.poblarCoaches(nombre);
+                    selectCoach.value = infoColegio.coach;
+                }
+            },
+
+            handleCoachChange: function() {
+                const coachSeleccionado = document.getElementById('q4_coach').value;
+                const colegioActual = document.getElementById('q1_colegio').value;
+                if (colegioActual && coachSeleccionado) {
+                    if (!State.colegiosBD.some(c => c.colegio === colegioActual && c.coach === coachSeleccionado)) {
+                        document.getElementById('q1_colegio').value = '';
+                    }
+                }
+            },
+
+            submitForm: async function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('btnSubmitForm');
+                btn.innerText = "Guardando..."; btn.disabled = true;
+
+                const formData = {
+                    fecha: new Date().toLocaleString(),
+                    ciclo: document.getElementById('ciclo').value,
+                    colegio: document.getElementById('q1_colegio').value.trim(),
+                    asistente: document.getElementById('q2_asistente').value.trim(),
+                    perfil: document.querySelector('input[name="q3_perfil"]:checked').value,
+                    coach: document.getElementById('q4_coach').value,
+                    numTaller: document.getElementById('q5_numTaller').value,
+                    taller: document.getElementById('q5_taller').value.trim(),
+                    q6: parseInt(document.querySelector('input[name="q6"]:checked').value),
+                    q7: parseInt(document.querySelector('input[name="q7"]:checked').value),
+                    q8: parseInt(document.querySelector('input[name="q8"]:checked').value),
+                    q9: parseInt(document.querySelector('input[name="q9"]:checked').value),
+                    sugerencias: document.getElementById('q10_sugerencias').value.trim()
+                };
+
+                try {
+                    const docRef = await addDoc(collection(db, "encuestas"), formData);
+                    if(State.encuestasLoaded) State.encuestasData.push({ id: docRef.id, ...formData });
+                    
+                    document.getElementById('encuestaForm').reset();
+                    App.poblarCoaches(); 
+                    const msg = document.getElementById('successMsg');
+                    msg.classList.remove('hidden');
+                    setTimeout(() => { msg.classList.add('hidden'); }, 5000);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if(State.currentUserRole) App.updateDashboard();
+                } catch (error) {
+                    console.error(error); alert("Error al guardar encuesta");
+                } finally {
+                    btn.innerText = "Enviar Feedback"; btn.disabled = false;
+                }
+            },
+
+            // --- DASHBOARD CORE ---
+            setupAdminDashboard: async function() {
+                await fetchEncuestas();
+                document.getElementById('adminSubNav').classList.remove('hidden');
+                document.getElementById('coachWelcomeBar').classList.add('hidden');
+                document.getElementById('container_filter_coach').classList.remove('hidden');
+                App.poblarFiltrosDashboard();
+                App.switchDashSubTab('resultados');
+                ['btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+            },
+
+            setupCoachDashboard: async function() {
+                await fetchEncuestas();
+                document.getElementById('adminSubNav').classList.add('hidden');
+                document.getElementById('coachWelcomeBar').classList.remove('hidden');
+                document.getElementById('display_coach_name').innerText = State.currentCoachName;
+                document.getElementById('container_filter_coach').classList.add('hidden');
+                
+                const selCoach = document.getElementById('filter_coach');
+                selCoach.innerHTML = `<option value="${State.currentCoachName}">${State.currentCoachName}</option>`;
+                selCoach.value = State.currentCoachName;
+                
+                App.poblarFiltroColegiosDash(State.currentCoachName);
+                document.getElementById('subTabEdicion').classList.add('hidden');
+                document.getElementById('subTabResultados').classList.remove('hidden');
+                ['btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.add('hidden'));
+                App.updateDashboard();
+            },
+
+            switchDashSubTab: function(subTabId) {
+                ['subTabResultados','subTabEdicion'].forEach(id => document.getElementById(id).classList.add('hidden'));
+                ['btn-sub-resultados','btn-sub-edicion'].forEach(id => {
+                    document.getElementById(id).classList.replace('border-[#FF5A00]', 'border-transparent');
+                    document.getElementById(id).classList.replace('text-[#FF5A00]', 'text-gray-500');
+                });
+                if(subTabId === 'resultados') {
+                    document.getElementById('subTabResultados').classList.remove('hidden');
+                    document.getElementById('btn-sub-resultados').classList.replace('border-transparent', 'border-[#FF5A00]');
+                    document.getElementById('btn-sub-resultados').classList.replace('text-gray-500', 'text-[#FF5A00]');
+                    App.updateDashboard();
+                } else {
+                    document.getElementById('subTabEdicion').classList.remove('hidden');
+                    document.getElementById('btn-sub-edicion').classList.replace('border-transparent', 'border-[#FF5A00]');
+                    document.getElementById('btn-sub-edicion').classList.replace('text-gray-500', 'text-[#FF5A00]');
+                    App.switchEdicionView('colegios');
+                }
+            },
+
+            poblarFiltrosDashboard: function() {
+                const selectCoach = document.getElementById('filter_coach');
+                if(!selectCoach || State.currentUserRole === 'coach') return; 
+                selectCoach.innerHTML = '<option value="">Todos los Coaches</option>';
+                getRegiones().forEach(region => {
+                    const optGroup = document.createElement('optgroup'); optGroup.label = region;
+                    const coachesRegion = getCoaches(region);
+                    coachesRegion.forEach(coach => {
+                        const opt = document.createElement('option'); opt.value = coach; opt.textContent = coach;
+                        optGroup.appendChild(opt);
+                    });
+                    if(coachesRegion.length > 0) selectCoach.appendChild(optGroup);
+                });
+                App.poblarFiltroColegiosDash(""); 
+            },
+
+            poblarFiltroColegiosDash: function(coachFiltro) {
+                const selectColegio = document.getElementById('filter_colegio');
+                if(!selectColegio) return;
+                selectColegio.innerHTML = '<option value="">Todos los Colegios</option>';
+                let lista = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+                if (coachFiltro) lista = lista.filter(c => c.coach === coachFiltro);
+                [...new Set(lista.map(c => c.colegio))].sort().forEach(col => {
+                    const opt = document.createElement('option'); opt.value = col; opt.textContent = col;
+                    selectColegio.appendChild(opt);
+                });
+            },
+
+            handleDashFilterChange: function(source) {
+                if (source === 'coach') {
+                    App.poblarFiltroColegiosDash(document.getElementById('filter_coach').value);
+                    document.getElementById('filter_colegio').value = "";
+                    const tSel = document.getElementById('filter_taller'); tSel.value = ""; tSel.disabled = true; tSel.classList.add('cursor-not-allowed');
+                    document.getElementById('container_filter_taller').classList.add('opacity-50'); tSel.options[0].text = "Requiere seleccionar colegio...";
+                } else if (source === 'colegio') {
+                    const col = document.getElementById('filter_colegio').value;
+                    const tSel = document.getElementById('filter_taller');
+                    if (col !== "") { tSel.disabled = false; tSel.classList.remove('cursor-not-allowed'); document.getElementById('container_filter_taller').classList.remove('opacity-50'); tSel.options[0].text = "Todos los Talleres"; }
+                    else { tSel.value = ""; tSel.disabled = true; tSel.classList.add('cursor-not-allowed'); document.getElementById('container_filter_taller').classList.add('opacity-50'); tSel.options[0].text = "Requiere seleccionar colegio..."; }
+                }
+                App.updateDashboard();
+            },
+
+            updateDashboard: function() {
+                let data = State.encuestasData;
+                const coachFilter = document.getElementById('filter_coach')?.value || "";
+                const colegioFilter = document.getElementById('filter_colegio')?.value || "";
+                const tallerFilter = document.getElementById('filter_taller')?.value || "";
+
+                if (coachFilter !== "") data = data.filter(d => d.coach === coachFilter);
+                if (colegioFilter !== "") data = data.filter(d => d.colegio === colegioFilter);
+                if (tallerFilter !== "") data = data.filter(d => d.numTaller === tallerFilter);
+                State.currentFilteredData = data; 
+
+                let baseColegiosImpacto = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+                if (coachFilter !== "") baseColegiosImpacto = baseColegiosImpacto.filter(c => c.coach === coachFilter);
+                if (colegioFilter !== "") baseColegiosImpacto = baseColegiosImpacto.filter(c => c.colegio === colegioFilter);
+                
+                const metaDocentes = baseColegiosImpacto.reduce((sum, col) => sum + (parseInt(col.docentes) || 0), 0);
+                document.getElementById('display_meta_global').innerText = metaDocentes;
+
+                const totalDocs = data.filter(d => d.perfil === 'Docente').length;
+                const totalDirs = data.filter(d => d.perfil === 'Directivo').length;
+                const colegiosUnicos = new Set(data.map(d => d.colegio.toLowerCase())).size;
+                const talleresUnicos = new Set(data.map(d => d.taller.toLowerCase())).size;
+
+                const impacto = Math.min(((totalDocs + totalDirs) / (metaDocentes || 1)) * 100, 100).toFixed(1);
+
+                document.getElementById('dash_docentes').innerText = totalDocs;
+                document.getElementById('dash_directivos').innerText = totalDirs;
+                document.getElementById('dash_colegios').innerText = colegiosUnicos;
+                document.getElementById('dash_talleres').innerText = talleresUnicos;
+                document.getElementById('dash_impacto').innerText = metaDocentes > 0 ? impacto + '%' : 'N/A';
+
+                if(data.length > 0) {
+                    const avg6 = (data.reduce((acc, val) => acc + val.q6, 0) / data.length).toFixed(1);
+                    const avg7 = (data.reduce((acc, val) => acc + val.q7, 0) / data.length).toFixed(1);
+                    const avg8 = (data.reduce((acc, val) => acc + val.q8, 0) / data.length).toFixed(1);
+                    const avg9 = (data.reduce((acc, val) => acc + val.q9, 0) / data.length).toFixed(1);
+
+                    document.getElementById('avg_q6').innerText = avg6; document.getElementById('bar_q6').style.width = (avg6 / 5 * 100) + '%';
+                    document.getElementById('avg_q7').innerText = avg7; document.getElementById('bar_q7').style.width = (avg7 / 5 * 100) + '%';
+                    document.getElementById('avg_q8').innerText = avg8; document.getElementById('bar_q8').style.width = (avg8 / 5 * 100) + '%';
+                    document.getElementById('avg_q9').innerText = avg9; document.getElementById('bar_q9').style.width = (avg9 / 5 * 100) + '%';
+                } else {
+                    ['q6','q7','q8','q9'].forEach(q => { document.getElementById(`avg_${q}`).innerText = "0.0"; document.getElementById(`bar_${q}`).style.width = "0%"; });
+                }
+
+                const headRegistro = document.getElementById('tabla_registros_head');
+                const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-3">Asistente</th>' : '';
+                headRegistro.innerHTML = `<tr><th class="px-6 py-3">Fecha</th><th class="px-6 py-3">Colegio</th>${thAsistente}<th class="px-6 py-3">Perfil</th><th class="px-6 py-3">Coach</th><th class="px-6 py-3">Taller</th></tr>`;
+
+                const tabla = document.getElementById('tabla_registros');
+                const listaComent = document.getElementById('comentarios_list');
+                tabla.innerHTML = ''; listaComent.innerHTML = '';
+
+                if(data.length === 0) {
+                    tabla.innerHTML = `<tr class="bg-white border-b"><td colspan="${State.currentUserRole === 'admin' ? '6' : '5'}" class="px-6 py-4 text-center">No hay datos disponibles.</td></tr>`;
+                    listaComent.innerHTML = '<p class="text-gray-500 text-sm italic">Aún no hay comentarios registrados.</p>';
+                    return;
+                }
+
+                [...data].reverse().forEach(row => {
+                    const badgeTaller = row.numTaller ? `<span class="px-2 py-0.5 bg-gray-200 rounded text-xs font-semibold mr-1">${row.numTaller}</span><br>` : '';
+                    const tdAsistente = State.currentUserRole === 'admin' ? `<td class="px-6 py-4">${row.asistente}</td>` : '';
+                    tabla.innerHTML += `<tr class="bg-white border-b hover:bg-orange-50 transition-colors"><td class="px-6 py-4 whitespace-nowrap">${row.fecha.split(',')[0]}</td><td class="px-6 py-4 font-medium text-gray-900">${row.colegio}</td>${tdAsistente}<td class="px-6 py-4"><span class="px-2 py-1 rounded text-xs ${row.perfil==='Docente'?'bg-blue-100 text-blue-800':'bg-green-100 text-green-800'}">${row.perfil}</span></td><td class="px-6 py-4">${row.coach}</td><td class="px-6 py-4 text-xs">${badgeTaller}${row.taller}</td></tr>`;
+                    if(row.sugerencias.length > 2) {
+                        const nameDisplay = State.currentUserRole === 'admin' ? `${row.asistente} (${row.perfil})` : `Participante (${row.perfil})`;
+                        listaComent.innerHTML += `<div class="bg-gray-50 p-3 rounded text-sm border-l-2 border-[#FF5A00]"><strong>${nameDisplay} - ${row.numTaller}:</strong> "${row.sugerencias}"</div>`;
                     }
                 });
-                if (count === 0) tbody.innerHTML = '<tr class="bg-white w-full table table-fixed"><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">No hay resultados.</td></tr>';
-            } else {
-                const tbody = document.getElementById('tabla_edicion_coaches'); tbody.innerHTML = '';
-                const search = document.getElementById('search_edicion').value.toLowerCase();
-                let count = 0;
-                window.coachesAuth.forEach((coach, idx) => {
-                    if (search === '' || coach.nombre.toLowerCase().includes(search) || coach.email.toLowerCase().includes(search) || coach.regional.toLowerCase().includes(search)) {
-                        count++;
-                        const cols = window.colegiosBD.filter(c => c.coach === coach.nombre && c.colegio !== "[NUEVO COACH SIN COLEGIO]").length;
-                        tbody.innerHTML += `<tr class="bg-white border-b hover:bg-orange-50 w-full table table-fixed"><td class="px-6 py-3 w-1/4 truncate">${coach.nombre}</td><td class="px-6 py-3 w-1/4 truncate">${coach.email}</td><td class="px-6 py-3 w-1/6"><span class="px-2 py-1 bg-gray-100 rounded text-xs">${coach.regional}</span></td><td class="px-6 py-3 w-1/6 text-center font-bold">${cols}</td><td class="px-6 py-3 w-1/6 text-center"><button onclick="window.openEditCoachModal(${idx})" class="text-santillana-blue mx-1 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="window.confirmDeleteCoach(${idx})" class="text-red-500 mx-1 p-1"><i class="fa-solid fa-trash"></i></button></td></tr>`;
-                    }
+            },
+
+            // --- IMPORTAR, EXPORTAR, BORRAR (ENCUESTAS) ---
+            exportToExcel: function() {
+                if(State.encuestasData.length === 0) { alert("No hay datos para exportar"); return; }
+                const cleanData = State.encuestasData.map(d => {
+                    const obj = {...d}; delete obj.id; return obj;
                 });
-                if (count === 0) tbody.innerHTML = '<tr class="bg-white w-full table table-fixed"><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">No hay resultados.</td></tr>';
-            }
-        };
+                const ws = XLSX.utils.json_to_sheet(cleanData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Encuestas");
+                XLSX.writeFile(wb, "Resultados_Encuestas.xlsx");
+            },
 
-        window.triggerAddAction = function() { window.currentEdicionView === 'colegios' ? window.openEditColegioModal(-1) : window.openEditCoachModal(-1); };
+            triggerImportEncuestas: function() {
+                document.getElementById('fileImportEncuestas').click();
+            },
 
-        window.openEditColegioModal = function(index) {
-            const isEdit = index >= 0;
-            const data = isEdit ? window.colegiosBD[index] : { colegio: '', regional: '', coach: '', docentes: 0 };
-            let optionsReg = `<option value="">Seleccione Regional...</option>`;
-            getRegiones().forEach(r => optionsReg += `<option value="${r}" ${data.regional === r ? 'selected' : ''}>${r}</option>`);
+            clearData: function() {
+                App.showModal(
+                    "Peligro: Borrar Todo",
+                    "<p class='text-red-600 font-bold mb-2'>¿Estás absolutamente seguro?</p><p class='text-sm'>Esto eliminará todas las encuestas permanentemente de la base de datos.</p>",
+                    `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button>
+                     <button onclick="App.executeClearData()" id="btnConfirmClear" class="px-4 py-2 bg-red-600 text-white rounded">Sí, borrar todo</button>`
+                );
+            },
 
-            window.showModal(isEdit ? "Editar Colegio" : "Nuevo Colegio",
-                `<div class="space-y-4 text-left">
-                    <div><label class="block text-sm font-semibold mb-1">Nombre Colegio <span class="text-red-500">*</span></label><input type="text" id="edit_colegio" value="${data.colegio}" class="w-full border rounded px-3 py-2"></div>
-                    <div><label class="block text-sm font-semibold mb-1">Regional <span class="text-red-500">*</span></label><select id="edit_regional" onchange="window.updateEditCoachOptions()" class="w-full border rounded px-3 py-2">${optionsReg}</select></div>
-                    <div><label class="block text-sm font-semibold mb-1">Coach Asignado <span class="text-red-500">*</span></label><select id="edit_coach" class="w-full border rounded px-3 py-2"><option value="">Primero seleccione regional...</option></select></div>
-                    <div><label class="block text-sm font-semibold mb-1">Docentes (Meta)</label><input type="number" id="edit_docentes" value="${data.docentes}" class="w-full border rounded px-3 py-2"></div>
-                    <p id="edit_error" class="text-red-500 text-sm hidden">Llene los campos obligatorios.</p>
-                </div>`,
-                `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="window.saveEditColegio(${index})" class="px-4 py-2 bg-santillana-orange text-white rounded">${isEdit ? 'Guardar' : 'Crear'}</button>`
-            );
-            if(data.regional) setTimeout(() => window.updateEditCoachOptions(data.coach), 50);
-        };
+            executeClearData: async function() {
+                const btn = document.getElementById('btnConfirmClear');
+                btn.innerText = "Borrando..."; btn.disabled = true;
+                try {
+                    for(const enc of State.encuestasData) {
+                        await deleteDoc(doc(db, "encuestas", enc.id));
+                    }
+                    State.encuestasData = [];
+                    App.updateDashboard();
+                    App.hideModal();
+                } catch(e) {
+                    console.error("Error borrando", e); alert("Error al borrar encuestas");
+                }
+            },
 
-        window.updateEditCoachOptions = function(selectedCoach = "") {
-            const reg = document.getElementById('edit_regional').value;
-            const selectC = document.getElementById('edit_coach');
-            selectC.innerHTML = '<option value="">Seleccione Coach...</option>';
-            if(reg) getCoaches(reg).forEach(c => selectC.innerHTML += `<option value="${c}" ${c === selectedCoach ? 'selected' : ''}>${c}</option>`);
-        };
+            // --- IMPORTAR, EXPORTAR (EDICIÓN BASE DE DATOS) ---
+            exportColegios: function() {
+                const ws = XLSX.utils.json_to_sheet(State.colegiosBD);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Colegios_BD");
+                XLSX.writeFile(wb, "BaseDatos_Colegios.xlsx");
+            },
 
-        window.saveEditColegio = async function(index) {
-            const colegio = document.getElementById('edit_colegio').value.trim().toUpperCase();
-            const regional = document.getElementById('edit_regional').value;
-            const coach = document.getElementById('edit_coach').value;
-            const docentes = parseInt(document.getElementById('edit_docentes').value) || 0;
-            if (!colegio || !regional || !coach) { document.getElementById('edit_error').classList.remove('hidden'); return; }
+            triggerImportColegios: function() {
+                document.getElementById('fileImportColegios').click();
+            },
 
-            if (index >= 0) window.colegiosBD[index] = { colegio, regional, coach, docentes };
-            else window.colegiosBD.unshift({ colegio, regional, coach, docentes });
+            // --- EDICIÓN INTERFAZ (CRUD) ---
+            switchEdicionView: function(view) {
+                State.currentEdicionView = view;
+                ['tabla_edicion_colegios_wrapper','tabla_edicion_coaches_wrapper'].forEach(id => document.getElementById(id).classList.add('hidden'));
+                ['btn_view_colegios','btn_view_coaches'].forEach(id => {
+                    document.getElementById(id).classList.replace('border-[#FF5A00]', 'border-transparent');
+                    document.getElementById(id).classList.replace('text-[#FF5A00]', 'text-gray-500');
+                });
+                if (view === 'colegios') { document.getElementById('tabla_edicion_colegios_wrapper').classList.remove('hidden'); document.getElementById('btn_view_colegios').classList.replace('border-transparent', 'border-[#FF5A00]'); document.getElementById('btn_view_colegios').classList.replace('text-gray-500', 'text-[#FF5A00]'); }
+                else { document.getElementById('tabla_edicion_coaches_wrapper').classList.remove('hidden'); document.getElementById('btn_view_coaches').classList.replace('border-transparent', 'border-[#FF5A00]'); document.getElementById('btn_view_coaches').classList.replace('text-gray-500', 'text-[#FF5A00]'); }
+                App.renderActiveEdicionTable();
+            },
 
-            await window.guardarSistemaDB();
-            window.hideModal(); window.renderActiveEdicionTable(); window.poblarCoaches(); window.poblarFiltrosDashboard();
-        };
+            renderActiveEdicionTable: function() {
+                if (State.currentEdicionView === 'colegios') {
+                    const tbody = document.getElementById('tabla_edicion_colegios'); tbody.innerHTML = '';
+                    const search = document.getElementById('search_edicion').value.toLowerCase();
+                    let count = 0;
+                    State.colegiosBD.forEach((row, idx) => {
+                        if(row.colegio === "[NUEVO COACH SIN COLEGIO]") return;
+                        if (search === '' || row.colegio.toLowerCase().includes(search) || row.coach.toLowerCase().includes(search) || row.regional.toLowerCase().includes(search)) {
+                            count++;
+                            tbody.innerHTML += `<tr class="bg-white border-b hover:bg-orange-50 transition-colors w-full table table-fixed"><td class="px-6 py-3 w-1/3 truncate" title="${row.colegio}">${row.colegio}</td><td class="px-6 py-3 w-1/6"><span class="px-2 py-1 bg-gray-100 rounded text-xs">${row.regional}</span></td><td class="px-6 py-3 w-1/4 truncate" title="${row.coach}">${row.coach}</td><td class="px-6 py-3 w-1/12 text-center">${row.docentes || 0}</td><td class="px-6 py-3 w-1/6 text-center"><button onclick="App.openEditColegioModal(${idx})" class="text-santillana-blue mx-1 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="App.confirmDeleteColegio(${idx})" class="text-red-500 mx-1 p-1"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+                        }
+                    });
+                    if (count === 0) tbody.innerHTML = '<tr class="bg-white w-full table table-fixed"><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">No hay resultados.</td></tr>';
+                } else {
+                    const tbody = document.getElementById('tabla_edicion_coaches'); tbody.innerHTML = '';
+                    const search = document.getElementById('search_edicion').value.toLowerCase();
+                    let count = 0;
+                    State.coachesAuth.forEach((coach, idx) => {
+                        if (search === '' || coach.nombre.toLowerCase().includes(search) || coach.email.toLowerCase().includes(search) || coach.regional.toLowerCase().includes(search)) {
+                            count++;
+                            const cols = State.colegiosBD.filter(c => c.coach === coach.nombre && c.colegio !== "[NUEVO COACH SIN COLEGIO]").length;
+                            tbody.innerHTML += `<tr class="bg-white border-b hover:bg-orange-50 w-full table table-fixed"><td class="px-6 py-3 w-1/4 truncate">${coach.nombre}</td><td class="px-6 py-3 w-1/4 truncate">${coach.email}</td><td class="px-6 py-3 w-1/6"><span class="px-2 py-1 bg-gray-100 rounded text-xs">${coach.regional}</span></td><td class="px-6 py-3 w-1/6 text-center font-bold">${cols}</td><td class="px-6 py-3 w-1/6 text-center"><button onclick="App.openEditCoachModal(${idx})" class="text-santillana-blue mx-1 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="App.confirmDeleteCoach(${idx})" class="text-red-500 mx-1 p-1"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+                        }
+                    });
+                    if (count === 0) tbody.innerHTML = '<tr class="bg-white w-full table table-fixed"><td colspan="5" class="px-6 py-8 text-center text-gray-500 italic">No hay resultados.</td></tr>';
+                }
+            },
 
-        window.confirmDeleteColegio = function(index) {
-            window.showModal("Eliminar Colegio", `<p>¿Eliminar al colegio <strong>${window.colegiosBD[index].colegio}</strong>?</p>`, `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="window.executeDeleteColegio(${index})" class="px-4 py-2 bg-red-600 text-white rounded">Eliminar</button>`);
-        };
+            triggerAddAction: function() { State.currentEdicionView === 'colegios' ? App.openEditColegioModal(-1) : App.openEditCoachModal(-1); },
 
-        window.executeDeleteColegio = async function(index) {
-            window.colegiosBD.splice(index, 1);
-            await window.guardarSistemaDB();
-            window.hideModal(); window.renderActiveEdicionTable(); window.poblarCoaches(); window.poblarFiltrosDashboard();
-        };
+            openEditColegioModal: function(index) {
+                const isEdit = index >= 0;
+                const data = isEdit ? State.colegiosBD[index] : { colegio: '', regional: '', coach: '', docentes: 0 };
+                let optionsReg = `<option value="">Seleccione Regional...</option>`;
+                getRegiones().forEach(r => optionsReg += `<option value="${r}" ${data.regional === r ? 'selected' : ''}>${r}</option>`);
 
-        window.openEditCoachModal = function(index) {
-            const isEdit = index >= 0;
-            const data = isEdit ? window.coachesAuth[index] : { nombre: '', email: '', pass: '12345', regional: '' };
-            let optionsReg = `<option value="">Seleccione o escriba...</option>`;
-            getRegiones().forEach(r => optionsReg += `<option value="${r}" ${data.regional === r ? 'selected' : ''}>${r}</option>`);
+                App.showModal(isEdit ? "Editar Colegio" : "Nuevo Colegio",
+                    `<div class="space-y-4 text-left">
+                        <div><label class="block text-sm font-semibold mb-1">Nombre Colegio <span class="text-red-500">*</span></label><input type="text" id="edit_colegio" value="${data.colegio}" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm font-semibold mb-1">Regional <span class="text-red-500">*</span></label><select id="edit_regional" onchange="App.updateEditCoachOptions()" class="w-full border rounded px-3 py-2">${optionsReg}</select></div>
+                        <div><label class="block text-sm font-semibold mb-1">Coach Asignado <span class="text-red-500">*</span></label><select id="edit_coach" class="w-full border rounded px-3 py-2"><option value="">Primero seleccione regional...</option></select></div>
+                        <div><label class="block text-sm font-semibold mb-1">Docentes (Meta)</label><input type="number" id="edit_docentes" value="${data.docentes}" class="w-full border rounded px-3 py-2"></div>
+                        <p id="edit_error" class="text-red-500 text-sm hidden">Llene los campos obligatorios.</p>
+                    </div>`,
+                    `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="App.saveEditColegio(${index})" class="px-4 py-2 bg-santillana-orange text-white rounded">${isEdit ? 'Guardar' : 'Crear'}</button>`
+                );
+                if(data.regional) setTimeout(() => App.updateEditCoachOptions(data.coach), 50);
+            },
 
-            window.showModal(isEdit ? "Editar Coach" : "Nuevo Coach",
-                `<div class="space-y-4 text-left">
-                    <div><label class="block text-sm font-semibold mb-1">Nombre Completo <span class="text-red-500">*</span></label><input type="text" id="edit_coach_name" value="${data.nombre}" class="w-full border rounded px-3 py-2"></div>
-                    <div><label class="block text-sm font-semibold mb-1">Correo (Login) <span class="text-red-500">*</span></label><input type="email" id="edit_coach_email" value="${data.email}" class="w-full border rounded px-3 py-2"></div>
-                    <div><label class="block text-sm font-semibold mb-1">Contraseña</label><input type="text" id="edit_coach_pass" value="${data.pass}" class="w-full border rounded px-3 py-2"></div>
-                    <div><label class="block text-sm font-semibold mb-1">Regional <span class="text-red-500">*</span></label><select id="edit_coach_reg_select" onchange="window.checkCustomRegionalCoach()" class="w-full border rounded px-3 py-2 mb-2">${optionsReg}<option value="OTRA">-- OTRA NUEVA REGIONAL --</option></select><input type="text" id="edit_coach_reg_text" placeholder="Escriba nueva regional" class="w-full border rounded px-3 py-2 hidden uppercase"></div>
-                    <p id="edit_error_coach" class="text-red-500 text-sm hidden">Nombre, correo y regional son obligatorios.</p>
-                </div>`,
-                `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="window.saveEditCoach(${index})" class="px-4 py-2 bg-santillana-orange text-white rounded">${isEdit ? 'Guardar' : 'Registrar'}</button>`
-            );
-        };
+            updateEditCoachOptions: function(selectedCoach = "") {
+                const reg = document.getElementById('edit_regional').value;
+                const selectC = document.getElementById('edit_coach');
+                selectC.innerHTML = '<option value="">Seleccione Coach...</option>';
+                if(reg) getCoaches(reg).forEach(c => selectC.innerHTML += `<option value="${c}" ${c === selectedCoach ? 'selected' : ''}>${c}</option>`);
+            },
 
-        window.checkCustomRegionalCoach = function() {
-            document.getElementById('edit_coach_reg_text').classList.toggle('hidden', document.getElementById('edit_coach_reg_select').value !== 'OTRA');
-        };
+            saveEditColegio: async function(index) {
+                const colegio = document.getElementById('edit_colegio').value.trim().toUpperCase();
+                const regional = document.getElementById('edit_regional').value;
+                const coach = document.getElementById('edit_coach').value;
+                const docentes = parseInt(document.getElementById('edit_docentes').value) || 0;
+                if (!colegio || !regional || !coach) { document.getElementById('edit_error').classList.remove('hidden'); return; }
 
-        window.saveEditCoach = async function(index) {
-            let coachName = document.getElementById('edit_coach_name').value.trim();
-            const email = document.getElementById('edit_coach_email').value.trim().toLowerCase();
-            const pass = document.getElementById('edit_coach_pass').value.trim();
-            const selReg = document.getElementById('edit_coach_reg_select').value;
-            let regional = selReg === 'OTRA' ? document.getElementById('edit_coach_reg_text').value.trim().toUpperCase() : selReg;
+                if (index >= 0) State.colegiosBD[index] = { colegio, regional, coach, docentes };
+                else State.colegiosBD.unshift({ colegio, regional, coach, docentes });
 
-            if (!coachName || !regional || !email) { document.getElementById('edit_error_coach').classList.remove('hidden'); return; }
-            coachName = coachName.replace(/\b\w/g, l => l.toUpperCase());
+                await guardarSistemaDB();
+                App.hideModal(); App.renderActiveEdicionTable(); App.poblarCoaches(); App.poblarFiltrosDashboard();
+            },
 
-            if(index >= 0) {
-                const oldName = window.coachesAuth[index].nombre;
-                window.coachesAuth[index] = { nombre: coachName, email, pass, regional };
-                if (oldName !== coachName) window.colegiosBD.forEach(c => { if(c.coach === oldName) c.coach = coachName; });
-            } else {
-                window.coachesAuth.push({ nombre: coachName, email, pass, regional });
-                window.colegiosBD.unshift({ colegio: "[NUEVO COACH SIN COLEGIO]", regional, coach: coachName, docentes: 0 }); 
-            }
+            confirmDeleteColegio: function(index) {
+                App.showModal("Eliminar Colegio", `<p>¿Eliminar al colegio <strong>${State.colegiosBD[index].colegio}</strong>?</p>`, `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="App.executeDeleteColegio(${index})" class="px-4 py-2 bg-red-600 text-white rounded">Eliminar</button>`);
+            },
 
-            await window.guardarSistemaDB();
-            window.hideModal(); window.renderActiveEdicionTable(); window.poblarCoaches(); window.poblarFiltrosDashboard();
-        };
+            executeDeleteColegio: async function(index) {
+                State.colegiosBD.splice(index, 1);
+                await guardarSistemaDB();
+                App.hideModal(); App.renderActiveEdicionTable(); App.poblarCoaches(); App.poblarFiltrosDashboard();
+            },
 
-        window.confirmDeleteCoach = function(index) {
-            window.showModal("Eliminar Coach", `<p>¿Eliminar al coach <strong>${window.coachesAuth[index].nombre}</strong>?</p><p class="text-xs text-red-500 mt-2">Sus colegios quedarán "Sin asignar".</p>`, `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="window.executeDeleteCoach(${index})" class="px-4 py-2 bg-red-600 text-white rounded">Eliminar</button>`);
-        };
-
-        window.executeDeleteCoach = async function(index) {
-            const coachName = window.coachesAuth[index].nombre;
-            window.coachesAuth.splice(index, 1);
-            window.colegiosBD.forEach(c => { if(c.coach === coachName) c.coach = "Sin asignar"; });
-            window.colegiosBD = window.colegiosBD.filter(c => !(c.colegio === "[NUEVO COACH SIN COLEGIO]" && c.coach === coachName));
-            await window.guardarSistemaDB();
-            window.hideModal(); window.renderActiveEdicionTable(); window.poblarCoaches(); window.poblarFiltrosDashboard();
-        };
-
-        // --- EXPORT / IMPORT / EXTRAS ---
-        window.mostrarColegiosPendientes = function() {
-            const coachFilter = document.getElementById('filter_coach').value;
-            let colegiosEvaluados = window.encuestasData;
-            if (coachFilter !== "") colegiosEvaluados = colegiosEvaluados.filter(d => d.coach === coachFilter);
-            const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
-
-            let listaBase = window.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-            if (coachFilter !== "") listaBase = listaBase.filter(c => c.coach === coachFilter);
-
-            const pendientes = listaBase.filter(c => !setEvaluados.has(c.colegio.toLowerCase()));
-            let html = `<p class="mb-4 text-sm">Colegios sin encuesta registrada${coachFilter ? ` para <b>${coachFilter}</b>` : ''}:</p>`;
-            if(pendientes.length === 0) html += `<div class="p-4 bg-green-50 text-green-700 rounded text-center">¡Todos han participado!</div>`;
-            else {
-                html += `<ul class="list-disc pl-5 space-y-1 text-sm h-64 overflow-y-auto">`;
-                pendientes.forEach(p => html += `<li><strong>${p.colegio}</strong> <span class="text-gray-400 text-xs">(${p.coach})</span></li>`);
-                html += `</ul>`;
-            }
-            window.showModal(`Pendientes (${pendientes.length})`, html, `<button onclick="window.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Cerrar</button>`);
-        };
-
-        window.generarResumenIA = function() {
-            if (window.currentFilteredData.length === 0) {
-                window.showModal("Sin Datos", "<p>No hay encuestas.</p>", `<button onclick="window.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cerrar</button>`); return;
-            }
+            // --- UI EXTRAS ---
+            showModal: function(title, bodyHtml, buttonsHtml) {
+                document.getElementById('modalHeader').innerHTML = title;
+                document.getElementById('modalBody').innerHTML = bodyHtml;
+                document.getElementById('modalFooter').innerHTML = buttonsHtml;
+                document.getElementById('customModal').classList.remove('hidden');
+            },
+            hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
             
-            const porTaller = {};
-            window.currentFilteredData.forEach(d => {
-                const t = d.numTaller || "Sin Taller";
-                if (!porTaller[t]) porTaller[t] = { q6: [], q7: [], q8: [], q9: [], coments: [] };
-                porTaller[t].q6.push(d.q6); porTaller[t].q7.push(d.q7); porTaller[t].q8.push(d.q8); porTaller[t].q9.push(d.q9); 
-                if (d.sugerencias.length > 5) porTaller[t].coments.push(d.sugerencias.toLowerCase());
-            });
+            mostrarColegiosPendientes: function() {
+                const coachFilter = document.getElementById('filter_coach').value;
+                let colegiosEvaluados = State.encuestasData;
+                if (coachFilter !== "") colegiosEvaluados = colegiosEvaluados.filter(d => d.coach === coachFilter);
+                const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
 
-            let html = `<p class="text-sm mb-4 text-gray-600">Análisis cualitativo y cuantitativo con estructura DOFA:</p>`;
-            const topics = { q6: "Conocimiento y dominio del tema", q7: "Aplicabilidad al contexto", q8: "Dinamismo y participación", q9: "Calidad de recursos" };
+                let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+                if (coachFilter !== "") listaBase = listaBase.filter(c => c.coach === coachFilter);
 
-            for (const t of Object.keys(porTaller).sort()) {
-                const arr = porTaller[t];
-                const calcAvg = (nums) => parseFloat((nums.reduce((a,b)=>a+b,0) / nums.length).toFixed(1));
-                const scores = { q6: calcAvg(arr.q6), q7: calcAvg(arr.q7), q8: calcAvg(arr.q8), q9: calcAvg(arr.q9) };
-                const sortedTopics = Object.entries(scores).sort((a,b) => b[1] - a[1]);
-                const globalAvg = ((scores.q6 + scores.q7 + scores.q8 + scores.q9) / 4).toFixed(1);
+                const pendientes = listaBase.filter(c => !setEvaluados.has(c.colegio.toLowerCase()));
+                let html = `<p class="mb-4 text-sm">Colegios sin encuesta registrada${coachFilter ? ` para <b>${coachFilter}</b>` : ''}:</p>`;
+                if(pendientes.length === 0) html += `<div class="p-4 bg-green-50 text-green-700 rounded text-center">¡Todos han participado!</div>`;
+                else {
+                    html += `<ul class="list-disc pl-5 space-y-1 text-sm h-64 overflow-y-auto">`;
+                    pendientes.forEach(p => html += `<li><strong>${p.colegio}</strong> <span class="text-gray-400 text-xs">(${p.coach})</span></li>`);
+                    html += `</ul>`;
+                }
+                App.showModal(`Pendientes (${pendientes.length})`, html, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Cerrar</button>`);
+            },
 
-                let fortalezas = `Destaca fuertemente <b>${topics[sortedTopics[0][0]].toLowerCase()}</b> (Promedio: ${sortedTopics[0][1]}).`;
-                let oportunidades = `El nivel en <b>${topics[sortedTopics[1][0]].toLowerCase()}</b> abre puertas para mejoras futuras.`;
-                let debilidades = sortedTopics[3][1] < 4.0 ? `Necesidad de revisión en <b>${topics[sortedTopics[3][0]].toLowerCase()}</b> (${sortedTopics[3][1]}).` : `El área con mayor margen para perfeccionarse es <b>${topics[sortedTopics[3][0]].toLowerCase()}</b> (${sortedTopics[3][1]}).`;
-                let amenazas = `Si no se atienden las inquietudes, podría disminuir la motivación docente.`;
+            generarResumenIA: function() {
+                if (State.currentFilteredData.length === 0) {
+                    App.showModal("Sin Datos", "<p>No hay encuestas.</p>", `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cerrar</button>`); return;
+                }
+                const porTaller = {};
+                State.currentFilteredData.forEach(d => {
+                    const t = d.numTaller || "Sin Taller";
+                    if (!porTaller[t]) porTaller[t] = { q6: [], q7: [], q8: [], q9: [], coments: [] };
+                    porTaller[t].q6.push(d.q6); porTaller[t].q7.push(d.q7); porTaller[t].q8.push(d.q8); porTaller[t].q9.push(d.q9); 
+                    if (d.sugerencias.length > 5) porTaller[t].coments.push(d.sugerencias.toLowerCase());
+                });
 
-                const allComents = arr.coments.join(" ");
-                if(allComents.includes("tiempo") || allComents.includes("hora") || allComents.includes("largo")) amenazas = `El <b>manejo del tiempo</b> es una limitante mencionada en comentarios.`;
-                else if(allComents.includes("internet") || allComents.includes("pantalla") || allComents.includes("audio")) amenazas = `Problemas de <b>conectividad o técnicos</b> amenazan la correcta ejecución.`;
+                let html = `<p class="text-sm mb-4 text-gray-600">Análisis cualitativo y cuantitativo con estructura DOFA:</p>`;
+                const topics = { q6: "Conocimiento y dominio del tema", q7: "Aplicabilidad al contexto", q8: "Dinamismo y participación", q9: "Calidad de recursos" };
 
-                let quote = arr.coments.length > 0 ? `<p class="text-xs text-gray-500 italic mt-2 border-t pt-2 border-gray-200"><b>Participante:</b> "${arr.coments[0]}"</p>` : "";
+                for (const t of Object.keys(porTaller).sort()) {
+                    const arr = porTaller[t];
+                    const calcAvg = (nums) => parseFloat((nums.reduce((a,b)=>a+b,0) / nums.length).toFixed(1));
+                    const scores = { q6: calcAvg(arr.q6), q7: calcAvg(arr.q7), q8: calcAvg(arr.q8), q9: calcAvg(arr.q9) };
+                    const sortedTopics = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+                    const globalAvg = ((scores.q6 + scores.q7 + scores.q8 + scores.q9) / 4).toFixed(1);
 
-                html += `<div class="mb-6 border rounded-lg shadow-sm"><div class="bg-gray-100 px-4 py-2 border-b flex justify-between items-center"><h4 class="font-bold">${t} <span class="text-xs">(${arr.q6.length} encuestas)</span></h4><span class="text-xs bg-santillana-orange text-white px-2 py-1 rounded">Promedio: ${globalAvg}</span></div><div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-green-50 p-3 rounded text-green-800 text-xs"><b><i class="fa-solid fa-arrow-trend-up"></i> F:</b> ${fortalezas}</div><div class="bg-blue-50 p-3 rounded text-blue-800 text-xs"><b><i class="fa-solid fa-lightbulb"></i> O:</b> ${oportunidades}</div><div class="bg-yellow-50 p-3 rounded text-yellow-800 text-xs"><b><i class="fa-solid fa-triangle-exclamation"></i> D:</b> ${debilidades}</div><div class="bg-red-50 p-3 rounded text-red-800 text-xs"><b><i class="fa-solid fa-shield-halved"></i> A:</b> ${amenazas}</div></div><div class="px-4 pb-3">${quote}</div></div>`;
+                    let fortalezas = `Destaca fuertemente <b>${topics[sortedTopics[0][0]].toLowerCase()}</b> (Promedio: ${sortedTopics[0][1]}).`;
+                    let oportunidades = `El nivel en <b>${topics[sortedTopics[1][0]].toLowerCase()}</b> abre puertas para mejoras futuras.`;
+                    let debilidades = sortedTopics[3][1] < 4.0 ? `Necesidad de revisión en <b>${topics[sortedTopics[3][0]].toLowerCase()}</b> (${sortedTopics[3][1]}).` : `El área con mayor margen para perfeccionarse es <b>${topics[sortedTopics[3][0]].toLowerCase()}</b> (${sortedTopics[3][1]}).`;
+                    let amenazas = `Si no se atienden las inquietudes, podría disminuir la motivación docente.`;
+
+                    const allComents = arr.coments.join(" ");
+                    if(allComents.includes("tiempo") || allComents.includes("hora") || allComents.includes("largo")) amenazas = `El <b>manejo del tiempo</b> es una limitante mencionada en comentarios.`;
+                    else if(allComents.includes("internet") || allComents.includes("pantalla") || allComents.includes("audio")) amenazas = `Problemas de <b>conectividad o técnicos</b> amenazan la correcta ejecución.`;
+
+                    let quote = arr.coments.length > 0 ? `<p class="text-xs text-gray-500 italic mt-2 border-t pt-2 border-gray-200"><b>Participante:</b> "${arr.coments[0]}"</p>` : "";
+
+                    html += `<div class="mb-6 border rounded-lg shadow-sm"><div class="bg-gray-100 px-4 py-2 border-b flex justify-between items-center"><h4 class="font-bold">${t} <span class="text-xs">(${arr.q6.length} encuestas)</span></h4><span class="text-xs bg-santillana-orange text-white px-2 py-1 rounded">Promedio: ${globalAvg}</span></div><div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4"><div class="bg-green-50 p-3 rounded text-green-800 text-xs"><b><i class="fa-solid fa-arrow-trend-up"></i> F:</b> ${fortalezas}</div><div class="bg-blue-50 p-3 rounded text-blue-800 text-xs"><b><i class="fa-solid fa-lightbulb"></i> O:</b> ${oportunidades}</div><div class="bg-yellow-50 p-3 rounded text-yellow-800 text-xs"><b><i class="fa-solid fa-triangle-exclamation"></i> D:</b> ${debilidades}</div><div class="bg-red-50 p-3 rounded text-red-800 text-xs"><b><i class="fa-solid fa-shield-halved"></i> A:</b> ${amenazas}</div></div><div class="px-4 pb-3">${quote}</div></div>`;
+                }
+                App.showModal("Resumen DOFA", html, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Entendido</button>`);
             }
-            window.showModal("Resumen DOFA", html, `<button onclick="window.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Entendido</button>`);
         };
 
+        // --- MANEJADORES DE EXCEL (LISTENERS) ---
+        document.getElementById('fileImportEncuestas').addEventListener('change', function(e) {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const wb = XLSX.read(evt.target.result, {type: 'binary'});
+                    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    let count = 0;
+                    App.showModal("Importando...", "<p>Guardando encuestas en la base de datos, por favor espere...</p>", "");
+                    for(const row of data) {
+                        const docRef = await addDoc(collection(db, "encuestas"), row);
+                        State.encuestasData.push({ id: docRef.id, ...row });
+                        count++;
+                    }
+                    App.updateDashboard();
+                    App.showModal("Éxito", `<p>Se importaron ${count} encuestas exitosamente.</p>`, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Aceptar</button>`);
+                } catch(error) { console.error(error); alert("Error leyendo el archivo."); }
+                e.target.value = null; 
+            };
+            reader.readAsBinaryString(file);
+        });
+
+        document.getElementById('fileImportColegios').addEventListener('change', function(e) {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const wb = XLSX.read(evt.target.result, {type: 'binary'});
+                    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    
+                    if(!data[0] || !data[0].colegio) {
+                        alert("El formato del Excel no es correcto. Asegúrate de tener las columnas: colegio, regional, coach, docentes."); return;
+                    }
+
+                    App.showModal("Importando...", "<p>Sobrescribiendo maestro de colegios, por favor espere...</p>", "");
+                    State.colegiosBD = data;
+                    await guardarSistemaDB();
+                    App.renderActiveEdicionTable();
+                    App.showModal("Éxito", `<p>Se importaron ${data.length} colegios exitosamente.</p>`, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Aceptar</button>`);
+                } catch(error) { console.error(error); alert("Error leyendo el archivo."); }
+                e.target.value = null; 
+            };
+            reader.readAsBinaryString(file);
+        });
+
+        // --- INICIALIZACIÓN DE LA VISTA ---
         document.addEventListener('DOMContentLoaded', () => {
             initApp();
+            
             document.addEventListener('click', function(e) {
                 if (e.target.id !== 'q1_colegio') {
                     const list = document.getElementById('listaColegiosCustom');
@@ -1606,6 +1735,7 @@
                 }
             });
         });
+
     </script>
 </body>
 </html>
