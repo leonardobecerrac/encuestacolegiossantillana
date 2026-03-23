@@ -26,6 +26,7 @@
 
     <input type="file" id="fileImportEncuestas" class="hidden" accept=".xlsx, .xls">
     <input type="file" id="fileImportColegios" class="hidden" accept=".xlsx, .xls">
+    <input type="file" id="fileImportCoaches" class="hidden" accept=".xlsx, .xls">
 
     <nav class="bg-white shadow-sm mb-8">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -82,11 +83,12 @@
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Ciclo formativo que están trabajando <span class="text-red-500">*</span></label>
                         <select id="ciclo" required class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
                             <option value="">Seleccione un ciclo...</option>
-                            <option value="CICLO INCLUSIÓN">CICLO INCLUSIÓN</option>
-                            <option value="AMBIENTES DE APRENDIZAJE">AMBIENTES DE APRENDIZAJE</option>
-                            <option value="COMPETENCIAS Y HABILIDADES">COMPETENCIAS Y HABILIDADES</option>
-                            <option value="DESARROLLO DE PERSONAS">DESARROLLO DE PERSONAS</option>
-                            <option value="METODOLOGÍAS Y EVALUACIÓN">METODOLOGÍAS Y EVALUACIÓN</option>
+                            <option value="Ciclo Inclusión">Ciclo Inclusión</option>
+                            <option value="Ambientes de Aprendizaje">Ambientes de Aprendizaje</option>
+                            <option value="Competencias y Habilidades">Competencias y Habilidades</option>
+                            <option value="Desarrollo de Personas">Desarrollo de Personas</option>
+                            <option value="Metodologías y Evaluación">Metodologías y Evaluación</option>
+                            <option value="Reingeniería Curricular">Reingeniería Curricular</option>
                         </select>
                     </div>
 
@@ -269,6 +271,7 @@
                     <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-wrap gap-2">
                         <h3 class="text-lg font-bold text-santillana-blue">Registros Recientes</h3>
                         <div class="flex gap-2">
+                            <button onclick="App.downloadEncuestaTemplate()" id="btn_template_data" class="text-sm text-gray-600 hover:text-gray-800 hidden"><i class="fa-solid fa-file-arrow-down mr-1"></i> Plantilla</button>
                             <button onclick="App.triggerImportEncuestas()" id="btn_import_data" class="text-sm text-blue-600 hover:text-blue-800 hidden"><i class="fa-solid fa-upload mr-1"></i> Importar</button>
                             <button onclick="App.exportToExcel()" id="btn_export_data" class="text-sm text-green-600 hover:text-green-800 hidden"><i class="fa-solid fa-file-excel mr-1"></i> Exportar</button>
                             <button onclick="App.clearData()" id="btn_clear_data" class="text-sm text-red-600 hover:text-red-800 hidden"><i class="fa-solid fa-trash mr-1"></i> Borrar Todo</button>
@@ -289,9 +292,9 @@
                 <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
                     <h2 class="text-2xl font-bold text-santillana-blue">Base de Datos Institucional</h2>
                     <div class="flex gap-2">
-                        <button onclick="App.triggerImportColegios()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-upload mr-1"></i> Importar Colegios</button>
-                        <button onclick="App.exportColegios()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-file-excel mr-1"></i> Exportar Colegios</button>
-                        <button onclick="App.triggerAddAction()" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-plus mr-1"></i> Agregar Nuevo</button>
+                        <button onclick="App.triggerImportEdicion()" id="btn_edicion_import" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-upload mr-1"></i> Importar Colegios</button>
+                        <button onclick="App.exportEdicionData()" id="btn_edicion_export" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-file-excel mr-1"></i> Exportar Colegios</button>
+                        <button onclick="App.triggerAddAction()" id="btn_edicion_add" class="bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-md font-medium text-sm transition-colors shadow-sm"><i class="fa-solid fa-plus mr-1"></i> Agregar Nuevo</button>
                     </div>
                 </div>
 
@@ -371,8 +374,8 @@
             encuestasData: [],
             encuestasLoaded: false,
             currentUserRole: null,
-            currentUserEmail: "", // Correo de la sesión activa (admin o coach)
-            currentCoachName: "", // Usado específicamente para métricas del coach
+            currentUserEmail: "",
+            currentCoachName: "",
             currentEdicionView: 'colegios',
             currentFilteredData: []
         };
@@ -1312,7 +1315,7 @@
                 document.getElementById('container_filter_coach').classList.remove('hidden');
                 App.poblarFiltrosDashboard();
                 App.switchDashSubTab('resultados');
-                ['btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+                ['btn_template_data','btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.remove('hidden'));
             },
 
             setupCoachDashboard: async function() {
@@ -1329,7 +1332,7 @@
                 App.poblarFiltroColegiosDash(State.currentCoachName);
                 document.getElementById('subTabEdicion').classList.add('hidden');
                 document.getElementById('subTabResultados').classList.remove('hidden');
-                ['btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.add('hidden'));
+                ['btn_template_data','btn_clear_data','btn_export_data','btn_import_data'].forEach(id => document.getElementById(id).classList.add('hidden'));
                 App.updateDashboard();
             },
 
@@ -1465,7 +1468,14 @@
                 });
             },
 
-            // --- IMPORTAR, EXPORTAR, BORRAR (ENCUESTAS) ---
+            downloadEncuestaTemplate: function() {
+                const template = [{ fecha: "DD/MM/YYYY, HH:MM:SS", ciclo: "Ej: Ciclo Inclusión", colegio: "Ej: COLEGIO COMFACESAR", asistente: "Ej: Juan Perez", perfil: "Directivo o Docente", coach: "Ej: Ailyn Lucelis Duarte", numTaller: "Taller 1", taller: "Nombre del Taller", q6: 5, q7: 5, q8: 5, q9: 5, sugerencias: "Sugerencias aquí..." }];
+                const ws = XLSX.utils.json_to_sheet(template);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Plantilla_Importacion");
+                XLSX.writeFile(wb, "Plantilla_Encuestas.xlsx");
+            },
+
             exportToExcel: function() {
                 if(State.encuestasData.length === 0) { alert("No hay datos para exportar"); return; }
                 const cleanData = State.encuestasData.map(d => {
@@ -1505,19 +1515,24 @@
                 }
             },
 
-            // --- IMPORTAR, EXPORTAR (EDICIÓN BASE DE DATOS) ---
-            exportColegios: function() {
-                const ws = XLSX.utils.json_to_sheet(State.colegiosBD);
+            exportEdicionData: function() {
+                let data, sheetName, fileName;
+                if(State.currentEdicionView === 'colegios') {
+                    data = State.colegiosBD; sheetName = "Colegios_BD"; fileName = "BaseDatos_Colegios.xlsx";
+                } else {
+                    data = State.coachesAuth; sheetName = "Coaches_Auth"; fileName = "BaseDatos_Coaches.xlsx";
+                }
+                const ws = XLSX.utils.json_to_sheet(data);
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Colegios_BD");
-                XLSX.writeFile(wb, "BaseDatos_Colegios.xlsx");
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                XLSX.writeFile(wb, fileName);
             },
 
-            triggerImportColegios: function() {
-                document.getElementById('fileImportColegios').click();
+            triggerImportEdicion: function() {
+                if(State.currentEdicionView === 'colegios') document.getElementById('fileImportColegios').click();
+                else document.getElementById('fileImportCoaches').click();
             },
 
-            // --- EDICIÓN INTERFAZ (CRUD) ---
             switchEdicionView: function(view) {
                 State.currentEdicionView = view;
                 ['tabla_edicion_colegios_wrapper','tabla_edicion_coaches_wrapper'].forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -1525,8 +1540,26 @@
                     document.getElementById(id).classList.replace('border-[#FF5A00]', 'border-transparent');
                     document.getElementById(id).classList.replace('text-[#FF5A00]', 'text-gray-500');
                 });
-                if (view === 'colegios') { document.getElementById('tabla_edicion_colegios_wrapper').classList.remove('hidden'); document.getElementById('btn_view_colegios').classList.replace('border-transparent', 'border-[#FF5A00]'); document.getElementById('btn_view_colegios').classList.replace('text-gray-500', 'text-[#FF5A00]'); }
-                else { document.getElementById('tabla_edicion_coaches_wrapper').classList.remove('hidden'); document.getElementById('btn_view_coaches').classList.replace('border-transparent', 'border-[#FF5A00]'); document.getElementById('btn_view_coaches').classList.replace('text-gray-500', 'text-[#FF5A00]'); }
+                
+                const btnImp = document.getElementById('btn_edicion_import');
+                const btnExp = document.getElementById('btn_edicion_export');
+                const btnAdd = document.getElementById('btn_edicion_add');
+                
+                if (view === 'colegios') { 
+                    document.getElementById('tabla_edicion_colegios_wrapper').classList.remove('hidden'); 
+                    document.getElementById('btn_view_colegios').classList.replace('border-transparent', 'border-[#FF5A00]'); 
+                    document.getElementById('btn_view_colegios').classList.replace('text-gray-500', 'text-[#FF5A00]'); 
+                    if(btnImp) btnImp.innerHTML = '<i class="fa-solid fa-upload mr-1"></i> Importar Colegios';
+                    if(btnExp) btnExp.innerHTML = '<i class="fa-solid fa-file-excel mr-1"></i> Exportar Colegios';
+                    if(btnAdd) btnAdd.classList.remove('hidden');
+                } else { 
+                    document.getElementById('tabla_edicion_coaches_wrapper').classList.remove('hidden'); 
+                    document.getElementById('btn_view_coaches').classList.replace('border-transparent', 'border-[#FF5A00]'); 
+                    document.getElementById('btn_view_coaches').classList.replace('text-gray-500', 'text-[#FF5A00]'); 
+                    if(btnImp) btnImp.innerHTML = '<i class="fa-solid fa-upload mr-1"></i> Importar Coaches';
+                    if(btnExp) btnExp.innerHTML = '<i class="fa-solid fa-file-excel mr-1"></i> Exportar Coaches';
+                    if(btnAdd) btnAdd.classList.add('hidden'); // Ocultar el botón Agregar en Coaches
+                }
                 App.renderActiveEdicionTable();
             },
 
@@ -1610,6 +1643,49 @@
                 App.hideModal(); App.renderActiveEdicionTable(); App.poblarCoaches(); App.poblarFiltrosDashboard();
             },
 
+            openEditCoachModal: function(index) {
+                const isEdit = index >= 0;
+                const data = isEdit ? State.coachesAuth[index] : { nombre: '', email: '', regional: '', pass: '12345' };
+                let optionsReg = `<option value="">Seleccione Regional...</option>`;
+                getRegiones().forEach(r => optionsReg += `<option value="${r}" ${data.regional === r ? 'selected' : ''}>${r}</option>`);
+
+                App.showModal(isEdit ? "Editar Coach" : "Nuevo Coach",
+                    `<div class="space-y-4 text-left">
+                        <div><label class="block text-sm font-semibold mb-1">Nombre del Coach <span class="text-red-500">*</span></label><input type="text" id="edit_coach_name" value="${data.nombre}" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm font-semibold mb-1">Correo Electrónico <span class="text-red-500">*</span></label><input type="email" id="edit_coach_email" value="${data.email}" class="w-full border rounded px-3 py-2"></div>
+                        <div><label class="block text-sm font-semibold mb-1">Regional Principal <span class="text-red-500">*</span></label><select id="edit_coach_regional" class="w-full border rounded px-3 py-2">${optionsReg}</select></div>
+                        <div><label class="block text-sm font-semibold mb-1">Contraseña</label><input type="text" id="edit_coach_pass" value="${data.pass}" class="w-full border rounded px-3 py-2"></div>
+                        <p id="edit_error_coach" class="text-red-500 text-sm hidden">Llene los campos obligatorios.</p>
+                    </div>`,
+                    `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="App.saveEditCoach(${index})" class="px-4 py-2 bg-santillana-orange text-white rounded">${isEdit ? 'Guardar' : 'Crear'}</button>`
+                );
+            },
+
+            saveEditCoach: async function(index) {
+                const nombre = document.getElementById('edit_coach_name').value.trim();
+                const email = document.getElementById('edit_coach_email').value.trim().toLowerCase();
+                const regional = document.getElementById('edit_coach_regional').value;
+                const pass = document.getElementById('edit_coach_pass').value.trim();
+                
+                if (!nombre || !email || !regional || !pass) { document.getElementById('edit_error_coach').classList.remove('hidden'); return; }
+
+                if (index >= 0) State.coachesAuth[index] = { nombre, email, regional, pass };
+                else State.coachesAuth.push({ nombre, email, regional, pass });
+
+                await guardarSistemaDB();
+                App.hideModal(); App.renderActiveEdicionTable();
+            },
+
+            confirmDeleteCoach: function(index) {
+                App.showModal("Eliminar Coach", `<p>¿Eliminar a <strong>${State.coachesAuth[index].nombre}</strong>?</p>`, `<button onclick="App.hideModal()" class="px-4 py-2 bg-gray-200 rounded">Cancelar</button><button onclick="App.executeDeleteCoach(${index})" class="px-4 py-2 bg-red-600 text-white rounded">Eliminar</button>`);
+            },
+
+            executeDeleteCoach: async function(index) {
+                State.coachesAuth.splice(index, 1);
+                await guardarSistemaDB();
+                App.hideModal(); App.renderActiveEdicionTable();
+            },
+
             // --- UI EXTRAS ---
             showModal: function(title, bodyHtml, buttonsHtml) {
                 document.getElementById('modalHeader').innerHTML = title;
@@ -1628,15 +1704,42 @@
                 let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 if (coachFilter !== "") listaBase = listaBase.filter(c => c.coach === coachFilter);
 
-                const pendientes = listaBase.filter(c => !setEvaluados.has(c.colegio.toLowerCase()));
-                let html = `<p class="mb-4 text-sm">Colegios sin encuesta registrada${coachFilter ? ` para <b>${coachFilter}</b>` : ''}:</p>`;
-                if(pendientes.length === 0) html += `<div class="p-4 bg-green-50 text-green-700 rounded text-center">¡Todos han participado!</div>`;
-                else {
-                    html += `<ul class="list-disc pl-5 space-y-1 text-sm h-64 overflow-y-auto">`;
-                    pendientes.forEach(p => html += `<li><strong>${p.colegio}</strong> <span class="text-gray-400 text-xs">(${p.coach})</span></li>`);
-                    html += `</ul>`;
+                const porRegional = {};
+                listaBase.forEach(c => {
+                    const reg = c.regional || "SIN REGIONAL";
+                    if(!porRegional[reg]) porRegional[reg] = { total: 0, pendientes: [] };
+                    porRegional[reg].total++;
+                    if(!setEvaluados.has(c.colegio.toLowerCase())) {
+                        porRegional[reg].pendientes.push(c);
+                    }
+                });
+
+                let html = `<p class="mb-4 text-sm text-gray-600">Colegios sin encuesta registrada${coachFilter ? ` para <b>${coachFilter}</b>` : ''}:</p>`;
+                const totalesPendientes = Object.values(porRegional).reduce((sum, r) => sum + r.pendientes.length, 0);
+
+                if(totalesPendientes === 0) {
+                    html += `<div class="p-4 bg-green-50 text-green-700 rounded text-center font-bold">¡Todos los colegios han participado!</div>`;
+                } else {
+                    html += `<div class="space-y-3 max-h-80 overflow-y-auto pr-2">`;
+                    Object.keys(porRegional).sort().forEach((reg, index) => {
+                        const data = porRegional[reg];
+                        if(data.total > 0) {
+                            const idDiv = `reg_pend_${index}`;
+                            html += `
+                            <div class="border rounded-lg shadow-sm overflow-hidden">
+                                <button onclick="document.getElementById('${idDiv}').classList.toggle('hidden')" class="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 font-bold text-santillana-blue flex justify-between items-center text-sm transition-colors">
+                                    <span><i class="fa-solid fa-map-location-dot mr-1"></i> ${reg}</span>
+                                    <span class="px-2 py-1 rounded-full text-xs ${data.pendientes.length > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${data.pendientes.length} / ${data.total} pendientes</span>
+                                </button>
+                                <div id="${idDiv}" class="hidden p-3 bg-white border-t border-gray-100">
+                                    ${data.pendientes.length === 0 ? '<p class="text-xs text-green-600 italic">Regional al día</p>' : `<ul class="list-disc pl-5 space-y-1 text-xs text-gray-700">` + data.pendientes.map(p => `<li><strong>${p.colegio}</strong> <span class="text-gray-400">(${p.coach})</span></li>`).join('') + `</ul>`}
+                                </div>
+                            </div>`;
+                        }
+                    });
+                    html += `</div>`;
                 }
-                App.showModal(`Pendientes (${pendientes.length})`, html, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Cerrar</button>`);
+                App.showModal(`Estado de Cobertura (${totalesPendientes} Pendientes)`, html, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Cerrar</button>`);
             },
 
             generarResumenIA: function() {
@@ -1718,6 +1821,27 @@
                     await guardarSistemaDB();
                     App.renderActiveEdicionTable();
                     App.showModal("Éxito", `<p>Se importaron ${data.length} colegios exitosamente.</p>`, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Aceptar</button>`);
+                } catch(error) { console.error(error); alert("Error leyendo el archivo."); }
+                e.target.value = null; 
+            };
+            reader.readAsBinaryString(file);
+        });
+
+        document.getElementById('fileImportCoaches').addEventListener('change', function(e) {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                try {
+                    const wb = XLSX.read(evt.target.result, {type: 'binary'});
+                    const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    if(!data[0] || !data[0].nombre || !data[0].email) {
+                        alert("El formato del Excel no es correcto. Asegúrate de tener las columnas: nombre, email, regional, pass."); return;
+                    }
+                    App.showModal("Importando...", "<p>Sobrescribiendo base de datos de Coaches, por favor espere...</p>", "");
+                    State.coachesAuth = data;
+                    await guardarSistemaDB();
+                    App.renderActiveEdicionTable();
+                    App.showModal("Éxito", `<p>Se importaron ${data.length} coaches exitosamente.</p>`, `<button onclick="App.hideModal()" class="px-4 py-2 bg-santillana-blue text-white rounded">Aceptar</button>`);
                 } catch(error) { console.error(error); alert("Error leyendo el archivo."); }
                 e.target.value = null; 
             };
