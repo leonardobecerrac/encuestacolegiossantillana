@@ -256,7 +256,7 @@
             <div id="adminSubNav" class="hidden flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 max-w-fit">
                 <button onclick="App.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white">Panel de Resultados</button>
                 <button onclick="App.switchDashSubTab('registros')" id="btn-sub-registros" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Registros y Feedback</button>
-                <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Gestión de Base de Datos</button>
+                <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Gestión de datos</button>
             </div>
 
             <div id="subTabResultados" class="space-y-6">
@@ -449,23 +449,58 @@
 
             <div id="subTabEdicion" class="hidden space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
-                    <h2 class="text-2xl font-black text-[#002C5F]">Gestión Institucional</h2>
-                    <div class="flex gap-2">
-                        <button onclick="App.triggerImportEdicion()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700"><i class="fa-solid fa-upload mr-1"></i> Importar Excel</button>
-                        <button onclick="App.exportEdicionData()" class="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-700"><i class="fa-solid fa-file-excel mr-1"></i> Exportar Base</button>
-                        <button onclick="App.triggerAddAction()" id="btn_edicion_add" class="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-orange-700"><i class="fa-solid fa-plus mr-1"></i> Nuevo Colegio</button>
+                    <div>
+                        <h2 class="text-2xl font-black text-[#002C5F]">Gestión de datos</h2>
+                        <p class="text-gray-500 text-sm">Administra las bases de datos maestras del sistema.</p>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div class="flex border-b bg-gray-50 p-1">
-                        <button onclick="App.switchEdicionView('colegios')" id="btn_view_colegios" class="flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white shadow-sm text-orange-600">COLEGIOS</button>
-                        <button onclick="App.switchEdicionView('coaches')" id="btn_view_coaches" class="flex-1 py-3 text-xs font-bold rounded-xl transition-all text-gray-500 hover:bg-gray-100">COACHES</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 bg-orange-100 text-[#FF5A00] rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+                                <i class="fa-solid fa-school"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-[#002C5F] leading-tight">BASE DE COLEGIOS</h3>
+                                <p class="text-xs text-gray-400">Instituciones y metas anuales</p>
+                            </div>
+                        </div>
+                        <div class="mt-auto grid grid-cols-2 gap-2">
+                            <button onclick="App.openEditView('colegios')" class="py-2.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors flex items-center justify-center border border-blue-200"><i class="fa-solid fa-pen mr-2"></i> Editar</button>
+                            <button onclick="document.getElementById('fileImportColegios').click()" class="py-2.5 px-3 bg-gray-50 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center border border-gray-200"><i class="fa-solid fa-upload mr-2"></i> Importar colegios</button>
+                            <button onclick="App.exportData('colegios')" class="py-2.5 px-3 bg-gray-50 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center border border-gray-200"><i class="fa-solid fa-file-excel mr-2"></i> Exportar colegios</button>
+                            <button onclick="App.openEditColegioModal(-1)" class="py-2.5 px-3 bg-[#FF5A00] text-white hover:bg-orange-600 rounded-xl text-xs font-bold transition-colors flex items-center justify-center shadow-md shadow-orange-200"><i class="fa-solid fa-plus mr-2"></i> Nuevo colegio</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 bg-blue-100 text-[#002C5F] rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-black text-[#002C5F] leading-tight">BASE DE COACHES</h3>
+                                <p class="text-xs text-gray-400">Personal académico y accesos</p>
+                            </div>
+                        </div>
+                        <div class="mt-auto grid grid-cols-2 gap-2">
+                            <button onclick="App.openEditView('coaches')" class="py-2.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors flex items-center justify-center border border-blue-200"><i class="fa-solid fa-pen mr-2"></i> Editar</button>
+                            <button onclick="document.getElementById('fileImportCoaches').click()" class="py-2.5 px-3 bg-gray-50 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center border border-gray-200"><i class="fa-solid fa-upload mr-2"></i> Importar coaches</button>
+                            <button onclick="App.exportData('coaches')" class="py-2.5 px-3 bg-gray-50 text-gray-700 hover:bg-gray-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center col-span-2 border border-gray-200"><i class="fa-solid fa-file-excel mr-2"></i> Exportar coaches</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="edicionTableContainer" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden fade-in">
+                    <div class="flex justify-between items-center p-5 border-b bg-gray-50">
+                        <h3 id="edicionTableTitle" class="text-lg font-black text-[#002C5F]"></h3>
+                        <button onclick="document.getElementById('edicionTableContainer').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div class="p-4 border-b">
-                        <div class="relative max-w-md">
+                        <div class="relative w-full md:w-1/2">
                             <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" placeholder="Filtrar por nombre, regional o correo..." class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-orange-500 transition-all">
+                            <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 transition-all">
                         </div>
                     </div>
                     <div class="overflow-x-auto max-h-[500px]">
@@ -510,7 +545,7 @@
             { email: "jgarzon@santillana.com", pass: "admin123" }
         ];
 
-        // State Local
+        // State Local (Vacío, se llena desde Firebase)
         const State = {
             adminUsers: [],
             colegiosBD: [],
@@ -638,13 +673,11 @@
                         document.getElementById('adminSubNav').classList.remove('hidden');
                         document.getElementById('coachWelcomeBar').classList.add('hidden');
                         document.getElementById('container_filter_coach').classList.remove('hidden');
-                        document.getElementById('btn_edicion_add').classList.remove('hidden');
                     } else {
                         document.getElementById('adminSubNav').classList.add('hidden');
                         document.getElementById('coachWelcomeBar').classList.remove('hidden');
                         document.getElementById('display_coach_name').innerText = found.nombre;
                         document.getElementById('container_filter_coach').classList.add('hidden');
-                        document.getElementById('btn_edicion_add').classList.add('hidden');
                     }
                     this.switchTab('dashTab');
                     this.initFiltrosBasicos();
@@ -825,11 +858,8 @@
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
-                // --- NUEVO CÁLCULO DE METAS ---
-                // 1. Meta de Alcance Global (Cabezas únicas - TODOS los colegios filtrados)
                 const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes) || 0), 0);
 
-                // 2. Separar colegios de ciclo regular vs. colegios de Producto
                 const colegiosCiclo = masterFilter.filter(c => {
                     const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
                     return !clasif.includes('PRODUCTO'); 
@@ -837,7 +867,6 @@
                 
                 const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
 
-                // 3. Meta de Profundidad (Asistencias esperadas SOLO para ciclo regular)
                 let metaAsistencias = 0;
                 colegiosCiclo.forEach(c => {
                     const docs = parseInt(c.docentes) || 0;
@@ -851,31 +880,23 @@
                     metaAsistencias += (docs * multiplicador);
                 });
 
-                // --- RESULTADOS REALES ---
-                // Alcance global (Incluye TODOS)
                 const docs = data.filter(d => d.perfil === 'Docente').length;
                 const dirs = data.filter(d => d.perfil === 'Directivo').length;
                 
-                // Profundidad / Avance (SOLO asistencias de colegios regulares)
                 const encuestasCicloRegular = data.filter(d => nombresColegiosCiclo.has(d.colegio));
                 const asistenciasReales = encuestasCicloRegular.length; 
                 
-                // % de Avance del Ciclo Anual
                 const avanceCiclo = metaAsistencias > 0 ? ((asistenciasReales / metaAsistencias) * 100).toFixed(1) : 0;
                 
                 const colegiosAtendidos = new Set(data.map(d => d.colegio)).size;
                 const colegiosTotales = masterFilter.length;
 
-                // --- INYECCIÓN EN EL HTML ---
                 document.getElementById('dash_docentes').innerText = docs;
                 document.getElementById('dash_meta_docentes').innerText = metaAlcance;
-                
                 document.getElementById('dash_avance_porcentaje').innerText = avanceCiclo + '%';
                 document.getElementById('dash_asistencias_reales').innerText = asistenciasReales;
                 document.getElementById('dash_asistencias_meta').innerText = metaAsistencias;
-                
                 document.getElementById('dash_directivos').innerText = dirs;
-                
                 document.getElementById('dash_cobertura_colegios').innerText = colegiosAtendidos;
                 document.getElementById('dash_total_colegios').innerText = colegiosTotales;
 
@@ -984,7 +1005,6 @@
                     });
                 }
 
-                // Renderizar Tabla de Registros en la nueva pestaña
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
                 tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio / Taller</th>${thAsistente}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th></tr>`;
@@ -1278,25 +1298,30 @@
                 const activeBtn = document.getElementById(`btn-sub-${id}`);
                 if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white";
                 
-                if(id === 'edicion') this.switchEdicionView('colegios');
+                if(id === 'edicion') {
+                    document.getElementById('edicionTableContainer').classList.add('hidden');
+                }
             },
 
-            switchEdicionView: function(view) {
+            openEditView: function(view) {
                 State.currentEdicionView = view;
-                ['btn_view_colegios', 'btn_view_coaches'].forEach(b => {
-                    document.getElementById(b).className = "flex-1 py-3 text-xs font-bold rounded-xl transition-all text-gray-500 hover:bg-gray-100";
-                });
-                document.getElementById(`btn_view_${view}`).className = "flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white shadow-sm text-orange-600";
+                const container = document.getElementById('edicionTableContainer');
+                const title = document.getElementById('edicionTableTitle');
+                const search = document.getElementById('search_edicion');
                 
-                const btnAdd = document.getElementById('btn_edicion_add');
-                if (btnAdd) {
-                    if (view === 'colegios') {
-                        btnAdd.classList.remove('hidden');
-                    } else {
-                        btnAdd.classList.add('hidden');
-                    }
+                container.classList.remove('hidden');
+                search.value = ''; 
+                
+                if(view === 'colegios') {
+                    title.innerHTML = '<i class="fa-solid fa-school text-[#FF5A00] mr-2"></i> Editando Base de Colegios';
+                    search.placeholder = "Filtrar por nombre, regional o coach...";
+                } else {
+                    title.innerHTML = '<i class="fa-solid fa-user-tie text-[#002C5F] mr-2"></i> Editando Base de Coaches';
+                    search.placeholder = "Filtrar por nombre, regional o correo...";
                 }
+                
                 this.renderActiveEdicionTable();
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             },
 
             renderActiveEdicionTable: function() {
@@ -1325,15 +1350,18 @@
                         `;
                     });
                 } else {
-                    head.innerHTML = `<tr><th class="px-6 py-4">Coach</th><th class="px-6 py-4">Email</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4">Acciones</th></tr>`;
+                    head.innerHTML = `<tr><th class="px-6 py-4">Coach</th><th class="px-6 py-4">Email</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4 text-center">Acciones</th></tr>`;
                     body.innerHTML = '';
                     State.coachesAuth.filter(c => c.nombre.toLowerCase().includes(search) || c.email.toLowerCase().includes(search)).forEach((c, idx) => {
                         body.innerHTML += `
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 border-b border-gray-50">
                                 <td class="px-6 py-4 text-xs font-bold">${c.nombre}</td>
                                 <td class="px-6 py-4 text-xs">${c.email}</td>
                                 <td class="px-6 py-4 text-xs">${c.regional}</td>
-                                <td class="px-6 py-4"><button onclick="App.deleteCoach(${idx})" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td>
+                                <td class="px-6 py-4 text-center whitespace-nowrap">
+                                    <button onclick="App.openEditCoachModal(${idx})" class="text-blue-500 hover:text-blue-700 transition-colors mx-1" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                                    <button onclick="App.deleteCoach(${idx})" class="text-red-500 hover:text-red-700 transition-colors mx-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                </td>
                             </tr>
                         `;
                     });
@@ -1352,10 +1380,6 @@
                 State.coachesAuth.splice(idx, 1);
                 await guardarSistemaDB();
                 this.renderActiveEdicionTable();
-            },
-
-            triggerAddAction: function() {
-                if(State.currentEdicionView === 'colegios') this.openEditColegioModal(-1);
             },
 
             openEditColegioModal: function(idx) {
@@ -1416,6 +1440,38 @@
                 if (isEdit) this.updateCoachOptionsEdit(data.coach);
             },
 
+            openEditCoachModal: function(idx) {
+                const data = State.coachesAuth[idx];
+                
+                const html = `
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Nombre del Coach <span class="text-red-500">*</span></label>
+                            <input type="text" id="edit_coach_nombre" value="${data.nombre}" class="w-full border rounded-xl px-4 py-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Correo Electrónico <span class="text-red-500">*</span></label>
+                            <input type="email" id="edit_coach_email" value="${data.email}" class="w-full border rounded-xl px-4 py-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 border-t pt-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Regional <span class="text-red-500">*</span></label>
+                                <input type="text" id="edit_coach_regional" value="${data.regional}" class="w-full border rounded-xl px-4 py-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Contraseña</label>
+                                <input type="text" id="edit_coach_pass" value="${data.pass || '12345'}" class="w-full border rounded-xl px-4 py-2.5 bg-gray-50 focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                this.showModal("Editar Coach", html, `
+                    <button onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-xl font-bold">Cancelar</button>
+                    <button onclick="App.saveEditCoach(${idx})" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold"><i class="fa-solid fa-floppy-disk mr-1"></i> Guardar</button>
+                `);
+            },
+
             updateCoachOptionsEdit: function(selectedCoach = '') {
                 const reg = document.getElementById('edit_col_reg').value;
                 const selCoach = document.getElementById('edit_col_coach');
@@ -1453,14 +1509,30 @@
                 this.handleFilterTrigger(); 
             },
 
-            triggerImportEdicion: function() {
-                if(State.currentEdicionView === 'colegios') document.getElementById('fileImportColegios').click();
-                else document.getElementById('fileImportCoaches').click();
+            saveEditCoach: async function(idx) {
+                const coach = {
+                    nombre: document.getElementById('edit_coach_nombre').value.trim(),
+                    email: document.getElementById('edit_coach_email').value.trim().toLowerCase(),
+                    regional: document.getElementById('edit_coach_regional').value.trim(),
+                    pass: document.getElementById('edit_coach_pass').value.trim()
+                };
+
+                if(!coach.nombre || !coach.email || !coach.regional) {
+                    alert("Por favor completa el Nombre, Correo y Regional.");
+                    return;
+                }
+
+                State.coachesAuth[idx] = coach;
+                
+                await guardarSistemaDB();
+                this.hideModal();
+                this.renderActiveEdicionTable();
+                this.poblarCoaches();
             },
 
-            exportEdicionData: function() {
+            exportData: function(type) {
                 let data, sheetName, fileName;
-                if(State.currentEdicionView === 'colegios') {
+                if(type === 'colegios') {
                     data = State.colegiosBD; sheetName = "Colegios_BD"; fileName = "BaseDatos_Colegios.xlsx";
                 } else {
                     data = State.coachesAuth; sheetName = "Coaches_Auth"; fileName = "BaseDatos_Coaches.xlsx";
@@ -1507,7 +1579,7 @@
 
                 State.colegiosBD = data;
                 await guardarSistemaDB();
-                App.renderActiveEdicionTable();
+                if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable();
                 alert("Base de colegios actualizada en la nube.");
             };
             reader.readAsBinaryString(file);
@@ -1520,11 +1592,21 @@
             const reader = new FileReader();
             reader.onload = async (evt) => {
                 const wb = XLSX.read(evt.target.result, {type: 'binary'});
-                const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                State.coachesAuth = data;
+                const importedCoaches = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                
+                const coachesActualizados = importedCoaches.map(newCoach => {
+                    const coachExistente = State.coachesAuth.find(c => c.email.toLowerCase() === newCoach.email.trim().toLowerCase());
+                    if (coachExistente) {
+                        return { ...newCoach, pass: coachExistente.pass };
+                    } else {
+                        return newCoach;
+                    }
+                });
+
+                State.coachesAuth = coachesActualizados;
                 await guardarSistemaDB();
-                App.renderActiveEdicionTable();
-                alert("Base de coaches actualizada en la nube.");
+                if(State.currentEdicionView === 'coaches') App.renderActiveEdicionTable();
+                alert("Base de coaches actualizada. (Se conservaron las contraseñas personalizadas).");
             };
             reader.readAsBinaryString(file);
             e.target.value = null;
@@ -1582,8 +1664,6 @@
         // Bootstrap & Global Listeners
         window.onload = async () => {
             initRatings();
-            
-            // Cargar configuración y datos reales de Firebase
             await initApp(); 
             App.poblarCoaches();
 
