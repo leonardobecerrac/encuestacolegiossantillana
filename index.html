@@ -497,10 +497,24 @@
                         <h3 id="edicionTableTitle" class="text-lg font-black text-[#002C5F]"></h3>
                         <button onclick="document.getElementById('edicionTableContainer').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors"><i class="fa-solid fa-xmark"></i></button>
                     </div>
-                    <div class="p-4 border-b">
-                        <div class="relative w-full md:w-1/2">
+                    <div class="p-4 border-b bg-white flex flex-col gap-4">
+                        <div class="relative w-full">
                             <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" class="w-full pl-11 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 transition-all">
+                            <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" placeholder="Buscar por nombre de colegio, coach o regional..." class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all">
+                        </div>
+                        <div id="edicion_filters" class="grid grid-cols-1 md:grid-cols-4 gap-4 hidden">
+                            <select id="edicion_filter_regional" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todas las Regionales</option>
+                            </select>
+                            <select id="edicion_filter_coach" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todos los Coaches</option>
+                            </select>
+                            <select id="edicion_filter_calendario" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todos los Calendarios</option>
+                            </select>
+                            <select id="edicion_filter_clasificacion" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todas las Clasif.</option>
+                            </select>
                         </div>
                     </div>
                     <div class="overflow-x-auto max-h-[500px]">
@@ -796,7 +810,8 @@
                 validCols.forEach(v => colEl.innerHTML += `<option value="${v}">${v}</option>`);
                 if (validCols.includes(colVal)) colEl.value = colVal;
 
-                const validCals = [...new Set(getFilteredExcluding('calendario').map(c => c.calendario).filter(Boolean))].sort();
+                // FIX: Trim spaces and convert to uppercase for robust filtering
+                const validCals = [...new Set(getFilteredExcluding('calendario').map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort();
                 calEl.innerHTML = '<option value="">Todos</option>';
                 validCals.forEach(v => calEl.innerHTML += `<option value="${v}">${v}</option>`);
                 if (validCals.includes(calVal)) calEl.value = calVal;
@@ -848,7 +863,7 @@
                 
                 if(coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
                 if(colF) masterFilter = masterFilter.filter(c => c.colegio === colF);
-                if(calF) masterFilter = masterFilter.filter(c => c.calendario === calF);
+                if(calF) masterFilter = masterFilter.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
                 if(clasF) masterFilter = masterFilter.filter(c => c.clasificacion === clasF);
                 if(lineasF.length > 0) masterFilter = masterFilter.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
                 
@@ -1005,6 +1020,7 @@
                     });
                 }
 
+                // Render Tabla de Registros en la nueva pestaña
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
                 tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio / Taller</th>${thAsistente}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th></tr>`;
@@ -1055,7 +1071,7 @@
                 let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 if (coachFilter) listaBase = listaBase.filter(c => c.coach === coachFilter);
                 if (colFilter) listaBase = listaBase.filter(c => c.colegio === colFilter);
-                if (calFilter) listaBase = listaBase.filter(c => c.calendario === calFilter);
+                if (calFilter) listaBase = listaBase.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calFilter);
                 if (clasFilter) listaBase = listaBase.filter(c => c.clasificacion === clasFilter);
                 if (lineasFilter.length > 0) listaBase = listaBase.filter(c => c.lineaNegocio && lineasFilter.includes(c.lineaNegocio.trim()));
 
@@ -1165,7 +1181,7 @@
                 list.innerHTML = '';
                 if(!val) { list.classList.add('hidden'); return; }
 
-                const matches = State.colegiosBD.filter(c => c.colegio.toLowerCase().includes(val)).slice(0, 10);
+                const matches = State.colegiosBD.filter(c => (c.colegio || '').toLowerCase().includes(val)).slice(0, 10);
                 if(matches.length > 0) {
                     matches.forEach(m => {
                         const li = document.createElement('li');
@@ -1187,7 +1203,7 @@
             poblarCoaches: function() {
                 const sel = document.getElementById('q4_coach');
                 if(!sel) return;
-                const coaches = [...new Set(State.colegiosBD.map(c => c.coach))].sort();
+                const coaches = [...new Set(State.colegiosBD.map(c => c.coach).filter(Boolean))].sort();
                 sel.innerHTML = '<option value="">Seleccione coach...</option>';
                 coaches.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
             },
@@ -1308,16 +1324,31 @@
                 const container = document.getElementById('edicionTableContainer');
                 const title = document.getElementById('edicionTableTitle');
                 const search = document.getElementById('search_edicion');
+                const filtersDiv = document.getElementById('edicion_filters');
                 
                 container.classList.remove('hidden');
                 search.value = ''; 
                 
                 if(view === 'colegios') {
                     title.innerHTML = '<i class="fa-solid fa-school text-[#FF5A00] mr-2"></i> Editando Base de Colegios';
-                    search.placeholder = "Filtrar por nombre, regional o coach...";
+                    search.placeholder = "Buscar por nombre de colegio, coach o regional...";
+                    filtersDiv.classList.remove('hidden');
+                    
+                    const fillDrop = (id, arr, def) => {
+                        const el = document.getElementById(id);
+                        el.innerHTML = `<option value="">${def}</option>`;
+                        arr.forEach(i => el.innerHTML += `<option value="${i}">${i}</option>`);
+                    };
+                    
+                    fillDrop('edicion_filter_regional', [...new Set(State.colegiosBD.map(c => c.regional).filter(Boolean))].sort(), 'Todas las Regionales');
+                    fillDrop('edicion_filter_coach', [...new Set(State.colegiosBD.map(c => c.coach).filter(Boolean))].sort(), 'Todos los Coaches');
+                    fillDrop('edicion_filter_calendario', [...new Set(State.colegiosBD.map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort(), 'Todos los Calendarios');
+                    fillDrop('edicion_filter_clasificacion', [...new Set(State.colegiosBD.map(c => c.clasificacion).filter(Boolean))].sort(), 'Todas las Clasif.');
+                    
                 } else {
                     title.innerHTML = '<i class="fa-solid fa-user-tie text-[#002C5F] mr-2"></i> Editando Base de Coaches';
-                    search.placeholder = "Filtrar por nombre, regional o correo...";
+                    search.placeholder = "Buscar por nombre o correo...";
+                    filtersDiv.classList.add('hidden');
                 }
                 
                 this.renderActiveEdicionTable();
@@ -1327,43 +1358,68 @@
             renderActiveEdicionTable: function() {
                 const head = document.getElementById('edicion_head');
                 const body = document.getElementById('edicion_body');
-                const search = document.getElementById('search_edicion').value.toLowerCase();
+                const searchVal = document.getElementById('search_edicion').value.toLowerCase().trim();
 
                 if(State.currentEdicionView === 'colegios') {
+                    const regVal = document.getElementById('edicion_filter_regional').value;
+                    const coachVal = document.getElementById('edicion_filter_coach').value;
+                    const calVal = document.getElementById('edicion_filter_calendario').value;
+                    const clasVal = document.getElementById('edicion_filter_clasificacion').value;
+
                     head.innerHTML = `<tr><th class="px-6 py-4">Colegio</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Docentes</th><th class="px-6 py-4 text-center">Calendario</th><th class="px-6 py-4 text-center">Clasificación</th><th class="px-6 py-4">Línea</th><th class="px-6 py-4 text-center">Acciones</th></tr>`;
                     body.innerHTML = '';
-                    State.colegiosBD.filter(c => c.colegio.toLowerCase().includes(search) || c.coach.toLowerCase().includes(search)).forEach((c, idx) => {
-                        body.innerHTML += `
-                            <tr class="hover:bg-gray-50 border-b border-gray-50">
-                                <td class="px-6 py-4 text-xs font-bold">${c.colegio}</td>
-                                <td class="px-6 py-4 text-xs">${c.regional}</td>
-                                <td class="px-6 py-4 text-xs">${c.coach}</td>
-                                <td class="px-6 py-4 text-xs text-center"><span class="px-3 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-100">${c.docentes || 0}</span></td>
-                                <td class="px-6 py-4 text-xs text-center font-bold text-gray-600">${c.calendario || 'A'}</td>
-                                <td class="px-6 py-4 text-[10px] text-center font-bold text-gray-500">${c.clasificacion || 'N/A'}</td>
-                                <td class="px-6 py-4 text-[10px] uppercase font-bold text-gray-500">${c.lineaNegocio || 'Santillana'}</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    <button onclick="App.openEditColegioModal(${idx})" class="text-blue-500 hover:text-blue-700 transition-colors mx-1" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button onclick="App.deleteColegio(${idx})" class="text-red-500 hover:text-red-700 transition-colors mx-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-                                </td>
-                            </tr>
-                        `;
+                    
+                    State.colegiosBD.forEach((c, idx) => {
+                        const colName = (c.colegio || '').toLowerCase();
+                        const colCoach = (c.coach || '').toLowerCase();
+                        const colReg = (c.regional || '').toLowerCase();
+                        const colCal = (c.calendario ? c.calendario.trim().toUpperCase() : '');
+
+                        const matchesSearch = searchVal === '' || colName.includes(searchVal) || colCoach.includes(searchVal) || colReg.includes(searchVal);
+                        const matchesReg = regVal === '' || c.regional === regVal;
+                        const matchesCoach = coachVal === '' || c.coach === coachVal;
+                        const matchesCal = calVal === '' || colCal === calVal;
+                        const matchesClas = clasVal === '' || c.clasificacion === clasVal;
+
+                        if (matchesSearch && matchesReg && matchesCoach && matchesCal && matchesClas) {
+                            body.innerHTML += `
+                                <tr class="hover:bg-gray-50 border-b border-gray-50">
+                                    <td class="px-6 py-4 text-xs font-bold">${c.colegio}</td>
+                                    <td class="px-6 py-4 text-xs">${c.regional}</td>
+                                    <td class="px-6 py-4 text-xs">${c.coach}</td>
+                                    <td class="px-6 py-4 text-xs text-center"><span class="px-3 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-100">${c.docentes || 0}</span></td>
+                                    <td class="px-6 py-4 text-xs text-center font-bold text-gray-600">${c.calendario || 'A'}</td>
+                                    <td class="px-6 py-4 text-[10px] text-center font-bold text-gray-500">${c.clasificacion || 'N/A'}</td>
+                                    <td class="px-6 py-4 text-[10px] uppercase font-bold text-gray-500">${c.lineaNegocio || 'Santillana'}</td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <button onclick="App.openEditColegioModal(${idx})" class="text-blue-500 hover:text-blue-700 transition-colors mx-1" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                                        <button onclick="App.deleteColegio(${idx})" class="text-red-500 hover:text-red-700 transition-colors mx-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                        }
                     });
                 } else {
                     head.innerHTML = `<tr><th class="px-6 py-4">Coach</th><th class="px-6 py-4">Email</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4 text-center">Acciones</th></tr>`;
                     body.innerHTML = '';
-                    State.coachesAuth.filter(c => c.nombre.toLowerCase().includes(search) || c.email.toLowerCase().includes(search)).forEach((c, idx) => {
-                        body.innerHTML += `
-                            <tr class="hover:bg-gray-50 border-b border-gray-50">
-                                <td class="px-6 py-4 text-xs font-bold">${c.nombre}</td>
-                                <td class="px-6 py-4 text-xs">${c.email}</td>
-                                <td class="px-6 py-4 text-xs">${c.regional}</td>
-                                <td class="px-6 py-4 text-center whitespace-nowrap">
-                                    <button onclick="App.openEditCoachModal(${idx})" class="text-blue-500 hover:text-blue-700 transition-colors mx-1" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
-                                    <button onclick="App.deleteCoach(${idx})" class="text-red-500 hover:text-red-700 transition-colors mx-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
-                                </td>
-                            </tr>
-                        `;
+                    
+                    State.coachesAuth.forEach((c, idx) => {
+                        const cName = (c.nombre || '').toLowerCase();
+                        const cEmail = (c.email || '').toLowerCase();
+
+                        if (searchVal === '' || cName.includes(searchVal) || cEmail.includes(searchVal)) {
+                            body.innerHTML += `
+                                <tr class="hover:bg-gray-50 border-b border-gray-50">
+                                    <td class="px-6 py-4 text-xs font-bold">${c.nombre}</td>
+                                    <td class="px-6 py-4 text-xs">${c.email}</td>
+                                    <td class="px-6 py-4 text-xs">${c.regional}</td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        <button onclick="App.openEditCoachModal(${idx})" class="text-blue-500 hover:text-blue-700 transition-colors mx-1" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
+                                        <button onclick="App.deleteCoach(${idx})" class="text-red-500 hover:text-red-700 transition-colors mx-1" title="Eliminar"><i class="fa-solid fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                        }
                     });
                 }
             },
