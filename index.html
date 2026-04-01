@@ -503,16 +503,16 @@
                             <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" placeholder="Buscar por nombre de colegio, coach o regional..." class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all">
                         </div>
                         <div id="edicion_filters" class="grid grid-cols-1 md:grid-cols-4 gap-4 hidden">
-                            <select id="edicion_filter_regional" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                            <select id="edicion_filter_regional" onchange="App.handleEdicionFilterTrigger()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
                                 <option value="">Todas las Regionales</option>
                             </select>
-                            <select id="edicion_filter_coach" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                            <select id="edicion_filter_coach" onchange="App.handleEdicionFilterTrigger()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
                                 <option value="">Todos los Coaches</option>
                             </select>
-                            <select id="edicion_filter_calendario" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                            <select id="edicion_filter_calendario" onchange="App.handleEdicionFilterTrigger()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
                                 <option value="">Todos los Calendarios</option>
                             </select>
-                            <select id="edicion_filter_clasificacion" onchange="App.renderActiveEdicionTable()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
+                            <select id="edicion_filter_clasificacion" onchange="App.handleEdicionFilterTrigger()" class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 bg-gray-50 focus:ring-2 focus:ring-[#FF5A00]">
                                 <option value="">Todas las Clasif.</option>
                             </select>
                         </div>
@@ -791,7 +791,7 @@
                     return base.filter(c => {
                         if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
                         if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
-                        if (exclude !== 'calendario' && calVal && c.calendario !== calVal) return false;
+                        if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
                         if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
                         if (exclude !== 'lineas' && lineasVal.length > 0 && c.lineaNegocio && !lineasVal.includes(c.lineaNegocio.trim())) return false;
                         return true;
@@ -810,7 +810,6 @@
                 validCols.forEach(v => colEl.innerHTML += `<option value="${v}">${v}</option>`);
                 if (validCols.includes(colVal)) colEl.value = colVal;
 
-                // FIX: Trim spaces and convert to uppercase for robust filtering
                 const validCals = [...new Set(getFilteredExcluding('calendario').map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort();
                 calEl.innerHTML = '<option value="">Todos</option>';
                 validCals.forEach(v => calEl.innerHTML += `<option value="${v}">${v}</option>`);
@@ -1020,7 +1019,7 @@
                     });
                 }
 
-                // Render Tabla de Registros en la nueva pestaña
+                // Renderizar Tabla de Registros en la nueva pestaña
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
                 tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio / Taller</th>${thAsistente}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th></tr>`;
@@ -1319,6 +1318,55 @@
                 }
             },
 
+            // NUEVA FUNCIÓN: Maneja los filtros anidados dentro de la pestaña "Gestión de Datos"
+            handleEdicionFilterTrigger: function() {
+                this.refreshEdicionFilters();
+                this.renderActiveEdicionTable();
+            },
+
+            refreshEdicionFilters: function() {
+                let base = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+
+                const regEl = document.getElementById('edicion_filter_regional');
+                const coachEl = document.getElementById('edicion_filter_coach');
+                const calEl = document.getElementById('edicion_filter_calendario');
+                const clasEl = document.getElementById('edicion_filter_clasificacion');
+
+                const regVal = regEl.value;
+                const coachVal = coachEl.value;
+                const calVal = calEl.value;
+                const clasVal = clasEl.value;
+
+                const getFilteredExcluding = (exclude) => {
+                    return base.filter(c => {
+                        if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
+                        if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
+                        if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
+                        if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
+                        return true;
+                    });
+                };
+
+                const updateDropdown = (el, validOptions, defaultText, currentVal) => {
+                    el.innerHTML = `<option value="">${defaultText}</option>`;
+                    validOptions.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`);
+                    if (validOptions.includes(currentVal)) el.value = currentVal;
+                    else el.value = '';
+                };
+
+                const validRegs = [...new Set(getFilteredExcluding('regional').map(c => c.regional).filter(Boolean))].sort();
+                updateDropdown(regEl, validRegs, 'Todas las Regionales', regVal);
+
+                const validCoaches = [...new Set(getFilteredExcluding('coach').map(c => c.coach).filter(Boolean))].sort();
+                updateDropdown(coachEl, validCoaches, 'Todos los Coaches', coachVal);
+
+                const validCals = [...new Set(getFilteredExcluding('calendario').map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort();
+                updateDropdown(calEl, validCals, 'Todos los Calendarios', calVal);
+
+                const validClasif = [...new Set(getFilteredExcluding('clasificacion').map(c => c.clasificacion).filter(Boolean))].sort();
+                updateDropdown(clasEl, validClasif, 'Todas las Clasif.', clasVal);
+            },
+
             openEditView: function(view) {
                 State.currentEdicionView = view;
                 const container = document.getElementById('edicionTableContainer');
@@ -1334,24 +1382,19 @@
                     search.placeholder = "Buscar por nombre de colegio, coach o regional...";
                     filtersDiv.classList.remove('hidden');
                     
-                    const fillDrop = (id, arr, def) => {
-                        const el = document.getElementById(id);
-                        el.innerHTML = `<option value="">${def}</option>`;
-                        arr.forEach(i => el.innerHTML += `<option value="${i}">${i}</option>`);
-                    };
+                    document.getElementById('edicion_filter_regional').value = '';
+                    document.getElementById('edicion_filter_coach').value = '';
+                    document.getElementById('edicion_filter_calendario').value = '';
+                    document.getElementById('edicion_filter_clasificacion').value = '';
                     
-                    fillDrop('edicion_filter_regional', [...new Set(State.colegiosBD.map(c => c.regional).filter(Boolean))].sort(), 'Todas las Regionales');
-                    fillDrop('edicion_filter_coach', [...new Set(State.colegiosBD.map(c => c.coach).filter(Boolean))].sort(), 'Todos los Coaches');
-                    fillDrop('edicion_filter_calendario', [...new Set(State.colegiosBD.map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort(), 'Todos los Calendarios');
-                    fillDrop('edicion_filter_clasificacion', [...new Set(State.colegiosBD.map(c => c.clasificacion).filter(Boolean))].sort(), 'Todas las Clasif.');
-                    
+                    this.handleEdicionFilterTrigger(); 
                 } else {
                     title.innerHTML = '<i class="fa-solid fa-user-tie text-[#002C5F] mr-2"></i> Editando Base de Coaches';
                     search.placeholder = "Buscar por nombre o correo...";
                     filtersDiv.classList.add('hidden');
+                    this.renderActiveEdicionTable();
                 }
                 
-                this.renderActiveEdicionTable();
                 container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             },
 
