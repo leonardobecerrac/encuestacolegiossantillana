@@ -312,7 +312,7 @@
                                 <i class="fa-solid fa-chevron-down text-xs"></i>
                             </button>
                             <div id="dropdown_lineas" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto p-2">
-                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -321,6 +321,17 @@
                         <select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-[#002C5F] pb-1 text-[#002C5F]">
                             <option value="">Todas</option>
                         </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4 mt-2">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Desde (Fecha)</label>
+                        <input type="date" id="filter_fecha_inicio" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1 text-gray-700 cursor-pointer">
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Hasta (Fecha)</label>
+                        <input type="date" id="filter_fecha_fin" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1 text-gray-700 cursor-pointer">
                     </div>
                 </div>
 
@@ -545,7 +556,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIG ---
         const firebaseConfig = {
@@ -558,6 +569,13 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // Activar caché offline para que el Dashboard vuele y no gaste lecturas innecesarias
+        try {
+            enableIndexedDbPersistence(db);
+        } catch (err) {
+            console.warn("La persistencia falló: ", err.code);
+        }
 
         // --- LLAVE MAESTRA (Súper Administradores) ---
         const defaultAdminUsers = [
@@ -572,6 +590,7 @@
             colegiosBD: [],
             coachesAuth: [],
             encuestasData: [], 
+            filteredEncuestas: [], // NUEVO: Guarda temporalmente la data filtrada
             encuestasLoaded: false,
             currentUserRole: null, 
             loginUser: null,
@@ -582,12 +601,12 @@
         // --- FIREBASE INIT ---
         async function initApp() {
             try {
-                // 1. Cargar Colegios
+                // 1. Cargar Colegios desde su colección
                 const colSnap = await getDocs(collection(db, "colegios"));
                 State.colegiosBD = [];
                 colSnap.forEach(d => State.colegiosBD.push({ id: d.id, ...d.data() }));
 
-                // 2. Cargar Coaches
+                // 2. Cargar Coaches desde su colección
                 const coachSnap = await getDocs(collection(db, "coaches"));
                 State.coachesAuth = [];
                 coachSnap.forEach(d => State.coachesAuth.push({ id: d.id, ...d.data() }));
@@ -700,6 +719,7 @@
                 State.loginUser = null;
                 State.encuestasLoaded = false;
                 State.encuestasData = [];
+                State.filteredEncuestas = [];
                 document.getElementById('user-controls').classList.add('hidden');
                 document.getElementById('user-controls').classList.remove('flex');
                 this.switchTab('formTab');
@@ -869,6 +889,20 @@
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
+                // NUEVO: FILTRO POR FECHAS
+                const fInicio = document.getElementById('filter_fecha_inicio').value;
+                const fFin = document.getElementById('filter_fecha_fin').value;
+
+                data = data.filter(d => {
+                    const t = d.timestamp || new Date(d.fecha.split(',')[0]).getTime() || Date.now();
+                    if (fInicio && t < new Date(fInicio + 'T00:00:00').getTime()) return false;
+                    if (fFin && t > new Date(fFin + 'T23:59:59').getTime()) return false;
+                    return true;
+                });
+
+                // Guardar para exportación inteligente
+                State.filteredEncuestas = data; 
+
                 const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes) || 0), 0);
 
                 const colegiosCiclo = masterFilter.filter(c => {
@@ -1016,7 +1050,6 @@
                     });
                 }
 
-                // Renderizar Tabla de Registros en la nueva pestaña
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
                 tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio / Taller</th>${thAsistente}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th></tr>`;
@@ -1110,7 +1143,7 @@
                 if (lineasFilter.length > 0) listaBase = listaBase.filter(c => c.lineaNegocio && lineasFilter.includes(c.lineaNegocio.trim()));
 
                 const validColNames = new Set(listaBase.map(c => c.colegio));
-                let colegiosEvaluados = State.encuestasData.filter(d => validColNames.has(d.colegio));
+                let colegiosEvaluados = State.filteredEncuestas.filter(d => validColNames.has(d.colegio)); // Usamos data filtrada
                 if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => d.coach === coachFilter);
                 const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
 
@@ -1173,6 +1206,7 @@
 
                 const formData = {
                     fecha: new Date().toLocaleString(),
+                    timestamp: Date.now(), // NUEVO TIMESTAMPS
                     ciclo: document.getElementById('ciclo').value,
                     colegio: document.getElementById('q1_colegio').value,
                     asistente: document.getElementById('q2_asistente').value,
@@ -1266,7 +1300,13 @@
             },
 
             exportToExcel: function() {
-                const dataToExport = State.encuestasData.map(d => ({
+                // NUEVO: Solo exporta las encuestas que se están mostrando gracias a los filtros (incluyendo fecha)
+                if (State.filteredEncuestas.length === 0) {
+                    alert("No hay datos para exportar con los filtros actuales.");
+                    return;
+                }
+
+                const dataToExport = State.filteredEncuestas.map(d => ({
                     id: d.id, 
                     fecha: d.fecha,
                     ciclo: d.ciclo,
@@ -1281,8 +1321,8 @@
                 }));
                 const ws = XLSX.utils.json_to_sheet(dataToExport);
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Encuestas");
-                XLSX.writeFile(wb, "BaseDatos_Encuestas_Santillana.xlsx");
+                XLSX.utils.book_append_sheet(wb, ws, "Reporte_Filtrado");
+                XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
             },
 
             downloadEncuestaTemplate: function() {
@@ -1316,6 +1356,7 @@
                         await deleteDoc(doc(db, "encuestas", enc.id));
                     }
                     State.encuestasData = [];
+                    State.filteredEncuestas = [];
                     this.updateDashboard();
                     alert("Base de datos de encuestas borrada exitosamente.");
                 } catch(e) {
@@ -1797,6 +1838,7 @@
             e.target.value = null;
         });
 
+        // Excel Encuestas
         document.getElementById('fileImportEncuestas').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if(!file) return;
@@ -1826,6 +1868,7 @@
                             }
                         } else {
                             const cleanRow = {...row};
+                            if (!cleanRow.timestamp) cleanRow.timestamp = Date.now(); // NUEVO TIMESTAMPS EN EXCEL
                             delete cleanRow.id;
                             const docRef = await addDoc(collection(db, "encuestas"), cleanRow);
                             State.encuestasData.push({ id: docRef.id, ...cleanRow });
