@@ -455,6 +455,17 @@
                     </div>
                 </div>
 
+                <div class="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div class="flex-1 relative">
+                        <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="search_registros" oninput="App.renderRegistrosTable()" placeholder="Buscar por asistente, colegio, coach o palabras en el feedback..." class="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all">
+                    </div>
+                    <select id="filter_perfil_registros" onchange="App.renderRegistrosTable()" class="border border-gray-200 bg-gray-50 rounded-xl px-4 py-2 text-sm font-medium text-gray-600 focus:ring-2 focus:ring-[#FF5A00] transition-all">
+                        <option value="">Todos los Perfiles</option>
+                        <option value="Docente">Docentes</option>
+                        <option value="Directivo">Directivos</option>
+                    </select>
+                </div>
                 <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
                     <div class="overflow-x-auto max-h-[600px]">
                         <table class="w-full text-sm text-left relative">
@@ -889,7 +900,6 @@
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
-                // NUEVO: FILTRO POR FECHAS
                 const fInicio = document.getElementById('filter_fecha_inicio').value;
                 const fFin = document.getElementById('filter_fecha_fin').value;
 
@@ -900,7 +910,6 @@
                     return true;
                 });
 
-                // Guardar para exportación inteligente
                 State.filteredEncuestas = data; 
 
                 const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes) || 0), 0);
@@ -1050,6 +1059,26 @@
                     });
                 }
 
+                // Delegamos el renderizado de la tabla a su propia función
+                this.renderRegistrosTable();
+            },
+
+            renderRegistrosTable: function() {
+                const searchVal = document.getElementById('search_registros') ? document.getElementById('search_registros').value.toLowerCase().trim() : '';
+                const perfilVal = document.getElementById('filter_perfil_registros') ? document.getElementById('filter_perfil_registros').value : '';
+
+                let dataToRender = State.filteredEncuestas || [];
+
+                // Aplicar filtros locales exclusivos de la tabla
+                if (searchVal || perfilVal) {
+                    dataToRender = dataToRender.filter(d => {
+                        const matchPerfil = perfilVal === '' || d.perfil === perfilVal;
+                        const searchString = `${d.colegio} ${d.taller} ${d.asistente || ''} ${d.coach} ${d.sugerencias || ''}`.toLowerCase();
+                        const matchSearch = searchVal === '' || searchString.includes(searchVal);
+                        return matchPerfil && matchSearch;
+                    });
+                }
+
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
                 tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio / Taller</th>${thAsistente}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th></tr>`;
@@ -1057,9 +1086,13 @@
                 const tBody = document.getElementById('tabla_registros');
                 tBody.innerHTML = '';
                 
-                [...data].reverse().forEach(d => {
-                    const tdAsistente = State.currentUserRole === 'admin' ? `<td class="px-6 py-4 text-xs">${d.asistente}</td>` : '';
-                    
+                if (dataToRender.length === 0) {
+                    tBody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 italic">No se encontraron registros que coincidan con la búsqueda.</td></tr>`;
+                    return;
+                }
+
+                [...dataToRender].reverse().forEach(d => {
+                    const tdAsistente = State.currentUserRole === 'admin' ? `<td class="px-6 py-4 text-xs font-bold text-gray-700">${d.asistente}</td>` : '';
                     const avgScore = ((d.q6 + d.q7 + d.q8 + d.q9) / 4).toFixed(1);
                     
                     let scoreColor = 'text-gray-600 bg-gray-50 border-gray-200';
@@ -1067,9 +1100,12 @@
                     else if (avgScore >= 3.0) scoreColor = 'text-yellow-700 bg-yellow-50 border-yellow-200';
                     else scoreColor = 'text-red-700 bg-red-50 border-red-200';
 
+                    // Garantizar que visualmente siempre se quite la hora para registros antiguos que ya la tengan
+                    const fechaLimpia = d.fecha.split(',')[0].trim();
+
                     tBody.innerHTML += `
                         <tr class="hover:bg-orange-50 transition-colors border-b border-gray-100">
-                            <td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500">${d.fecha.split(',')[0]}</td>
+                            <td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500">${fechaLimpia}</td>
                             <td class="px-6 py-4">
                                 <div class="font-bold text-xs text-[#002C5F]">${d.colegio}</div>
                                 <div class="text-[10px] text-gray-400 mt-0.5">${d.numTaller}: ${d.taller}</div>
@@ -1205,7 +1241,7 @@
                 btn.innerHTML = '<span class="loader"></span> Guardando en la nube...';
 
                 const formData = {
-                    fecha: new Date().toLocaleString(),
+                    fecha: new Date().toLocaleDateString('es-CO'),
                     timestamp: Date.now(), // NUEVO TIMESTAMPS
                     ciclo: document.getElementById('ciclo').value,
                     colegio: document.getElementById('q1_colegio').value,
@@ -1328,7 +1364,7 @@
             downloadEncuestaTemplate: function() {
                 const template = [{
                     id: "DEJAR_VACIO_NUEVO_REGISTRO",
-                    fecha: new Date().toLocaleString(),
+                    fecha: new Date().toLocaleDateString('es-CO'),
                     ciclo: "Ciclo Inclusión",
                     colegio: "COLEGIO DE EJEMPLO",
                     asistente: "Juan Perez",
