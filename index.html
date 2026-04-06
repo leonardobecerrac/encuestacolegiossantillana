@@ -548,14 +548,14 @@
         import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIG ---
-const firebaseConfig = {
-    apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
-    authDomain: "encuesta-santillana.firebaseapp.com",
-    projectId: "encuesta-santillana",
-    storageBucket: "encuesta-santillana.firebasestorage.app",
-    messagingSenderId: "354271667135",
-    appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
+            authDomain: "encuesta-santillana.firebaseapp.com",
+            projectId: "encuesta-santillana",
+            storageBucket: "encuesta-santillana.firebasestorage.app",
+            messagingSenderId: "354271667135",
+            appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
+        };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
@@ -566,7 +566,7 @@ const firebaseConfig = {
             { email: "jgarzon@santillana.com", pass: "admin123" }
         ];
 
-        // State Local (Vacío, se llena desde Firebase)
+        // State Local
         const State = {
             adminUsers: [],
             colegiosBD: [],
@@ -582,22 +582,19 @@ const firebaseConfig = {
         // --- FIREBASE INIT ---
         async function initApp() {
             try {
-                const configDoc = await getDocs(collection(db, "sistema"));
-                let loadedConfig = false;
+                // 1. Cargar Colegios
+                const colSnap = await getDocs(collection(db, "colegios"));
+                State.colegiosBD = [];
+                colSnap.forEach(d => State.colegiosBD.push({ id: d.id, ...d.data() }));
 
-                configDoc.forEach((d) => {
-                    if(d.id === "db_maestra") {
-                        State.colegiosBD = d.data().colegios || [];
-                        State.coachesAuth = d.data().coaches || [];
-                        State.adminUsers = d.data().admins || defaultAdminUsers;
-                        loadedConfig = true;
-                    }
-                });
+                // 2. Cargar Coaches
+                const coachSnap = await getDocs(collection(db, "coaches"));
+                State.coachesAuth = [];
+                coachSnap.forEach(d => State.coachesAuth.push({ id: d.id, ...d.data() }));
 
-                if(!loadedConfig) {
-                    State.adminUsers = defaultAdminUsers;
-                    await guardarSistemaDB();
-                }
+                // 3. Mantener Admins por defecto
+                State.adminUsers = defaultAdminUsers;
+
             } catch (error) {
                 console.error("Error cargando Firebase:", error);
                 alert("Error de conexión con la base de datos.");
@@ -622,18 +619,6 @@ const firebaseConfig = {
                 State.encuestasLoaded = true;
             } catch (error) {
                 console.error("Error cargando encuestas", error);
-            }
-        }
-
-        async function guardarSistemaDB() {
-            try {
-                await setDoc(doc(db, "sistema", "db_maestra"), {
-                    colegios: State.colegiosBD,
-                    coaches: State.coachesAuth,
-                    admins: State.adminUsers
-                });
-            } catch (error) {
-                console.error("Error guardando db maestra", error);
             }
         }
 
@@ -737,18 +722,23 @@ const firebaseConfig = {
                 const p2 = document.getElementById('new_pass_confirm').value;
                 if(!p1 || p1 !== p2) { document.getElementById('pass_error').classList.remove('hidden'); return; }
                 
-                let updated = false;
-                if (State.currentUserRole === 'admin') {
-                    const idx = State.adminUsers.findIndex(u => u.email === State.loginUser.email);
-                    if(idx !== -1) { State.adminUsers[idx].pass = p1; updated = true; }
-                } else if (State.currentUserRole === 'coach') {
-                    const idx = State.coachesAuth.findIndex(c => c.email === State.loginUser.email);
-                    if(idx !== -1) { State.coachesAuth[idx].pass = p1; updated = true; }
-                }
-                
-                if (updated) {
-                    await guardarSistemaDB();
+                try {
+                    if (State.currentUserRole === 'admin') {
+                        const idx = State.adminUsers.findIndex(u => u.email === State.loginUser.email);
+                        if(idx !== -1) { State.adminUsers[idx].pass = p1; }
+                    } else if (State.currentUserRole === 'coach') {
+                        const idx = State.coachesAuth.findIndex(c => c.email === State.loginUser.email);
+                        if(idx !== -1) { 
+                            State.coachesAuth[idx].pass = p1; 
+                            const coachId = State.coachesAuth[idx].id;
+                            await setDoc(doc(db, "coaches", coachId), State.coachesAuth[idx]);
+                        }
+                    }
+                    
                     App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada correctamente en la nube.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
+                } catch (e) {
+                    console.error(e);
+                    alert("Error actualizando la contraseña en la nube.");
                 }
             },
 
@@ -1065,7 +1055,6 @@ const firebaseConfig = {
                 });
             },
 
-            // --- NUEVAS EXPLICACIONES DE MÉTRICAS ---
             showAvanceExplanation: function() {
                 const html = `
                     <div class="space-y-4 text-sm text-gray-600">
@@ -1364,7 +1353,6 @@ const firebaseConfig = {
                 }
             },
 
-            // NUEVA FUNCIÓN: Maneja los filtros anidados dentro de la pestaña "Gestión de Datos"
             handleEdicionFilterTrigger: function() {
                 this.refreshEdicionFilters();
                 this.renderActiveEdicionTable();
@@ -1515,16 +1503,26 @@ const firebaseConfig = {
 
             deleteColegio: async function(idx) {
                 if(!confirm("¿Borrar este colegio permanentemente?")) return;
-                State.colegiosBD.splice(idx, 1);
-                await guardarSistemaDB();
-                this.renderActiveEdicionTable();
+                try {
+                    const colId = State.colegiosBD[idx].id;
+                    await deleteDoc(doc(db, "colegios", colId)); 
+                    State.colegiosBD.splice(idx, 1);
+                    this.renderActiveEdicionTable();
+                } catch(e) {
+                    console.error(e); alert("Error al borrar en la nube.");
+                }
             },
 
             deleteCoach: async function(idx) {
                 if(!confirm("¿Borrar este coach permanentemente?")) return;
-                State.coachesAuth.splice(idx, 1);
-                await guardarSistemaDB();
-                this.renderActiveEdicionTable();
+                try {
+                    const coachId = State.coachesAuth[idx].id;
+                    await deleteDoc(doc(db, "coaches", coachId)); 
+                    State.coachesAuth.splice(idx, 1);
+                    this.renderActiveEdicionTable();
+                } catch(e) {
+                    console.error(e); alert("Error al borrar en la nube.");
+                }
             },
 
             openEditColegioModal: function(idx) {
@@ -1630,7 +1628,7 @@ const firebaseConfig = {
             },
 
             saveEditColegio: async function(idx) {
-                const col = {
+                const colData = {
                     colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(),
                     regional: document.getElementById('edit_col_reg').value,
                     coach: document.getElementById('edit_col_coach').value,
@@ -1640,39 +1638,51 @@ const firebaseConfig = {
                     lineaNegocio: document.getElementById('edit_col_linea').value.trim()
                 };
 
-                if(!col.colegio || !col.regional || !col.coach) {
-                    alert("Por favor completa el Nombre, Regional y Coach.");
-                    return;
+                if(!colData.colegio || !colData.regional || !colData.coach) {
+                    alert("Por favor completa el Nombre, Regional y Coach."); return;
                 }
 
-                if(idx === -1) State.colegiosBD.unshift(col); 
-                else State.colegiosBD[idx] = col;
-                
-                await guardarSistemaDB();
-                this.hideModal();
-                this.renderActiveEdicionTable();
-                this.handleFilterTrigger(); 
+                try {
+                    if(idx === -1) { 
+                        const docRef = await addDoc(collection(db, "colegios"), colData);
+                        State.colegiosBD.unshift({ id: docRef.id, ...colData });
+                    } else { 
+                        const colId = State.colegiosBD[idx].id;
+                        await setDoc(doc(db, "colegios", colId), colData);
+                        State.colegiosBD[idx] = { id: colId, ...colData };
+                    }
+                    
+                    this.hideModal();
+                    this.renderActiveEdicionTable();
+                    this.handleFilterTrigger(); 
+                } catch (e) {
+                    console.error(e); alert("Error al guardar en la base de datos.");
+                }
             },
 
             saveEditCoach: async function(idx) {
-                const coach = {
+                const coachData = {
                     nombre: document.getElementById('edit_coach_nombre').value.trim(),
                     email: document.getElementById('edit_coach_email').value.trim().toLowerCase(),
                     regional: document.getElementById('edit_coach_regional').value.trim(),
                     pass: document.getElementById('edit_coach_pass').value.trim()
                 };
 
-                if(!coach.nombre || !coach.email || !coach.regional) {
-                    alert("Por favor completa el Nombre, Correo y Regional.");
-                    return;
+                if(!coachData.nombre || !coachData.email || !coachData.regional) {
+                    alert("Por favor completa el Nombre, Correo y Regional."); return;
                 }
 
-                State.coachesAuth[idx] = coach;
-                
-                await guardarSistemaDB();
-                this.hideModal();
-                this.renderActiveEdicionTable();
-                this.poblarCoaches();
+                try {
+                    const coachId = State.coachesAuth[idx].id;
+                    await setDoc(doc(db, "coaches", coachId), coachData);
+                    State.coachesAuth[idx] = { id: coachId, ...coachData };
+                    
+                    this.hideModal();
+                    this.renderActiveEdicionTable();
+                    this.poblarCoaches();
+                } catch (e) {
+                    console.error(e); alert("Error al guardar en la base de datos.");
+                }
             },
 
             exportData: function(type) {
@@ -1704,54 +1714,84 @@ const firebaseConfig = {
             });
         }
 
-        // Excel Listeners (Conectados a Firebase)
+        // Excel Colegios
         document.getElementById('fileImportColegios').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.onload = async (evt) => {
-                const wb = XLSX.read(evt.target.result, {type: 'binary'});
-                let data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                
-                data = data.map(col => {
-                    let lineaLimpia = col.lineaNegocio ? col.lineaNegocio.toString().trim() : '';
-                    lineaLimpia = lineaLimpia.replace(/\+?\s*RS\*?/gi, '')
-                                             .replace(/^RS\s*\+\s*/gi, '')
-                                             .replace(/^[+\s]+|[+\s]+$/g, '')
-                                             .trim();
-                    return { ...col, lineaNegocio: lineaLimpia };
-                });
-
-                State.colegiosBD = data;
-                await guardarSistemaDB();
-                if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable();
-                alert("Base de colegios actualizada en la nube.");
+                App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4 text-gray-600 font-bold'>Procesando colegios uno por uno...</p></div>", "");
+                try {
+                    const wb = XLSX.read(evt.target.result, {type: 'binary'});
+                    let data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    
+                    for (const col of data) {
+                        let lineaLimpia = col.lineaNegocio ? col.lineaNegocio.toString().trim() : '';
+                        lineaLimpia = lineaLimpia.replace(/\+?\s*RS\*?/gi, '').replace(/^RS\s*\+\s*/gi, '').replace(/^[+\s]+|[+\s]+$/g, '').trim();
+                        
+                        const cleanCol = { ...col, lineaNegocio: lineaLimpia };
+                        delete cleanCol.id; 
+                        
+                        const existingIdx = State.colegiosBD.findIndex(c => c.colegio.toLowerCase() === cleanCol.colegio.toLowerCase());
+                        if (existingIdx >= 0) {
+                            const docId = State.colegiosBD[existingIdx].id;
+                            await setDoc(doc(db, "colegios", docId), cleanCol);
+                            State.colegiosBD[existingIdx] = { id: docId, ...cleanCol };
+                        } else { 
+                            const docRef = await addDoc(collection(db, "colegios"), cleanCol);
+                            State.colegiosBD.push({ id: docRef.id, ...cleanCol });
+                        }
+                    }
+                    
+                    App.hideModal();
+                    if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable();
+                    alert("Base de colegios actualizada en la nube de forma segura.");
+                } catch(err) {
+                    console.error(err); alert("Error procesando archivo."); App.hideModal();
+                }
             };
             reader.readAsBinaryString(file);
             e.target.value = null;
         });
 
+        // Excel Coaches
         document.getElementById('fileImportCoaches').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.onload = async (evt) => {
-                const wb = XLSX.read(evt.target.result, {type: 'binary'});
-                const importedCoaches = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                
-                const coachesActualizados = importedCoaches.map(newCoach => {
-                    const coachExistente = State.coachesAuth.find(c => c.email.toLowerCase() === newCoach.email.trim().toLowerCase());
-                    if (coachExistente) {
-                        return { ...newCoach, pass: coachExistente.pass };
-                    } else {
-                        return newCoach;
+                App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4 text-gray-600 font-bold'>Procesando coaches...</p></div>", "");
+                try {
+                    const wb = XLSX.read(evt.target.result, {type: 'binary'});
+                    const importedCoaches = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    
+                    for (const newCoach of importedCoaches) {
+                        const coachExistenteIdx = State.coachesAuth.findIndex(c => c.email.toLowerCase() === newCoach.email.trim().toLowerCase());
+                        
+                        if (coachExistenteIdx >= 0) {
+                            const docId = State.coachesAuth[coachExistenteIdx].id;
+                            const passActual = State.coachesAuth[coachExistenteIdx].pass; 
+                            const updatedData = { ...newCoach, pass: passActual };
+                            delete updatedData.id;
+                            
+                            await setDoc(doc(db, "coaches", docId), updatedData);
+                            State.coachesAuth[coachExistenteIdx] = { id: docId, ...updatedData };
+                        } else {
+                            const cleanCoach = {...newCoach};
+                            if(!cleanCoach.pass) cleanCoach.pass = '12345'; 
+                            delete cleanCoach.id;
+                            
+                            const docRef = await addDoc(collection(db, "coaches"), cleanCoach);
+                            State.coachesAuth.push({ id: docRef.id, ...cleanCoach });
+                        }
                     }
-                });
 
-                State.coachesAuth = coachesActualizados;
-                await guardarSistemaDB();
-                if(State.currentEdicionView === 'coaches') App.renderActiveEdicionTable();
-                alert("Base de coaches actualizada. (Se conservaron las contraseñas personalizadas).");
+                    App.hideModal();
+                    if(State.currentEdicionView === 'coaches') App.renderActiveEdicionTable();
+                    alert("Base de coaches actualizada. (Se conservaron las contraseñas personalizadas).");
+                } catch(err) {
+                    console.error(err); alert("Error procesando archivo."); App.hideModal();
+                }
             };
             reader.readAsBinaryString(file);
             e.target.value = null;
