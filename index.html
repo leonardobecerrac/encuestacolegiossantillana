@@ -267,73 +267,72 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div id="container_filter_coach" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Coach</label>
-                        <select id="filter_coach" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1">
-                            <option value="">Todos los Coaches</option>
-                        </select>
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Colegio</label>
-                        <select id="filter_colegio" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1">
-                            <option value="">Todos los Colegios</option>
-                        </select>
-                    </div>
-                    <div id="container_filter_taller" class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 opacity-50 transition-opacity">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Taller</label>
-                        <select id="filter_taller" disabled onchange="App.updateDashboard()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1 cursor-not-allowed">
-                            <option value="">Primero elija colegio</option>
-                            <option value="Taller 1">Taller 1</option>
-                            <option value="Taller 2">Taller 2</option>
-                            <option value="Taller 3">Taller 3</option>
-                            <option value="Taller 4">Taller 4</option>
-                            <option value="Taller 5">Taller 5</option>
-                            <option value="Taller 6">Taller 6</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Calendario</label>
-                        <select id="filter_calendario" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-[#002C5F] pb-1 text-[#002C5F]">
-                            <option value="">Todos</option>
-                            <option value="A">A</option>
-                            <option value="B">B</option>
-                        </select>
-                    </div>
-                    
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 relative">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Línea de Negocio</label>
-                        <div class="relative">
-                            <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas')" class="w-full text-left text-sm font-bold bg-transparent focus:outline-none border-b-2 border-[#002C5F] pb-1 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity">
-                                <span id="text_filter_lineas" class="truncate pr-2">Todas</span>
-                                <i class="fa-solid fa-chevron-down text-xs"></i>
-                            </button>
-                            <div id="dropdown_lineas" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto p-2">
-                            </div>
-                        </div>
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    
+    <div id="container_filter_coach" class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Coach</label>
+        <select id="filter_coach" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
+            <option value="">Todos los Coaches</option>
+        </select>
+    </div>
+    
+    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Colegio</label>
+        <select id="filter_colegio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
+            <option value="">Todos los Colegios</option>
+        </select>
+    </div>
+    
+    <div id="container_filter_taller" class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 opacity-50 transition-opacity flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Taller</label>
+        <select id="filter_taller" disabled onchange="App.updateDashboard()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 cursor-not-allowed">
+            <option value="">Primero elija colegio</option>
+            <option value="Taller 1">Taller 1</option>
+            <option value="Taller 2">Taller 2</option>
+            <option value="Taller 3">Taller 3</option>
+            <option value="Taller 4">Taller 4</option>
+            <option value="Taller 5">Taller 5</option>
+            <option value="Taller 6">Taller 6</option>
+        </select>
+    </div>
 
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Clasificación</label>
-                        <select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-[#002C5F] pb-1 text-[#002C5F]">
-                            <option value="">Todas</option>
-                        </select>
-                    </div>
-                </div>
+    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 relative flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Línea de Negocio</label>
+        <div class="relative">
+            <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas')" class="w-full text-left text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity">
+                <span id="text_filter_lineas" class="truncate pr-2">Todas</span>
+                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+            </button>
+            <div id="dropdown_lineas" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto p-2"></div>
+        </div>
+    </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4 mt-2">
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Desde (Fecha)</label>
-                        <input type="date" id="filter_fecha_inicio" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1 text-gray-700 cursor-pointer">
-                    </div>
-                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Hasta (Fecha)</label>
-                        <input type="date" id="filter_fecha_fin" onchange="App.handleFilterTrigger()" class="w-full text-sm font-bold bg-transparent focus:outline-none border-b-2 border-orange-500 pb-1 text-gray-700 cursor-pointer">
-                    </div>
-                </div>
+    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Calendario</label>
+        <select id="filter_calendario" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]">
+            <option value="">Todos</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+        </select>
+    </div>
+
+    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Clasificación</label>
+        <select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]">
+            <option value="">Todas</option>
+        </select>
+    </div>
+
+    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Desde</label>
+        <input type="date" id="filter_fecha_inicio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 text-gray-700 cursor-pointer">
+    </div>
+
+    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
+        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Hasta</label>
+        <input type="date" id="filter_fecha_fin" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 text-gray-700 cursor-pointer">
+    </div>
+</div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-600 flex flex-col justify-between">
