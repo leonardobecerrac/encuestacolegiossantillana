@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --santillana-orange: #FF5A00;
@@ -267,73 +268,79 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-    
-    <div id="container_filter_coach" class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Coach</label>
-        <select id="filter_coach" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
-            <option value="">Todos los Coaches</option>
-        </select>
-    </div>
-    
-    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Colegio</label>
-        <select id="filter_colegio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
-            <option value="">Todos los Colegios</option>
-        </select>
-    </div>
-    
-    <div id="container_filter_taller" class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 opacity-50 transition-opacity flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Taller</label>
-        <select id="filter_taller" disabled onchange="App.updateDashboard()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 cursor-not-allowed">
-            <option value="">Primero elija colegio</option>
-            <option value="Taller 1">Taller 1</option>
-            <option value="Taller 2">Taller 2</option>
-            <option value="Taller 3">Taller 3</option>
-            <option value="Taller 4">Taller 4</option>
-            <option value="Taller 5">Taller 5</option>
-            <option value="Taller 6">Taller 6</option>
-        </select>
-    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                    
+                    <div class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Regional</label>
+                        <select id="filter_regional" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
 
-    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 relative flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Línea de Negocio</label>
-        <div class="relative">
-            <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas')" class="w-full text-left text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity">
-                <span id="text_filter_lineas" class="truncate pr-2">Todas</span>
-                <i class="fa-solid fa-chevron-down text-[10px]"></i>
-            </button>
-            <div id="dropdown_lineas" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto p-2"></div>
-        </div>
-    </div>
+                    <div id="container_filter_coach" class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Coach</label>
+                        <select id="filter_coach" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
+                            <option value="">Todos los Coaches</option>
+                        </select>
+                    </div>
+                    
+                    <div class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Colegio</label>
+                        <select id="filter_colegio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5">
+                            <option value="">Todos los Colegios</option>
+                        </select>
+                    </div>
+                    
+                    <div id="container_filter_taller" class="px-2 py-1 opacity-50 transition-opacity flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Taller</label>
+                        <select id="filter_taller" disabled onchange="App.updateDashboard()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 cursor-not-allowed">
+                            <option value="">Primero elija colegio</option>
+                            <option value="Taller 1">Taller 1</option>
+                            <option value="Taller 2">Taller 2</option>
+                            <option value="Taller 3">Taller 3</option>
+                            <option value="Taller 4">Taller 4</option>
+                            <option value="Taller 5">Taller 5</option>
+                            <option value="Taller 6">Taller 6</option>
+                        </select>
+                    </div>
 
-    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Calendario</label>
-        <select id="filter_calendario" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]">
-            <option value="">Todos</option>
-            <option value="A">A</option>
-            <option value="B">B</option>
-        </select>
-    </div>
+                    <div class="px-2 py-1 relative flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Línea de Negocio</label>
+                        <div class="relative">
+                            <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas')" class="w-full text-left text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity">
+                                <span id="text_filter_lineas" class="truncate pr-2">Todas</span>
+                                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                            <div id="dropdown_lineas" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto p-2"></div>
+                        </div>
+                    </div>
 
-    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Clasificación</label>
-        <select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]">
-            <option value="">Todas</option>
-        </select>
-    </div>
+                    <div class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Calendario</label>
+                        <select id="filter_calendario" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]">
+                            <option value="">Todos</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                        </select>
+                    </div>
 
-    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Desde</label>
-        <input type="date" id="filter_fecha_inicio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 text-gray-700 cursor-pointer">
-    </div>
+                    <div class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Clasificación</label>
+                        <select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
 
-    <div class="bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center">
-        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Hasta</label>
-        <input type="date" id="filter_fecha_fin" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 text-gray-700 cursor-pointer">
-    </div>
-</div>
+                    <div class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Desde</label>
+                        <input type="date" id="filter_fecha_inicio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] cursor-pointer">
+                    </div>
 
+                    <div class="px-2 py-1 flex flex-col justify-center">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Hasta</label>
+                        <input type="date" id="filter_fecha_fin" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] cursor-pointer">
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-600 flex flex-col justify-between">
                         <div class="text-xs font-bold text-gray-400 uppercase mb-1" title="Docentes que han asistido al menos a un taller">Alcance (Docentes)</div>
@@ -427,6 +434,31 @@
                     </div>
                 </div>
 
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 lg:col-span-2 flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest">Evolución del Promedio</h3>
+                            <p class="text-xs text-gray-400">Calidad general a lo largo del tiempo</p>
+                        </div>
+                        <div class="relative flex-1 w-full" style="min-height: 200px;">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest">Top & Bottom</h3>
+                            <select id="ranking_type" onchange="App.updateDashboard()" class="text-[10px] font-bold border border-gray-200 rounded-lg px-2 py-1 focus:outline-none bg-gray-50 text-[#002C5F]">
+                                <option value="coach">Por Coach</option>
+                                <option value="colegio">Por Colegio</option>
+                                <option value="regional">Por Regional</option>
+                            </select>
+                        </div>
+                        <div id="ranking_list" class="space-y-2 max-h-[250px] overflow-y-auto pr-2">
+                            </div>
+                    </div>
+                </div>
+
                 <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500">
                     <div class="flex justify-between items-center mb-4">
                         <div>
@@ -454,16 +486,41 @@
                     </div>
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <div class="flex-1 relative">
-                        <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" id="search_registros" oninput="App.renderRegistrosTable()" placeholder="Buscar por asistente, colegio, coach o palabras en el feedback..." class="w-full pl-11 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Fecha</label>
+                        <input type="date" id="reg_filter_fecha" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all text-gray-600">
                     </div>
-                    <select id="filter_perfil_registros" onchange="App.renderRegistrosTable()" class="border border-gray-200 bg-gray-50 rounded-xl px-4 py-2 text-sm font-medium text-gray-600 focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                        <option value="">Todos los Perfiles</option>
-                        <option value="Docente">Docentes</option>
-                        <option value="Directivo">Directivos</option>
-                    </select>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Regional</label>
+                        <select id="reg_filter_regional" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all text-gray-600">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Colegio</label>
+                        <select id="reg_filter_colegio" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all text-gray-600">
+                            <option value="">Todos los Colegios</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Taller</label>
+                        <select id="reg_filter_taller" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all text-gray-600">
+                            <option value="">Todos los Talleres</option>
+                            <option value="Taller 1">Taller 1</option>
+                            <option value="Taller 2">Taller 2</option>
+                            <option value="Taller 3">Taller 3</option>
+                            <option value="Taller 4">Taller 4</option>
+                            <option value="Taller 5">Taller 5</option>
+                            <option value="Taller 6">Taller 6</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Coach</label>
+                        <select id="reg_filter_coach" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all text-gray-600">
+                            <option value="">Todos los Coaches</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
                     <div class="overflow-x-auto max-h-[600px]">
@@ -580,14 +637,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Activar caché offline para que el Dashboard vuele y no gaste lecturas innecesarias
         try {
             enableIndexedDbPersistence(db);
         } catch (err) {
             console.warn("La persistencia falló: ", err.code);
         }
 
-        // --- LLAVE MAESTRA (Súper Administradores) ---
+        // --- LLAVE MAESTRA ---
         const defaultAdminUsers = [
             { email: "elopez@santillana.com", pass: "admin123" },
             { email: "jbecerra@santillana.com", pass: "admin123" },
@@ -600,7 +656,8 @@
             colegiosBD: [],
             coachesAuth: [],
             encuestasData: [], 
-            filteredEncuestas: [], // NUEVO: Guarda temporalmente la data filtrada
+            filteredEncuestas: [], 
+            registrosFiltrados: [], // Para la exportación de registros local
             encuestasLoaded: false,
             currentUserRole: null, 
             loginUser: null,
@@ -608,22 +665,21 @@
             currentEdicionView: 'colegios'
         };
 
+        // Instancia global para ChartJS
+        window.trendChartInst = null;
+
         // --- FIREBASE INIT ---
         async function initApp() {
             try {
-                // 1. Cargar Colegios desde su colección
                 const colSnap = await getDocs(collection(db, "colegios"));
                 State.colegiosBD = [];
                 colSnap.forEach(d => State.colegiosBD.push({ id: d.id, ...d.data() }));
 
-                // 2. Cargar Coaches desde su colección
                 const coachSnap = await getDocs(collection(db, "coaches"));
                 State.coachesAuth = [];
                 coachSnap.forEach(d => State.coachesAuth.push({ id: d.id, ...d.data() }));
 
-                // 3. Mantener Admins por defecto
                 State.adminUsers = defaultAdminUsers;
-
             } catch (error) {
                 console.error("Error cargando Firebase:", error);
                 alert("Error de conexión con la base de datos.");
@@ -732,6 +788,7 @@
                 State.filteredEncuestas = [];
                 document.getElementById('user-controls').classList.add('hidden');
                 document.getElementById('user-controls').classList.remove('flex');
+                if(window.trendChartInst) window.trendChartInst.destroy();
                 this.switchTab('formTab');
             },
 
@@ -764,7 +821,6 @@
                             await setDoc(doc(db, "coaches", coachId), State.coachesAuth[idx]);
                         }
                     }
-                    
                     App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada correctamente en la nube.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
                 } catch (e) {
                     console.error(e);
@@ -802,12 +858,14 @@
             refreshCascadingFilters: function() {
                 let base = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 
+                const regEl = document.getElementById('filter_regional');
                 const coachEl = document.getElementById('filter_coach');
                 const colEl = document.getElementById('filter_colegio');
                 const calEl = document.getElementById('filter_calendario');
                 const clasEl = document.getElementById('filter_clasificacion');
                 const lineasCbs = document.querySelectorAll('.linea-cb');
 
+                const regVal = regEl.value;
                 const coachVal = State.currentUserRole === 'admin' ? coachEl.value : State.loginUser.nombre;
                 const colVal = colEl.value;
                 const calVal = calEl.value;
@@ -816,6 +874,7 @@
 
                 const getFilteredExcluding = (exclude) => {
                     return base.filter(c => {
+                        if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
                         if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
                         if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
                         if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
@@ -824,6 +883,11 @@
                         return true;
                     });
                 };
+
+                const validRegs = [...new Set(getFilteredExcluding('regional').map(c => c.regional).filter(Boolean))].sort();
+                regEl.innerHTML = '<option value="">Todas</option>';
+                validRegs.forEach(v => regEl.innerHTML += `<option value="${v}">${v}</option>`);
+                if (validRegs.includes(regVal)) regEl.value = regVal;
 
                 if (State.currentUserRole === 'admin') {
                     const validCoaches = [...new Set(getFilteredExcluding('coach').map(c => c.coach))].sort();
@@ -875,7 +939,13 @@
             },
 
             updateDashboard: function() {
-                let data = [...State.encuestasData];
+                // 1. Mapear datos con regional
+                let data = State.encuestasData.map(d => {
+                    const colInfo = State.colegiosBD.find(c => c.colegio === d.colegio);
+                    return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' };
+                });
+
+                const regF = document.getElementById('filter_regional').value;
                 const coachF = State.currentUserRole === 'admin' ? document.getElementById('filter_coach').value : State.loginUser.nombre;
                 const colF = document.getElementById('filter_colegio').value;
                 const tallerF = document.getElementById('filter_taller').value;
@@ -885,8 +955,10 @@
                 const cbsLineas = document.querySelectorAll('.linea-cb:checked');
                 const lineasF = Array.from(cbsLineas).map(cb => cb.value);
 
+                // Filtrar Maestro de Colegios
                 let masterFilter = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 
+                if(regF) masterFilter = masterFilter.filter(c => c.regional === regF);
                 if(coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
                 if(colF) masterFilter = masterFilter.filter(c => c.colegio === colF);
                 if(calF) masterFilter = masterFilter.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
@@ -895,10 +967,13 @@
                 
                 const colegiosPermitidos = new Set(masterFilter.map(c => c.colegio));
                 
+                // Filtrar Encuestas
+                if(regF) data = data.filter(d => d.regional === regF);
                 if(coachF) data = data.filter(d => d.coach === coachF);
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
+                // Filtrar por Fechas
                 const fInicio = document.getElementById('filter_fecha_inicio').value;
                 const fFin = document.getElementById('filter_fecha_fin').value;
 
@@ -911,53 +986,50 @@
 
                 State.filteredEncuestas = data; 
 
+                // Cálculos de KPIs Superiores
                 const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes) || 0), 0);
-
                 const colegiosCiclo = masterFilter.filter(c => {
                     const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
                     return !clasif.includes('PRODUCTO'); 
                 });
                 
                 const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
-
                 let metaAsistencias = 0;
                 colegiosCiclo.forEach(c => {
                     const docs = parseInt(c.docentes) || 0;
                     let multiplicador = 1; 
-                    
                     const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
                     if (clasif === 'AAA') multiplicador = 6;
                     else if (clasif === 'RI') multiplicador = 4;
                     else if (clasif === 'AA') multiplicador = 3;
-                    
                     metaAsistencias += (docs * multiplicador);
                 });
 
                 const docs = data.filter(d => d.perfil === 'Docente').length;
                 const dirs = data.filter(d => d.perfil === 'Directivo').length;
-                
                 const encuestasCicloRegular = data.filter(d => nombresColegiosCiclo.has(d.colegio));
                 const asistenciasReales = encuestasCicloRegular.length; 
                 
+                // Corrección de denominadores en cero
                 const avanceCiclo = metaAsistencias > 0 ? ((asistenciasReales / metaAsistencias) * 100).toFixed(1) : 0;
+                const safeMetaAlcance = metaAlcance === 0 ? "0" : metaAlcance;
+                const safeMetaAsistencias = metaAsistencias === 0 ? "0" : metaAsistencias;
                 
                 const colegiosAtendidos = new Set(data.map(d => d.colegio)).size;
                 const colegiosTotales = masterFilter.length;
 
                 document.getElementById('dash_docentes').innerText = docs;
-                document.getElementById('dash_meta_docentes').innerText = metaAlcance;
+                document.getElementById('dash_meta_docentes').innerText = safeMetaAlcance;
                 document.getElementById('dash_avance_porcentaje').innerText = avanceCiclo + '%';
                 document.getElementById('dash_asistencias_reales').innerText = asistenciasReales;
-                document.getElementById('dash_asistencias_meta').innerText = metaAsistencias;
+                document.getElementById('dash_asistencias_meta').innerText = safeMetaAsistencias;
                 document.getElementById('dash_directivos').innerText = dirs;
                 document.getElementById('dash_cobertura_colegios').innerText = colegiosAtendidos;
                 document.getElementById('dash_total_colegios').innerText = colegiosTotales;
 
+                // Promedios por dimensión
                 const calc = (key) => (data.reduce((s, d) => s + d[key], 0) / (data.length || 1)).toFixed(1);
-                const valQ6 = calc('q6');
-                const valQ7 = calc('q7');
-                const valQ8 = calc('q8');
-                const valQ9 = calc('q9');
+                const valQ6 = calc('q6'); const valQ7 = calc('q7'); const valQ8 = calc('q8'); const valQ9 = calc('q9');
 
                 ['q6', 'q7', 'q8', 'q9'].forEach(q => {
                     const val = calc(q);
@@ -965,8 +1037,8 @@
                     document.getElementById(`bar_${q}`).style.width = (val / 5 * 100) + '%';
                 });
 
-                let totalRespuestas = 0;
-                let excelentes = 0;
+                // CSAT
+                let totalRespuestas = 0; let excelentes = 0;
                 data.forEach(d => {
                     [d.q6, d.q7, d.q8, d.q9].forEach(score => {
                         totalRespuestas++;
@@ -980,12 +1052,12 @@
                 if (circle && text) {
                     circle.setAttribute('stroke-dasharray', `${csatScore}, 100`);
                     text.textContent = `${csatScore}%`;
-                    
                     if(csatScore >= 80) circle.setAttribute('stroke', '#16a34a'); 
                     else if(csatScore >= 60) circle.setAttribute('stroke', '#ca8a04'); 
                     else circle.setAttribute('stroke', '#dc2626'); 
                 }
 
+                // Diagnóstico Cualitativo
                 const rList = document.getElementById('rubrica_list');
                 if (data.length === 0) {
                     rList.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos de la encuesta...</div>';
@@ -1013,27 +1085,137 @@
                             </div>
                         `;
                     };
-
-                    rList.innerHTML = `
-                        ${evalRubric(valQ6, 'Conocimiento y preparación del coach')}
-                        ${evalRubric(valQ7, 'Utilidad y aplicabilidad al contexto')}
-                        ${evalRubric(valQ8, 'Metodología dinámica y participación')}
-                        ${evalRubric(valQ9, 'Calidad de recursos y materiales')}
-                    `;
+                    rList.innerHTML = `${evalRubric(valQ6, 'Conocimiento y preparación')}${evalRubric(valQ7, 'Utilidad y aplicabilidad')}${evalRubric(valQ8, 'Metodología y participación')}${evalRubric(valQ9, 'Calidad de recursos')}`;
                 }
 
+                // ---> NUEVO: GRÁFICO DE TENDENCIA (CHART.JS) <---
+                const monthlyData = {};
+                data.forEach(d => {
+                    const dateParts = d.fecha.split(',')[0].trim().split('/');
+                    if(dateParts.length === 3) {
+                        const monthYear = `${dateParts[1]}/${dateParts[2]}`; // MM/YYYY
+                        if(!monthlyData[monthYear]) monthlyData[monthYear] = { sum: 0, count: 0 };
+                        const avg = (d.q6 + d.q7 + d.q8 + d.q9) / 4;
+                        monthlyData[monthYear].sum += avg;
+                        monthlyData[monthYear].count++;
+                    }
+                });
+                
+                const labels = Object.keys(monthlyData).sort((a,b) => {
+                   const [m1,y1] = a.split('/'); const [m2,y2] = b.split('/');
+                   return new Date(y1, m1-1) - new Date(y2, m2-1);
+                });
+                const chartValues = labels.map(l => (monthlyData[l].sum / monthlyData[l].count).toFixed(2));
+
+                const ctx = document.getElementById('trendChart');
+                if(ctx) {
+                    if(window.trendChartInst) window.trendChartInst.destroy();
+                    window.trendChartInst = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Promedio General',
+                                data: chartValues,
+                                borderColor: '#FF5A00',
+                                backgroundColor: 'rgba(255, 90, 0, 0.1)',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#002C5F',
+                                pointRadius: 4,
+                                fill: true,
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: { min: 1, max: 5, ticks: { stepSize: 1 } }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                }
+
+                // ---> NUEVO: RANKING DE DESEMPEÑO <---
+                const rankType = document.getElementById('ranking_type').value;
+                const rankMap = {};
+                data.forEach(d => {
+                    let key = '';
+                    if(rankType === 'coach') key = d.coach;
+                    else if(rankType === 'colegio') key = d.colegio;
+                    else key = d.regional;
+
+                    if(!key) return;
+                    if(!rankMap[key]) rankMap[key] = { sum: 0, count: 0 };
+                    rankMap[key].sum += (d.q6 + d.q7 + d.q8 + d.q9) / 4;
+                    rankMap[key].count++;
+                });
+
+                const rankArray = Object.keys(rankMap).map(k => ({ 
+                    name: k, 
+                    score: rankMap[k].sum / rankMap[k].count, 
+                    count: rankMap[k].count 
+                })).filter(x => x.count > 0);
+                
+                rankArray.sort((a,b) => b.score - a.score);
+
+                const renderRankItem = (item, position) => {
+                    let badgeColor = 'bg-gray-100 text-gray-500';
+                    let icon = '';
+                    if (position === 1) { badgeColor = 'bg-yellow-100 text-yellow-700'; icon = '<i class="fa-solid fa-trophy mr-1"></i>'; }
+                    else if (position === 2) { badgeColor = 'bg-gray-200 text-gray-700'; }
+                    else if (position === 3) { badgeColor = 'bg-orange-100 text-orange-800'; }
+                    else { badgeColor = 'bg-red-100 text-red-700'; icon = '<i class="fa-solid fa-arrow-trend-down mr-1"></i>'; }
+
+                    return `
+                        <div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50 transition-colors">
+                            <div class="flex items-center gap-2 overflow-hidden">
+                                <span class="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black ${badgeColor}">${position}</span>
+                                <div class="truncate">
+                                    <p class="text-xs font-bold text-gray-700 truncate" title="${item.name}">${item.name}</p>
+                                    <p class="text-[9px] text-gray-400">${item.count} eval.</p>
+                                </div>
+                            </div>
+                            <div class="text-xs font-black text-[#002C5F] bg-blue-50 px-2 py-1 rounded ml-2 flex-shrink-0">
+                                ${icon} ${item.score.toFixed(1)}
+                            </div>
+                        </div>
+                    `;
+                };
+
+                const rankListEl = document.getElementById('ranking_list');
+                rankListEl.innerHTML = '';
+                
+                if (rankArray.length === 0) {
+                    rankListEl.innerHTML = '<div class="text-center text-xs text-gray-400 italic py-4">No hay datos suficientes para el ranking.</div>';
+                } else {
+                    // Top 3
+                    rankListEl.innerHTML += '<div class="text-[10px] font-bold text-green-600 uppercase tracking-widest mt-1 mb-2">Mejor Desempeño</div>';
+                    rankArray.slice(0, 3).forEach((item, idx) => {
+                        rankListEl.innerHTML += renderRankItem(item, idx + 1);
+                    });
+                    
+                    // Bottom 3 (if there are more than 3 elements)
+                    if (rankArray.length > 3) {
+                        rankListEl.innerHTML += '<div class="text-[10px] font-bold text-red-600 uppercase tracking-widest mt-4 mb-2">Requieren Atención</div>';
+                        const bottomItems = rankArray.slice(-3).reverse();
+                        bottomItems.forEach((item, idx) => {
+                            rankListEl.innerHTML += renderRankItem(item, rankArray.length - idx);
+                        });
+                    }
+                }
+
+                // Detractores
                 const dList = document.getElementById('detractores_list');
                 const detractores = data.filter(d => d.q6 <= 2 || d.q7 <= 2 || d.q8 <= 2 || d.q9 <= 2);
-                
                 document.getElementById('detractores_badge').innerText = `${detractores.length} Caso${detractores.length !== 1 ? 's' : ''} Detectado${detractores.length !== 1 ? 's' : ''}`;
-                
                 dList.innerHTML = '';
                 if (detractores.length === 0) {
-                    if (data.length === 0) {
-                        dList.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 italic text-sm py-4">Esperando datos de la encuesta...</div>';
-                    } else {
-                        dList.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-green-600 italic text-sm py-6 font-bold"><i class="fa-solid fa-shield-check text-3xl mb-2"></i> ¡Excelente! No se registran alertas críticas en la selección actual.</div>';
-                    }
+                    if (data.length === 0) dList.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 italic text-sm py-4">Esperando datos de la encuesta...</div>';
+                    else dList.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-green-600 italic text-sm py-6 font-bold"><i class="fa-solid fa-shield-check text-3xl mb-2"></i> ¡Excelente! No se registran alertas críticas en la selección actual.</div>';
                 } else {
                     detractores.forEach(d => {
                         const minScore = Math.min(d.q6, d.q7, d.q8, d.q9);
@@ -1058,35 +1240,96 @@
                     });
                 }
 
-                // Delegamos el renderizado de la tabla a su propia función
                 this.renderRegistrosTable();
             },
 
+            populateRegistrosFilters: function() {
+                const regSel = document.getElementById('reg_filter_regional');
+                const colSel = document.getElementById('reg_filter_colegio');
+                const coachSel = document.getElementById('reg_filter_coach');
+                if (!colSel || !coachSel || !regSel) return;
+
+                const currReg = regSel.value;
+                const currCol = colSel.value;
+                const currCoach = coachSel.value;
+
+                // Extraemos dinámicamente usando State.colegiosBD para mapear la regional a la encuesta
+                const datosEnriquecidos = State.encuestasData.map(d => {
+                    const col = State.colegiosBD.find(c => c.colegio === d.colegio);
+                    return { ...d, regional: col ? col.regional : 'Sin Regional' };
+                });
+
+                const regionales = [...new Set(datosEnriquecidos.map(d => d.regional))].sort();
+                regSel.innerHTML = '<option value="">Todas</option>';
+                regionales.forEach(r => regSel.innerHTML += `<option value="${r}">${r}</option>`);
+                regSel.value = currReg;
+
+                const colegios = [...new Set(datosEnriquecidos.map(d => d.colegio))].sort();
+                colSel.innerHTML = '<option value="">Todos los Colegios</option>';
+                colegios.forEach(c => colSel.innerHTML += `<option value="${c}">${c}</option>`);
+                colSel.value = currCol;
+
+                if (State.currentUserRole === 'admin') {
+                    const coaches = [...new Set(datosEnriquecidos.map(d => d.coach))].sort();
+                    coachSel.innerHTML = '<option value="">Todos los Coaches</option>';
+                    coaches.forEach(c => coachSel.innerHTML += `<option value="${c}">${c}</option>`);
+                    coachSel.value = currCoach;
+                } else {
+                    coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`;
+                    coachSel.disabled = true;
+                }
+            },
+
             renderRegistrosTable: function() {
-                const searchVal = document.getElementById('search_registros') ? document.getElementById('search_registros').value.toLowerCase().trim() : '';
-                const perfilVal = document.getElementById('filter_perfil_registros') ? document.getElementById('filter_perfil_registros').value : '';
+                this.populateRegistrosFilters();
 
-                let dataToRender = State.filteredEncuestas || [];
+                const fechaVal = document.getElementById('reg_filter_fecha') ? document.getElementById('reg_filter_fecha').value : '';
+                const regVal = document.getElementById('reg_filter_regional') ? document.getElementById('reg_filter_regional').value : '';
+                const colVal = document.getElementById('reg_filter_colegio') ? document.getElementById('reg_filter_colegio').value : '';
+                const tallerVal = document.getElementById('reg_filter_taller') ? document.getElementById('reg_filter_taller').value : '';
+                const coachVal = document.getElementById('reg_filter_coach') ? document.getElementById('reg_filter_coach').value : '';
 
-                // Aplicar filtros locales exclusivos de la tabla
-                if (searchVal || perfilVal) {
+                let dataToRender = State.encuestasData.map(d => {
+                    const col = State.colegiosBD.find(c => c.colegio === d.colegio);
+                    return { ...d, regional: col ? col.regional : 'Sin Regional' };
+                });
+
+                if (fechaVal) {
+                    const parts = fechaVal.split('-');
+                    const selectedDateStr = `${parseInt(parts[2])}/${parseInt(parts[1])}/${parts[0]}`;
                     dataToRender = dataToRender.filter(d => {
-                        const matchPerfil = perfilVal === '' || d.perfil === perfilVal;
-                        const searchString = `${d.colegio} ${d.taller} ${d.asistente || ''} ${d.coach} ${d.sugerencias || ''}`.toLowerCase();
-                        const matchSearch = searchVal === '' || searchString.includes(searchVal);
-                        return matchPerfil && matchSearch;
+                        const fechaLimpia = d.fecha.split(',')[0].trim();
+                        return fechaLimpia === selectedDateStr || fechaLimpia === `${parts[2]}/${parts[1]}/${parts[0]}`;
                     });
                 }
+                
+                if (regVal) dataToRender = dataToRender.filter(d => d.regional === regVal);
+                if (colVal) dataToRender = dataToRender.filter(d => d.colegio === colVal);
+                if (tallerVal) dataToRender = dataToRender.filter(d => d.numTaller === tallerVal);
+                if (coachVal && State.currentUserRole === 'admin') dataToRender = dataToRender.filter(d => d.coach === coachVal);
+                if (State.currentUserRole === 'coach') dataToRender = dataToRender.filter(d => d.coach === State.loginUser.nombre);
+
+                State.registrosFiltrados = dataToRender;
 
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
-                tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio / Taller</th>${thAsistente}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th></tr>`;
+                
+                tHead.innerHTML = `<tr>
+                    <th class="px-6 py-4">Fecha</th>
+                    <th class="px-6 py-4">Colegio</th>
+                    <th class="px-6 py-4">Taller</th>
+                    ${thAsistente}
+                    <th class="px-6 py-4">Perfil</th>
+                    <th class="px-6 py-4">Coach</th>
+                    <th class="px-6 py-4 text-center">Promedio</th>
+                    <th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th>
+                </tr>`;
                 
                 const tBody = document.getElementById('tabla_registros');
                 tBody.innerHTML = '';
                 
                 if (dataToRender.length === 0) {
-                    tBody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 italic">No se encontraron registros que coincidan con la búsqueda.</td></tr>`;
+                    tBody.innerHTML = `<tr><td colspan="${State.currentUserRole === 'admin' ? 8 : 7}" class="px-6 py-8 text-center text-gray-400 italic">No se encontraron registros con los filtros seleccionados.</td></tr>`;
                     return;
                 }
 
@@ -1099,7 +1342,6 @@
                     else if (avgScore >= 3.0) scoreColor = 'text-yellow-700 bg-yellow-50 border-yellow-200';
                     else scoreColor = 'text-red-700 bg-red-50 border-red-200';
 
-                    // Garantizar que visualmente siempre se quite la hora para registros antiguos que ya la tengan
                     const fechaLimpia = d.fecha.split(',')[0].trim();
 
                     tBody.innerHTML += `
@@ -1107,8 +1349,9 @@
                             <td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500">${fechaLimpia}</td>
                             <td class="px-6 py-4">
                                 <div class="font-bold text-xs text-[#002C5F]">${d.colegio}</div>
-                                <div class="text-[10px] text-gray-400 mt-0.5">${d.numTaller}: ${d.taller}</div>
+                                <div class="text-[9px] text-gray-400 mt-0.5">${d.regional}</div>
                             </td>
+                            <td class="px-6 py-4 text-[10px] text-gray-600 font-medium">${d.numTaller}: ${d.taller}</td>
                             ${tdAsistente}
                             <td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase ${d.perfil==='Docente'?'bg-blue-100 text-blue-700':'bg-purple-100 text-purple-700'}">${d.perfil}</span></td>
                             <td class="px-6 py-4 text-xs whitespace-nowrap font-medium text-gray-700">${d.coach}</td>
@@ -1121,6 +1364,36 @@
                         </tr>
                     `;
                 });
+            },
+
+            exportToExcel: function() {
+                const listToExport = State.registrosFiltrados && State.registrosFiltrados.length > 0 
+                                     ? State.registrosFiltrados 
+                                     : State.filteredEncuestas;
+
+                if (!listToExport || listToExport.length === 0) {
+                    alert("No hay datos para exportar con los filtros actuales.");
+                    return;
+                }
+
+                const dataToExport = listToExport.map(d => ({
+                    id: d.id, 
+                    fecha: d.fecha.split(',')[0].trim(),
+                    ciclo: d.ciclo,
+                    regional: d.regional || 'Sin Regional',
+                    colegio: d.colegio,
+                    asistente: d.asistente,
+                    perfil: d.perfil,
+                    coach: d.coach,
+                    numTaller: d.numTaller,
+                    taller: d.taller,
+                    q6: d.q6, q7: d.q7, q8: d.q8, q9: d.q9,
+                    sugerencias: d.sugerencias
+                }));
+                const ws = XLSX.utils.json_to_sheet(dataToExport);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Reporte_Filtrado");
+                XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
             },
 
             showAvanceExplanation: function() {
@@ -1162,6 +1435,7 @@
             },
 
             mostrarEstadoCobertura: function() {
+                const regFilter = document.getElementById('filter_regional').value;
                 const coachFilter = State.currentUserRole === 'admin' ? document.getElementById('filter_coach').value : State.loginUser.nombre;
                 const colFilter = document.getElementById('filter_colegio').value;
                 const calFilter = document.getElementById('filter_calendario').value;
@@ -1171,6 +1445,7 @@
                 const lineasFilter = Array.from(cbsLineas).map(cb => cb.value);
 
                 let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+                if (regFilter) listaBase = listaBase.filter(c => c.regional === regFilter);
                 if (coachFilter) listaBase = listaBase.filter(c => c.coach === coachFilter);
                 if (colFilter) listaBase = listaBase.filter(c => c.colegio === colFilter);
                 if (calFilter) listaBase = listaBase.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calFilter);
@@ -1178,7 +1453,7 @@
                 if (lineasFilter.length > 0) listaBase = listaBase.filter(c => c.lineaNegocio && lineasFilter.includes(c.lineaNegocio.trim()));
 
                 const validColNames = new Set(listaBase.map(c => c.colegio));
-                let colegiosEvaluados = State.filteredEncuestas.filter(d => validColNames.has(d.colegio)); // Usamos data filtrada
+                let colegiosEvaluados = State.filteredEncuestas.filter(d => validColNames.has(d.colegio));
                 if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => d.coach === coachFilter);
                 const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
 
@@ -1197,7 +1472,7 @@
                 let html = `<p class="mb-4 text-sm text-gray-600">Estado de colegios asignados${coachFilter ? ` a <b class="text-[#002C5F]">${coachFilter}</b>` : ''}:</p>`;
                 
                 if(listaBase.length === 0) {
-                    html += `<div class="p-4 bg-gray-50 text-gray-500 rounded-xl text-center border">No hay colegios asignados a este coach.</div>`;
+                    html += `<div class="p-4 bg-gray-50 text-gray-500 rounded-xl text-center border">No hay colegios asignados con estos filtros.</div>`;
                 } else {
                     html += `<div class="space-y-3 max-h-[50vh] overflow-y-auto pr-2">`;
                     Object.keys(porRegional).sort().forEach((reg, index) => {
@@ -1241,7 +1516,7 @@
 
                 const formData = {
                     fecha: new Date().toLocaleDateString('es-CO'),
-                    timestamp: Date.now(), // NUEVO TIMESTAMPS
+                    timestamp: Date.now(), 
                     ciclo: document.getElementById('ciclo').value,
                     colegio: document.getElementById('q1_colegio').value,
                     asistente: document.getElementById('q2_asistente').value,
@@ -1332,32 +1607,6 @@
                     </div>
                 `;
                 this.showModal("Importar / Actualizar Encuestas", html, '<button onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-xl font-bold">Cerrar</button>');
-            },
-
-            exportToExcel: function() {
-                // NUEVO: Solo exporta las encuestas que se están mostrando gracias a los filtros (incluyendo fecha)
-                if (State.filteredEncuestas.length === 0) {
-                    alert("No hay datos para exportar con los filtros actuales.");
-                    return;
-                }
-
-                const dataToExport = State.filteredEncuestas.map(d => ({
-                    id: d.id, 
-                    fecha: d.fecha,
-                    ciclo: d.ciclo,
-                    colegio: d.colegio,
-                    asistente: d.asistente,
-                    perfil: d.perfil,
-                    coach: d.coach,
-                    numTaller: d.numTaller,
-                    taller: d.taller,
-                    q6: d.q6, q7: d.q7, q8: d.q8, q9: d.q9,
-                    sugerencias: d.sugerencias
-                }));
-                const ws = XLSX.utils.json_to_sheet(dataToExport);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Reporte_Filtrado");
-                XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
             },
 
             downloadEncuestaTemplate: function() {
@@ -1903,7 +2152,7 @@
                             }
                         } else {
                             const cleanRow = {...row};
-                            if (!cleanRow.timestamp) cleanRow.timestamp = Date.now(); // NUEVO TIMESTAMPS EN EXCEL
+                            if (!cleanRow.timestamp) cleanRow.timestamp = Date.now(); 
                             delete cleanRow.id;
                             const docRef = await addDoc(collection(db, "encuestas"), cleanRow);
                             State.encuestasData.push({ id: docRef.id, ...cleanRow });
