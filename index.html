@@ -53,7 +53,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800">
 
-    <input type="file" id="fileImportEncuestas" class="hidden" accept=".xlsx, .xls">
+    <input type="file" id="fileImportEncuestas" class="hidden" accept=".xlsx, .xls, .csv">
     <input type="file" id="fileImportColegios" class="hidden" accept=".xlsx, .xls">
     <input type="file" id="fileImportCoaches" class="hidden" accept=".xlsx, .xls">
 
@@ -682,7 +682,6 @@
         async function fetchEncuestas() {
             if (State.encuestasLoaded) return;
             try {
-                // Descargamos TODAS las encuestas y filtramos localmente para que el normalizador de Alias funcione
                 const encuestasSnap = await getDocs(collection(db, "encuestas"));
                 State.encuestasData = [];
                 encuestasSnap.forEach((d) => {
@@ -917,7 +916,6 @@
                 const getFilteredExcluding = (exclude) => {
                     return base.filter(c => {
                         if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
-                        // Uso de getStandardCoach para el emparejamiento con alias
                         if (exclude !== 'coach' && coachVal && getStandardCoach(c.coach) !== getStandardCoach(coachVal)) return false;
                         if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
                         if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
@@ -1000,7 +998,7 @@
                 let masterFilter = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 
                 if(regF) masterFilter = masterFilter.filter(c => c.regional === regF);
-                if(coachF) masterFilter = masterFilter.filter(c => getStandardCoach(c.coach) === getStandardCoach(coachF)); // ALIAS MATCH
+                if(coachF) masterFilter = masterFilter.filter(c => getStandardCoach(c.coach) === getStandardCoach(coachF));
                 if(colF) masterFilter = masterFilter.filter(c => c.colegio === colF);
                 if(calF) masterFilter = masterFilter.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
                 if(clasF) masterFilter = masterFilter.filter(c => c.clasificacion === clasF);
@@ -1009,7 +1007,7 @@
                 const colegiosPermitidos = new Set(masterFilter.map(c => c.colegio));
                 
                 if(regF) data = data.filter(d => d.regional === regF);
-                if(coachF) data = data.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachF)); // ALIAS MATCH
+                if(coachF) data = data.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachF));
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
@@ -1340,7 +1338,6 @@
                 if (colVal) dataToRender = dataToRender.filter(d => d.colegio === colVal);
                 if (tallerVal) dataToRender = dataToRender.filter(d => d.numTaller === tallerVal);
                 
-                // Filtro de roles y ALIAS MATCH
                 if (coachVal && State.currentUserRole === 'admin') dataToRender = dataToRender.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachVal)); 
                 if (State.currentUserRole === 'coach') dataToRender = dataToRender.filter(d => getStandardCoach(d.coach) === getStandardCoach(State.loginUser.nombre)); 
 
@@ -1493,7 +1490,7 @@
 
                 let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 if (regFilter) listaBase = listaBase.filter(c => c.regional === regFilter);
-                if (coachFilter) listaBase = listaBase.filter(c => getStandardCoach(c.coach) === getStandardCoach(coachFilter)); // ALIAS MATCH
+                if (coachFilter) listaBase = listaBase.filter(c => getStandardCoach(c.coach) === getStandardCoach(coachFilter)); 
                 if (colFilter) listaBase = listaBase.filter(c => c.colegio === colFilter);
                 if (calFilter) listaBase = listaBase.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calFilter);
                 if (clasFilter) listaBase = listaBase.filter(c => c.clasificacion === clasFilter);
@@ -1501,7 +1498,7 @@
 
                 const validColNames = new Set(listaBase.map(c => c.colegio));
                 let colegiosEvaluados = State.filteredEncuestas.filter(d => validColNames.has(d.colegio));
-                if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachFilter)); // ALIAS MATCH
+                if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachFilter)); 
                 const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
 
                 const porRegional = {};
@@ -2179,18 +2176,63 @@
                     
                     let agregadas = 0, actualizadas = 0;
 
-                    for(const row of importedData) {
+                    for(let row of importedData) {
+                        
+                        // AUTO-CORRECCIÓN DE DESPLAZAMIENTO (Si el usuario omitió la columna ID en Excel)
+                        // Si la columna coach dice "Taller..." y la columna taller tiene un número (1-5), las columnas se movieron.
+                        if (row.coach && row.coach.toString().toLowerCase().includes("taller") && [1,2,3,4,5].includes(parseInt(row.taller))) {
+                            row.sugerencias = row.q9;
+                            row.q9 = row.q8;
+                            row.q8 = row.q7;
+                            row.q7 = row.q6;
+                            row.q6 = row.taller;
+                            row.taller = row.numTaller;
+                            row.numTaller = row.coach;
+                            row.coach = row.perfil;
+                            row.perfil = row.asistente;
+                            row.asistente = row.colegio;
+                            row.colegio = row.regional;
+                            row.regional = row.ciclo;
+                            row.ciclo = row.fecha;
+                            row.fecha = row.id;
+                            row.id = ""; // Lo forzamos a vacío para que Firebase genere uno nuevo
+                        }
+
                         if (!row.colegio || !row.coach) continue; 
                         
-                        if (row.id && row.id !== "DEJAR_VACIO_NUEVO_REGISTRO") {
-                            const existingIdx = State.encuestasData.findIndex(d => d.id === row.id.toString());
+                        // Validar y sanear el ID para que Firebase no colapse
+                        let realId = row.id ? row.id.toString().trim() : "";
+                        if (realId === "DEJAR_VACIO_NUEVO_REGISTRO" || realId.includes("/") || realId.includes("-")) {
+                            realId = ""; 
+                        }
+
+                        // Saneamiento de variables para evitar "NaN" en el dashboard
+                        row.q6 = parseFloat(row.q6) || 0;
+                        row.q7 = parseFloat(row.q7) || 0;
+                        row.q8 = parseFloat(row.q8) || 0;
+                        row.q9 = parseFloat(row.q9) || 0;
+                        row.sugerencias = row.sugerencias ? row.sugerencias.toString() : "Sin comentarios adicionales";
+                        row.asistente = row.asistente ? row.asistente.toString() : "Anónimo";
+
+                        // Saneamiento de fechas (Por si Excel exporta fechas como seriales numéricos)
+                        if (typeof row.fecha === 'number') {
+                            const dateJS = new Date((row.fecha - (25567 + 2)) * 86400 * 1000);
+                            row.fecha = dateJS.toLocaleDateString('es-CO');
+                        } else if (!row.fecha) {
+                            row.fecha = new Date().toLocaleDateString('es-CO');
+                        } else {
+                            row.fecha = row.fecha.toString();
+                        }
+
+                        if (realId) {
+                            const existingIdx = State.encuestasData.findIndex(d => d.id === realId);
                             if (existingIdx >= 0) {
-                                await setDoc(doc(db, "encuestas", row.id.toString()), row);
-                                State.encuestasData[existingIdx] = { ...State.encuestasData[existingIdx], ...row, id: row.id.toString() };
+                                await setDoc(doc(db, "encuestas", realId), row);
+                                State.encuestasData[existingIdx] = { ...State.encuestasData[existingIdx], ...row, id: realId };
                                 actualizadas++;
                             } else {
-                                await setDoc(doc(db, "encuestas", row.id.toString()), row);
-                                State.encuestasData.push({ ...row, id: row.id.toString() });
+                                await setDoc(doc(db, "encuestas", realId), row);
+                                State.encuestasData.push({ ...row, id: realId });
                                 agregadas++;
                             }
                         } else {
@@ -2209,7 +2251,7 @@
                 } catch(error) {
                     console.error("Error importando encuestas:", error);
                     App.hideModal();
-                    alert("Ocurrió un error al procesar el archivo Excel.");
+                    alert("Ocurrió un error al procesar el archivo Excel. Revisa que el formato sea correcto.");
                 }
             };
             reader.readAsBinaryString(file);
