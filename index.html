@@ -682,6 +682,7 @@
         async function fetchEncuestas() {
             if (State.encuestasLoaded) return;
             try {
+                // Descargamos TODAS las encuestas y filtramos localmente para que el normalizador de Alias funcione
                 const encuestasSnap = await getDocs(collection(db, "encuestas"));
                 State.encuestasData = [];
                 encuestasSnap.forEach((d) => {
@@ -2172,7 +2173,8 @@
                 
                 try {
                     const wb = XLSX.read(evt.target.result, {type: 'binary'});
-                    const importedData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    // Al añadir defval: "" obligamos a que las celdas vacías existan y no se rueden
+                    const importedData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }); 
                     
                     let agregadas = 0, actualizadas = 0;
 
@@ -2200,45 +2202,51 @@
 
                         if (!row.colegio || !row.coach) continue; 
                         
-                        // Validar y sanear el ID para que Firebase no colapse
-                        let realId = row.id ? row.id.toString().trim() : "";
+                        // SANEAMIENTO CRÍTICO DEL ID (La causa del error rojo)
+                        // Limpiamos espacios, saltos de línea y forzamos a string
+                        let realId = (row.id || "").toString().trim();
+                        
+                        // Si el ID es la frase por defecto, o es una fecha rodada (tiene slashes o guiones), lo invalidamos
                         if (realId === "DEJAR_VACIO_NUEVO_REGISTRO" || realId.includes("/") || realId.includes("-")) {
                             realId = ""; 
                         }
 
-                        // Saneamiento de variables para evitar "NaN" en el dashboard
+                        // Saneamiento de datos para evitar que el dashboard colapse
                         row.q6 = parseFloat(row.q6) || 0;
                         row.q7 = parseFloat(row.q7) || 0;
                         row.q8 = parseFloat(row.q8) || 0;
                         row.q9 = parseFloat(row.q9) || 0;
-                        row.sugerencias = row.sugerencias ? row.sugerencias.toString() : "Sin comentarios adicionales";
-                        row.asistente = row.asistente ? row.asistente.toString() : "Anónimo";
+                        row.sugerencias = (row.sugerencias || "").toString().trim() || "Sin comentarios adicionales";
+                        row.asistente = (row.asistente || "").toString().trim() || "Anónimo";
 
                         // Saneamiento de fechas (Por si Excel exporta fechas como seriales numéricos)
                         if (typeof row.fecha === 'number') {
                             const dateJS = new Date((row.fecha - (25567 + 2)) * 86400 * 1000);
                             row.fecha = dateJS.toLocaleDateString('es-CO');
-                        } else if (!row.fecha) {
+                        } else if (!row.fecha || row.fecha.toString().trim() === "") {
                             row.fecha = new Date().toLocaleDateString('es-CO');
                         } else {
-                            row.fecha = row.fecha.toString();
+                            row.fecha = row.fecha.toString().trim();
                         }
 
-                        if (realId) {
+                        const cleanRow = {...row};
+                        delete cleanRow.id; // Nunca guardamos el campo 'id' dentro del documento de Firebase
+                        if (!cleanRow.timestamp) cleanRow.timestamp = Date.now();
+
+                        // AHORA SÍ: Lógica segura de guardado
+                        if (realId !== "") { // Garantiza que no sea "" ni " " ni nada falso que rompa la URL de Firebase
                             const existingIdx = State.encuestasData.findIndex(d => d.id === realId);
                             if (existingIdx >= 0) {
-                                await setDoc(doc(db, "encuestas", realId), row);
-                                State.encuestasData[existingIdx] = { ...State.encuestasData[existingIdx], ...row, id: realId };
+                                await setDoc(doc(db, "encuestas", realId), cleanRow);
+                                State.encuestasData[existingIdx] = { ...State.encuestasData[existingIdx], ...cleanRow, id: realId };
                                 actualizadas++;
                             } else {
-                                await setDoc(doc(db, "encuestas", realId), row);
-                                State.encuestasData.push({ ...row, id: realId });
+                                await setDoc(doc(db, "encuestas", realId), cleanRow);
+                                State.encuestasData.push({ ...cleanRow, id: realId });
                                 agregadas++;
                             }
                         } else {
-                            const cleanRow = {...row};
-                            if (!cleanRow.timestamp) cleanRow.timestamp = Date.now(); 
-                            delete cleanRow.id;
+                            // Crear documento nuevo autogenerando el ID correctamente
                             const docRef = await addDoc(collection(db, "encuestas"), cleanRow);
                             State.encuestasData.push({ id: docRef.id, ...cleanRow });
                             agregadas++;
@@ -2251,7 +2259,7 @@
                 } catch(error) {
                     console.error("Error importando encuestas:", error);
                     App.hideModal();
-                    alert("Ocurrió un error al procesar el archivo Excel. Revisa que el formato sea correcto.");
+                    alert("Ocurrió un error al procesar el archivo. Error: " + error.message);
                 }
             };
             reader.readAsBinaryString(file);
