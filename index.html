@@ -643,6 +643,9 @@
 
         window.trendChartInst = null;
 
+        // Utilidad global para estandarizar textos (quita tildes, mayúsculas y espacios extras)
+        const norm = (str) => (str || '').toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
         async function initApp() {
             try {
                 const colSnap = await getDocs(collection(db, "colegios"));
@@ -663,10 +666,12 @@
         async function fetchEncuestas() {
             if (State.encuestasLoaded) return;
             try {
-                let q = State.currentUserRole === 'admin' ? collection(db, "encuestas") : query(collection(db, "encuestas"), where("coach", "==", State.loginUser.nombre));
-                const encuestasSnap = await getDocs(q);
+                // Descargamos TODAS las encuestas y filtramos localmente para que el normalizador funcione correctamente
+                const encuestasSnap = await getDocs(collection(db, "encuestas"));
                 State.encuestasData = [];
-                encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
+                encuestasSnap.forEach((d) => {
+                    State.encuestasData.push({ id: d.id, ...d.data() });
+                });
                 State.encuestasData.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
                 State.encuestasLoaded = true;
             } catch (error) {
@@ -734,13 +739,11 @@
                         document.getElementById('coachWelcomeBar').classList.add('hidden');
                         document.getElementById('container_filter_coach').classList.remove('hidden');
 
-                        // Layout Admin
                         dynGrid.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6';
                         bTrend.classList.remove('hidden');
                         bRankC.classList.remove('hidden');
-                        bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-3'; // Full width
+                        bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-3';
                         
-                        // Tabla en pestaña separada
                         document.getElementById('subTabRegistros_content').appendChild(coreTable);
                         document.getElementById('coach_registros_box').classList.add('hidden');
                         document.getElementById('container_reg_filter_regional').classList.remove('hidden');
@@ -751,16 +754,13 @@
                         document.getElementById('display_coach_name').innerText = found.nombre;
                         document.getElementById('container_filter_coach').classList.add('hidden');
 
-                        // Layout Coach
                         dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6';
                         bTrend.classList.add('hidden');
                         bRankC.classList.add('hidden');
-                        bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1'; // Half width
+                        bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1';
                         
-                        // Tabla en acordeón
                         document.getElementById('content_coach_registros').appendChild(coreTable);
                         document.getElementById('coach_registros_box').classList.remove('hidden');
-                        // Ocultar filtros irrelevantes en su tabla
                         document.getElementById('container_reg_filter_regional').classList.add('hidden');
                         document.getElementById('container_reg_filter_coach').classList.add('hidden');
                     }
@@ -784,6 +784,28 @@
                 document.getElementById('user-controls').classList.remove('flex');
                 if(window.trendChartInst) window.trendChartInst.destroy();
                 this.switchTab('formTab');
+            },
+
+            deleteRegistro: async function(id, event) {
+                if(!confirm("¿Estás seguro de que deseas eliminar esta encuesta específica?")) return;
+                if(!confirm("⚠️ CONFIRMACIÓN FINAL: Esta acción borrará el registro permanentemente de la base de datos en la nube. ¿Deseas continuar?")) return;
+
+                const btn = event.currentTarget;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                btn.disabled = true;
+
+                try {
+                    await deleteDoc(doc(db, "encuestas", id));
+                    State.encuestasData = State.encuestasData.filter(d => d.id !== id);
+                    this.updateDashboard();
+                    alert("Registro eliminado exitosamente.");
+                } catch(e) {
+                    console.error(e);
+                    alert("Error al intentar eliminar el registro de la nube.");
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
             },
 
             toggleCoachRegistros: function() {
@@ -879,7 +901,7 @@
                 const getFilteredExcluding = (exclude) => {
                     return base.filter(c => {
                         if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
-                        if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
+                        if (exclude !== 'coach' && coachVal && norm(c.coach) !== norm(coachVal)) return false; // Normalizado
                         if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
                         if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
                         if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
@@ -961,7 +983,7 @@
                 let masterFilter = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 
                 if(regF) masterFilter = masterFilter.filter(c => c.regional === regF);
-                if(coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
+                if(coachF) masterFilter = masterFilter.filter(c => norm(c.coach) === norm(coachF)); // Normalizado
                 if(colF) masterFilter = masterFilter.filter(c => c.colegio === colF);
                 if(calF) masterFilter = masterFilter.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
                 if(clasF) masterFilter = masterFilter.filter(c => c.clasificacion === clasF);
@@ -970,7 +992,7 @@
                 const colegiosPermitidos = new Set(masterFilter.map(c => c.colegio));
                 
                 if(regF) data = data.filter(d => d.regional === regF);
-                if(coachF) data = data.filter(d => d.coach === coachF);
+                if(coachF) data = data.filter(d => norm(d.coach) === norm(coachF)); // Normalizado
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
@@ -1300,13 +1322,15 @@
                 if (regVal) dataToRender = dataToRender.filter(d => d.regional === regVal);
                 if (colVal) dataToRender = dataToRender.filter(d => d.colegio === colVal);
                 if (tallerVal) dataToRender = dataToRender.filter(d => d.numTaller === tallerVal);
-                if (coachVal && State.currentUserRole === 'admin') dataToRender = dataToRender.filter(d => d.coach === coachVal);
-                if (State.currentUserRole === 'coach') dataToRender = dataToRender.filter(d => d.coach === State.loginUser.nombre);
+                
+                if (coachVal && State.currentUserRole === 'admin') dataToRender = dataToRender.filter(d => norm(d.coach) === norm(coachVal)); // Normalizado
+                if (State.currentUserRole === 'coach') dataToRender = dataToRender.filter(d => norm(d.coach) === norm(State.loginUser.nombre)); // Normalizado
 
                 State.registrosFiltrados = dataToRender;
 
                 const tHead = document.getElementById('tabla_registros_head');
                 const thAsistente = State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : '';
+                const thAcciones = State.currentUserRole === 'admin' ? '<th class="px-6 py-4 text-center">Acciones</th>' : '';
                 
                 tHead.innerHTML = `<tr>
                     <th class="px-6 py-4">Fecha</th>
@@ -1317,18 +1341,28 @@
                     <th class="px-6 py-4">Coach</th>
                     <th class="px-6 py-4 text-center">Promedio</th>
                     <th class="px-6 py-4 min-w-[250px]">Sugerencias / Feedback</th>
+                    ${thAcciones}
                 </tr>`;
                 
                 const tBody = document.getElementById('tabla_registros');
                 tBody.innerHTML = '';
                 
                 if (dataToRender.length === 0) {
-                    tBody.innerHTML = `<tr><td colspan="${State.currentUserRole === 'admin' ? 8 : 7}" class="px-6 py-8 text-center text-gray-400 italic">No se encontraron registros con los filtros seleccionados.</td></tr>`;
+                    const cols = State.currentUserRole === 'admin' ? 9 : 7;
+                    tBody.innerHTML = `<tr><td colspan="${cols}" class="px-6 py-8 text-center text-gray-400 italic">No se encontraron registros con los filtros seleccionados.</td></tr>`;
                     return;
                 }
 
                 [...dataToRender].reverse().forEach(d => {
                     const tdAsistente = State.currentUserRole === 'admin' ? `<td class="px-6 py-4 text-xs font-bold text-gray-700">${d.asistente}</td>` : '';
+                    
+                    const tdAcciones = State.currentUserRole === 'admin' ? `
+                        <td class="px-6 py-4 text-center">
+                            <button onclick="App.deleteRegistro('${d.id}', event)" class="p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Borrar Encuesta Definitivamente">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>` : '';
+
                     const avgScore = ((d.q6 + d.q7 + d.q8 + d.q9) / 4).toFixed(1);
                     
                     let scoreColor = 'text-gray-600 bg-gray-50 border-gray-200';
@@ -1355,6 +1389,7 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 text-xs text-gray-600 italic break-words">${d.sugerencias && d.sugerencias.length > 2 ? `"${d.sugerencias}"` : '<span class="text-gray-300 not-italic">Sin comentarios adicionales</span>'}</td>
+                            ${tdAcciones}
                         </tr>
                     `;
                 });
@@ -1440,7 +1475,7 @@
 
                 let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 if (regFilter) listaBase = listaBase.filter(c => c.regional === regFilter);
-                if (coachFilter) listaBase = listaBase.filter(c => c.coach === coachFilter);
+                if (coachFilter) listaBase = listaBase.filter(c => norm(c.coach) === norm(coachFilter)); // Normalizado
                 if (colFilter) listaBase = listaBase.filter(c => c.colegio === colFilter);
                 if (calFilter) listaBase = listaBase.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calFilter);
                 if (clasFilter) listaBase = listaBase.filter(c => c.clasificacion === clasFilter);
@@ -1448,7 +1483,7 @@
 
                 const validColNames = new Set(listaBase.map(c => c.colegio));
                 let colegiosEvaluados = State.filteredEncuestas.filter(d => validColNames.has(d.colegio));
-                if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => d.coach === coachFilter);
+                if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => norm(d.coach) === norm(coachFilter)); // Normalizado
                 const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
 
                 const porRegional = {};
@@ -1693,7 +1728,7 @@
                 const getFilteredExcluding = (exclude) => {
                     return base.filter(c => {
                         if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
-                        if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
+                        if (exclude !== 'coach' && coachVal && norm(c.coach) !== norm(coachVal)) return false;
                         if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
                         if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
                         return true;
