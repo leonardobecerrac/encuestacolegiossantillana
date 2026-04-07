@@ -687,24 +687,22 @@
                 encuestasSnap.forEach((d) => {
                     let data = d.data();
                     
-                    // --- PARCHE DE SANEAMIENTO DE FECHA ---
-                    if (typeof data.fecha === 'number') {
-                        // Convierte el serial numérico de Excel a formato fecha String
-                        const dateJS = new Date((data.fecha - (25567 + 2)) * 86400 * 1000);
-                        data.fecha = dateJS.toLocaleDateString('es-CO');
-                    } else if (!data.fecha) {
-                        // Si por algún motivo no hay fecha, usa el timestamp o la actual
-                        data.fecha = new Date(data.timestamp || Date.now()).toLocaleDateString('es-CO');
+                    // --- BLINDAJE DE FECHAS ---
+                    if (data.fecha) {
+                        if (typeof data.fecha === 'number') {
+                            const dateJS = new Date((data.fecha - (25567 + 2)) * 86400 * 1000);
+                            data.fecha = dateJS.toLocaleDateString('es-CO');
+                        } else {
+                            data.fecha = String(data.fecha); 
+                        }
                     } else {
-                        // Asegura que siempre sea un String
-                        data.fecha = data.fecha.toString(); 
+                        data.fecha = new Date(data.timestamp || Date.now()).toLocaleDateString('es-CO');
                     }
-                    // --------------------------------------
+                    // --------------------------
 
                     State.encuestasData.push({ id: d.id, ...data });
                 });
                 
-                // Ahora el sort no fallará porque garantizamos que todas son String
                 State.encuestasData.sort((a,b) => new Date(a.fecha.split(',')[0]) - new Date(b.fecha.split(',')[0]));
                 State.encuestasLoaded = true;
             } catch (error) {
