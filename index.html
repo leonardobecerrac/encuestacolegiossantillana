@@ -661,18 +661,29 @@
         }
 
         async function fetchEncuestas() {
-            if (State.encuestasLoaded) return;
-            try {
-                let q = State.currentUserRole === 'admin' ? collection(db, "encuestas") : query(collection(db, "encuestas"), where("coach", "==", State.loginUser.nombre));
-                const encuestasSnap = await getDocs(q);
-                State.encuestasData = [];
-                encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
-                State.encuestasData.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-                State.encuestasLoaded = true;
-            } catch (error) {
-                console.error("Error cargando encuestas", error);
-            }
-        }
+    if (State.encuestasLoaded) return;
+    try {
+        // Volvemos a la consulta original para no ocultar los datos viejos de Excel
+        let q = State.currentUserRole === 'admin' 
+            ? collection(db, "encuestas") 
+            : query(collection(db, "encuestas"), where("coach", "==", State.loginUser.nombre));
+            
+        const encuestasSnap = await getDocs(q);
+        State.encuestasData = [];
+        encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
+        
+        // Ordenar por fecha (usando timestamp si existe, o fecha en texto si no)
+        State.encuestasData.sort((a,b) => {
+            const timeA = a.timestamp || new Date(a.fecha.split(',')[0]).getTime() || 0;
+            const timeB = b.timestamp || new Date(b.fecha.split(',')[0]).getTime() || 0;
+            return timeA - timeB;
+        });
+        
+        State.encuestasLoaded = true;
+    } catch (error) {
+        console.error("Error cargando encuestas", error);
+    }
+}
 
         window.App = {
             switchTab: function(tabId) {
