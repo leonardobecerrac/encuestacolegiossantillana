@@ -2173,45 +2173,31 @@
                 
                 try {
                     const wb = XLSX.read(evt.target.result, {type: 'binary'});
-                    // Al añadir defval: "" obligamos a que las celdas vacías existan y no se rueden
                     const importedData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }); 
                     
                     let agregadas = 0, actualizadas = 0;
 
                     for(let row of importedData) {
                         
-                        // AUTO-CORRECCIÓN DE DESPLAZAMIENTO (Si el usuario omitió la columna ID en Excel)
-                        // Si la columna coach dice "Taller..." y la columna taller tiene un número (1-5), las columnas se movieron.
+                        // AUTO-CORRECCIÓN: Si Excel rodó las columnas por error
                         if (row.coach && row.coach.toString().toLowerCase().includes("taller") && [1,2,3,4,5].includes(parseInt(row.taller))) {
-                            row.sugerencias = row.q9;
-                            row.q9 = row.q8;
-                            row.q8 = row.q7;
-                            row.q7 = row.q6;
-                            row.q6 = row.taller;
-                            row.taller = row.numTaller;
-                            row.numTaller = row.coach;
-                            row.coach = row.perfil;
-                            row.perfil = row.asistente;
-                            row.asistente = row.colegio;
-                            row.colegio = row.regional;
-                            row.regional = row.ciclo;
-                            row.ciclo = row.fecha;
-                            row.fecha = row.id;
-                            row.id = ""; // Lo forzamos a vacío para que Firebase genere uno nuevo
+                            row.sugerencias = row.q9; row.q9 = row.q8; row.q8 = row.q7; row.q7 = row.q6;
+                            row.q6 = row.taller; row.taller = row.numTaller; row.numTaller = row.coach;
+                            row.coach = row.perfil; row.perfil = row.asistente; row.asistente = row.colegio;
+                            row.colegio = row.regional; row.regional = row.ciclo; row.ciclo = row.fecha;
+                            row.fecha = row.id; row.id = ""; 
                         }
 
                         if (!row.colegio || !row.coach) continue; 
                         
-                        // SANEAMIENTO CRÍTICO DEL ID (La causa del error rojo)
-                        // Limpiamos espacios, saltos de línea y forzamos a string
+                        // ESCUDO DEFINITIVO: Un ID de Firebase válido tiene exactamente 20 caracteres alfanuméricos.
+                        // Si tiene menos de 15, es basura de Excel (una fecha, un espacio, etc.) y lo forzamos a vacío.
                         let realId = (row.id || "").toString().trim();
-                        
-                        // Si el ID es la frase por defecto, o es una fecha rodada (tiene slashes o guiones), lo invalidamos
-                        if (realId === "DEJAR_VACIO_NUEVO_REGISTRO" || realId.includes("/") || realId.includes("-")) {
+                        if (realId === "DEJAR_VACIO_NUEVO_REGISTRO" || realId.length < 15 || realId.includes("/") || realId.includes("-")) {
                             realId = ""; 
                         }
 
-                        // Saneamiento de datos para evitar que el dashboard colapse
+                        // Sanear números y textos
                         row.q6 = parseFloat(row.q6) || 0;
                         row.q7 = parseFloat(row.q7) || 0;
                         row.q8 = parseFloat(row.q8) || 0;
@@ -2219,7 +2205,7 @@
                         row.sugerencias = (row.sugerencias || "").toString().trim() || "Sin comentarios adicionales";
                         row.asistente = (row.asistente || "").toString().trim() || "Anónimo";
 
-                        // Saneamiento de fechas (Por si Excel exporta fechas como seriales numéricos)
+                        // Sanear Fechas
                         if (typeof row.fecha === 'number') {
                             const dateJS = new Date((row.fecha - (25567 + 2)) * 86400 * 1000);
                             row.fecha = dateJS.toLocaleDateString('es-CO');
@@ -2230,11 +2216,11 @@
                         }
 
                         const cleanRow = {...row};
-                        delete cleanRow.id; // Nunca guardamos el campo 'id' dentro del documento de Firebase
+                        delete cleanRow.id; 
                         if (!cleanRow.timestamp) cleanRow.timestamp = Date.now();
 
-                        // AHORA SÍ: Lógica segura de guardado
-                        if (realId !== "") { // Garantiza que no sea "" ni " " ni nada falso que rompa la URL de Firebase
+                        // Guardado o Creación Segura
+                        if (realId !== "") { 
                             const existingIdx = State.encuestasData.findIndex(d => d.id === realId);
                             if (existingIdx >= 0) {
                                 await setDoc(doc(db, "encuestas", realId), cleanRow);
@@ -2246,7 +2232,6 @@
                                 agregadas++;
                             }
                         } else {
-                            // Crear documento nuevo autogenerando el ID correctamente
                             const docRef = await addDoc(collection(db, "encuestas"), cleanRow);
                             State.encuestasData.push({ id: docRef.id, ...cleanRow });
                             agregadas++;
