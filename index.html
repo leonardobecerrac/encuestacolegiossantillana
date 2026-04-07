@@ -646,6 +646,22 @@
         // Utilidad global para estandarizar textos (quita tildes, mayúsculas y espacios extras)
         const norm = (str) => (str || '').toString().trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+        // Alias para forzar el match entre el nombre de Login y el de la Base de Datos
+        const getStandardCoach = (name) => {
+            if(!name) return '';
+            let n = norm(name);
+            const alias = {
+                "luisa fernanda galvis": "luisa galvis",
+                "maria fernanda colmenares": "maria colmenares",
+                "maria fernanda galindo": "maria galindo",
+                "juan camilo cadavid": "juan cadavid",
+                "juan ricardo avila": "juan avila",
+                "jesus david rico": "jesus rico",
+                "dilan jesus garcia": "dilan garcia"
+            };
+            return alias[n] || n;
+        };
+
         async function initApp() {
             try {
                 const colSnap = await getDocs(collection(db, "colegios"));
@@ -666,7 +682,7 @@
         async function fetchEncuestas() {
             if (State.encuestasLoaded) return;
             try {
-                // Descargamos TODAS las encuestas y filtramos localmente para que el normalizador funcione correctamente
+                // Descargamos TODAS las encuestas y filtramos localmente para que el normalizador de Alias funcione
                 const encuestasSnap = await getDocs(collection(db, "encuestas"));
                 State.encuestasData = [];
                 encuestasSnap.forEach((d) => {
@@ -901,7 +917,8 @@
                 const getFilteredExcluding = (exclude) => {
                     return base.filter(c => {
                         if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
-                        if (exclude !== 'coach' && coachVal && norm(c.coach) !== norm(coachVal)) return false; // Normalizado
+                        // Uso de getStandardCoach para el emparejamiento con alias
+                        if (exclude !== 'coach' && coachVal && getStandardCoach(c.coach) !== getStandardCoach(coachVal)) return false;
                         if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
                         if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
                         if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
@@ -983,7 +1000,7 @@
                 let masterFilter = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 
                 if(regF) masterFilter = masterFilter.filter(c => c.regional === regF);
-                if(coachF) masterFilter = masterFilter.filter(c => norm(c.coach) === norm(coachF)); // Normalizado
+                if(coachF) masterFilter = masterFilter.filter(c => getStandardCoach(c.coach) === getStandardCoach(coachF)); // ALIAS MATCH
                 if(colF) masterFilter = masterFilter.filter(c => c.colegio === colF);
                 if(calF) masterFilter = masterFilter.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
                 if(clasF) masterFilter = masterFilter.filter(c => c.clasificacion === clasF);
@@ -992,7 +1009,7 @@
                 const colegiosPermitidos = new Set(masterFilter.map(c => c.colegio));
                 
                 if(regF) data = data.filter(d => d.regional === regF);
-                if(coachF) data = data.filter(d => norm(d.coach) === norm(coachF)); // Normalizado
+                if(coachF) data = data.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachF)); // ALIAS MATCH
                 if(tallerF) data = data.filter(d => d.numTaller === tallerF);
                 data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
@@ -1323,8 +1340,9 @@
                 if (colVal) dataToRender = dataToRender.filter(d => d.colegio === colVal);
                 if (tallerVal) dataToRender = dataToRender.filter(d => d.numTaller === tallerVal);
                 
-                if (coachVal && State.currentUserRole === 'admin') dataToRender = dataToRender.filter(d => norm(d.coach) === norm(coachVal)); // Normalizado
-                if (State.currentUserRole === 'coach') dataToRender = dataToRender.filter(d => norm(d.coach) === norm(State.loginUser.nombre)); // Normalizado
+                // Filtro de roles y ALIAS MATCH
+                if (coachVal && State.currentUserRole === 'admin') dataToRender = dataToRender.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachVal)); 
+                if (State.currentUserRole === 'coach') dataToRender = dataToRender.filter(d => getStandardCoach(d.coach) === getStandardCoach(State.loginUser.nombre)); 
 
                 State.registrosFiltrados = dataToRender;
 
@@ -1475,7 +1493,7 @@
 
                 let listaBase = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
                 if (regFilter) listaBase = listaBase.filter(c => c.regional === regFilter);
-                if (coachFilter) listaBase = listaBase.filter(c => norm(c.coach) === norm(coachFilter)); // Normalizado
+                if (coachFilter) listaBase = listaBase.filter(c => getStandardCoach(c.coach) === getStandardCoach(coachFilter)); // ALIAS MATCH
                 if (colFilter) listaBase = listaBase.filter(c => c.colegio === colFilter);
                 if (calFilter) listaBase = listaBase.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calFilter);
                 if (clasFilter) listaBase = listaBase.filter(c => c.clasificacion === clasFilter);
@@ -1483,7 +1501,7 @@
 
                 const validColNames = new Set(listaBase.map(c => c.colegio));
                 let colegiosEvaluados = State.filteredEncuestas.filter(d => validColNames.has(d.colegio));
-                if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => norm(d.coach) === norm(coachFilter)); // Normalizado
+                if (coachFilter) colegiosEvaluados = colegiosEvaluados.filter(d => getStandardCoach(d.coach) === getStandardCoach(coachFilter)); // ALIAS MATCH
                 const setEvaluados = new Set(colegiosEvaluados.map(e => e.colegio.toLowerCase()));
 
                 const porRegional = {};
@@ -1728,7 +1746,7 @@
                 const getFilteredExcluding = (exclude) => {
                     return base.filter(c => {
                         if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
-                        if (exclude !== 'coach' && coachVal && norm(c.coach) !== norm(coachVal)) return false;
+                        if (exclude !== 'coach' && coachVal && getStandardCoach(c.coach) !== getStandardCoach(coachVal)) return false;
                         if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
                         if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
                         return true;
