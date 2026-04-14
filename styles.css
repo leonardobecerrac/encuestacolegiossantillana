@@ -1,0 +1,124 @@
+:root {
+    --santillana-orange: #FF5A00;
+    --santillana-blue: #002C5F;
+}
+
+body { 
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+}
+
+.tab-active { 
+    border-bottom: 3px solid var(--santillana-orange); 
+    color: var(--santillana-orange) !important; 
+    font-weight: 700; 
+}
+
+.rating-group { 
+    display: flex; 
+    gap: 0.5rem; 
+    align-items: center; 
+    flex-wrap: wrap; 
+    justify-content: space-between; 
+}
+
+.rating-label { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    cursor: pointer; 
+    padding: 0.75rem; 
+    border-radius: 0.5rem; 
+    border: 1px solid #e5e7eb; 
+    transition: all 0.2s;
+    flex: 1; 
+    min-width: 50px;
+}
+
+.rating-label:hover { 
+    background-color: #fff7ed; 
+    border-color: var(--santillana-orange); 
+}
+
+.rating-label input:checked + span { 
+    color: var(--santillana-orange); 
+    font-weight: bold; 
+}
+
+.rating-label input { 
+    accent-color: var(--santillana-orange); 
+    width: 1.2rem; 
+    height: 1.2rem; 
+}
+
+.fade-in { 
+    animation: fadeIn 0.4s ease-out; 
+}
+
+@keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+
+.loader {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--santillana-orange);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}
+
+::-webkit-scrollbar { 
+    width: 6px; 
+}
+
+::-webkit-scrollbar-track { 
+    background: #f1f1f1; 
+}
+
+::-webkit-scrollbar-thumb { 
+    background: #ccc; 
+    border-radius: 10px; 
+}
+
+::-webkit-scrollbar-thumb:hover { 
+    background: #999; 
+}
+
+.circular-chart { 
+    display: block; 
+    margin: 0 auto; 
+    max-width: 80%; 
+    max-height: 250px; 
+}
+
+.circle-bg { 
+    fill: none; 
+    stroke: #f1f5f9; 
+    stroke-width: 3.8; 
+}
+
+.circle { 
+    fill: none; 
+    stroke-width: 2.8; 
+    stroke-linecap: round; 
+    animation: progress 1s ease-out forwards; 
+}
+
+.percentage { 
+    fill: #002C5F; 
+    font-family: sans-serif; 
+    font-size: 0.5em; 
+    text-anchor: middle; 
+    font-weight: bold; 
+}
+
+@keyframes progress { 
+    0% { stroke-dasharray: 0 100; } 
+}
