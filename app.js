@@ -1,7 +1,6 @@
 // app.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
@@ -11,8 +10,8 @@ const firebaseConfig = {
     messagingSenderId: "354271667135",
     appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
 };
+
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Reglas de negocio centralizadas
@@ -25,7 +24,7 @@ const State = {
 
 window.trendChartInst = null;
 
-// Optimización: Uso de Caché Local
+// Inicialización de la App y descarga de bases de datos
 async function initApp() {
     try {
         const cachedCol = localStorage.getItem('santillana_colegios');
@@ -38,6 +37,7 @@ async function initApp() {
             State.colegiosBD = JSON.parse(cachedCol);
             State.coachesAuth = JSON.parse(cachedCoach);
             console.log("✅ Datos cargados desde la memoria local");
+            App.poblarCoaches();
             return; 
         }
 
@@ -53,13 +53,14 @@ async function initApp() {
         localStorage.setItem('santillana_colegios', JSON.stringify(State.colegiosBD));
         localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
         localStorage.setItem('santillana_cache_time', Date.now().toString());
+        
+        App.poblarCoaches();
 
     } catch (error) {
-        console.error("Error Firebase:", error);
+        console.error("Error inicializando bases de datos:", error);
     }
 }
 
-// Optimización: Filtro por año
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
@@ -107,27 +108,46 @@ window.App = {
                 <p class="text-sm text-gray-500">Ingresa tus credenciales autorizadas:</p>
                 <input type="email" id="loginEmail" class="w-full border rounded-xl px-4 py-3" placeholder="Correo corporativo">
                 <input type="password" id="loginPwd" class="w-full border rounded-xl px-4 py-3" placeholder="Contraseña">
-                <p id="loginError" class="text-red-500 text-xs hidden font-bold">Credenciales no válidas o rol incorrecto.</p>
+                <p id="loginError" class="text-red-500 text-xs hidden font-bold"></p>
             </div>
         `, `<button onclick="App.hideModal()" class="px-6 py-2 bg-gray-100 rounded-xl font-bold">Cancelar</button>
             <button onclick="App.verifyLogin('${role}')" class="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold">Entrar</button>`);
     },
 
     verifyLogin: async function(role) {
-        const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-        const pass = document.getElementById('loginPwd').value;
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-            const loggedUser = userCredential.user;
-            
-            // CORRECCIÓN: Búsqueda defensiva para evitar errores si c.email es undefined
-            const coachInfo = State.coachesAuth.find(c => c.email && c.email.toLowerCase() === email);
-            
-            if (role === 'coach' && !coachInfo) { await signOut(auth); throw new Error("No registrado como coach en la base de datos"); }
-            if (role === 'admin' && coachInfo) { await signOut(auth); throw new Error("Es un coach, no puede entrar como admin"); }
+        const emailInput = document.getElementById('loginEmail').value.trim().toLowerCase();
+        const passInput = document.getElementById('loginPwd').value;
+        const errEl = document.getElementById('loginError');
 
+        try {
+            let userFound = null;
+
+            if (role === 'admin') {
+                // Validación Admin Local
+                if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') {
+                    userFound = { email: emailInput, nombre: 'JBECERRA' };
+                } else {
+                    throw new Error("Credenciales de administrador incorrectas.");
+                }
+            } else {
+                // Validación Coach Local (Busca en la lista descargada de Firestore)
+                const coachInfo = State.coachesAuth.find(c => c.email && c.email.toLowerCase() === emailInput);
+                
+                if (!coachInfo) {
+                    throw new Error("Correo no registrado como coach.");
+                }
+                
+                const validPass = coachInfo.pass || '12345'; // Clave por defecto si está vacía
+                if (validPass !== passInput) {
+                    throw new Error("Contraseña incorrecta.");
+                }
+                
+                userFound = coachInfo;
+            }
+
+            // Inicio de sesión exitoso
             State.currentUserRole = role;
-            State.loginUser = role === 'admin' ? { email: loggedUser.email, nombre: loggedUser.email.split('@')[0] } : coachInfo;
+            State.loginUser = userFound;
             State.encuestasLoaded = false; 
             this.hideModal();
             
@@ -136,57 +156,85 @@ window.App = {
             document.getElementById('nav-user-name').innerText = State.loginUser.nombre;
             document.getElementById('nav-user-role').innerText = role;
             
-            const dynGrid = document.getElementById('dynamic_dashboard_grid');
-            const bTrend = document.getElementById('block_trend');
-            const bRankC = document.getElementById('block_rank_coach');
-            const bAlertas = document.getElementById('block_alertas');
-            const coreTable = document.getElementById('registros_core_container');
-            
-            if(role === 'admin') {
-                document.getElementById('adminSubNav').classList.remove('hidden');
-                document.getElementById('coachWelcomeBar').classList.add('hidden');
-                document.getElementById('container_filter_coach').classList.remove('hidden');
-                dynGrid.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6';
-                bTrend.classList.remove('hidden'); bRankC.classList.remove('hidden');
-                bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-3'; 
-                document.getElementById('subTabRegistros_content').appendChild(coreTable);
-                document.getElementById('coach_registros_box').classList.add('hidden');
-                document.getElementById('container_reg_filter_regional').classList.remove('hidden');
-                document.getElementById('container_reg_filter_coach').classList.remove('hidden');
-            } else {
-                document.getElementById('adminSubNav').classList.add('hidden');
-                document.getElementById('coachWelcomeBar').classList.remove('hidden');
-                document.getElementById('display_coach_name').innerText = State.loginUser.nombre;
-                document.getElementById('container_filter_coach').classList.add('hidden');
-                dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6';
-                bTrend.classList.add('hidden'); bRankC.classList.add('hidden');
-                bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1';
-                document.getElementById('content_coach_registros').appendChild(coreTable);
-                document.getElementById('coach_registros_box').classList.remove('hidden');
-                document.getElementById('container_reg_filter_regional').classList.add('hidden');
-                document.getElementById('container_reg_filter_coach').classList.add('hidden');
-            }
+            this.configureDashboardUI(role);
             this.switchTab('dashTab');
             this.initFiltrosBasicos();
             await fetchEncuestas();
             this.handleFilterTrigger();
+
         } catch (error) { 
-            // CORRECCIÓN: Log detallado para ver el error real de Firebase
-            console.error("🕵️ Error detallado del login:", error);
-            document.getElementById('loginError').classList.remove('hidden'); 
-            // Opcional: Podrías inyectar el error en el HTML para verlo en pantalla
-            // document.getElementById('loginError').innerText = "Error: " + error.message;
+            errEl.innerText = error.message;
+            errEl.classList.remove('hidden'); 
         }
     },
 
-    logout: async function() {
-        await signOut(auth);
+    configureDashboardUI: function(role) {
+        const dynGrid = document.getElementById('dynamic_dashboard_grid');
+        const bTrend = document.getElementById('block_trend');
+        const bRankC = document.getElementById('block_rank_coach');
+        const bAlertas = document.getElementById('block_alertas');
+        const coreTable = document.getElementById('registros_core_container');
+        
+        if(role === 'admin') {
+            document.getElementById('adminSubNav').classList.remove('hidden');
+            document.getElementById('coachWelcomeBar').classList.add('hidden');
+            document.getElementById('container_filter_coach').classList.remove('hidden');
+            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6';
+            bTrend.classList.remove('hidden'); bRankC.classList.remove('hidden');
+            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-3'; 
+            document.getElementById('subTabRegistros_content').appendChild(coreTable);
+            document.getElementById('coach_registros_box').classList.add('hidden');
+            document.getElementById('container_reg_filter_regional').classList.remove('hidden');
+            document.getElementById('container_reg_filter_coach').classList.remove('hidden');
+        } else {
+            document.getElementById('adminSubNav').classList.add('hidden');
+            document.getElementById('coachWelcomeBar').classList.remove('hidden');
+            document.getElementById('display_coach_name').innerText = State.loginUser.nombre;
+            document.getElementById('container_filter_coach').classList.add('hidden');
+            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6';
+            bTrend.classList.add('hidden'); bRankC.classList.add('hidden');
+            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1';
+            document.getElementById('content_coach_registros').appendChild(coreTable);
+            document.getElementById('coach_registros_box').classList.remove('hidden');
+            document.getElementById('container_reg_filter_regional').classList.add('hidden');
+            document.getElementById('container_reg_filter_coach').classList.add('hidden');
+        }
+    },
+
+    logout: function() {
         State.currentUserRole = null; State.loginUser = null; State.encuestasLoaded = false;
         State.encuestasData = []; State.filteredEncuestas = [];
-        document.getElementById('user-controls').classList.add('hidden'); document.getElementById('user-controls').classList.remove('flex');
+        document.getElementById('user-controls').classList.add('hidden'); 
+        document.getElementById('user-controls').classList.remove('flex');
         if(window.trendChartInst) window.trendChartInst.destroy();
         this.switchTab('formTab');
     },
+
+    saveNewPassword: async function() {
+        const p1 = document.getElementById('new_pass').value;
+        const p2 = document.getElementById('new_pass_confirm').value;
+        if(!p1 || p1 !== p2) { document.getElementById('pass_error').classList.remove('hidden'); return; }
+        
+        try {
+            if (State.currentUserRole === 'coach') {
+                const idx = State.coachesAuth.findIndex(c => c.email === State.loginUser.email);
+                if(idx !== -1) { 
+                    State.coachesAuth[idx].pass = p1; 
+                    // Actualiza el documento directo en la colección 'coaches' de Firestore
+                    await setDoc(doc(db, "coaches", State.coachesAuth[idx].id), State.coachesAuth[idx]);
+                    localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
+                }
+            } else {
+                alert("La contraseña de Administrador no se puede cambiar desde este panel.");
+            }
+            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada en el sistema.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
+        } catch (e) { 
+            alert("Error actualizando la contraseña en la base de datos."); 
+        }
+    },
+
+    // --- RESTO DE FUNCIONES (DASHBOARD, TABLAS, FILTROS) ---
+    // (Se mantienen iguales a tu versión original pero integradas aquí)
 
     toggleCoachRegistros: function() {
         const content = document.getElementById('content_coach_registros');
@@ -197,20 +245,6 @@ window.App = {
 
     openChangePasswordModal: function() {
         App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold">Guardar</button>`);
-    },
-
-    saveNewPassword: async function() {
-        const p1 = document.getElementById('new_pass').value;
-        const p2 = document.getElementById('new_pass_confirm').value;
-        if(!p1 || p1 !== p2) { document.getElementById('pass_error').classList.remove('hidden'); return; }
-        try {
-            if (auth.currentUser) await updatePassword(auth.currentUser, p1);
-            if (State.currentUserRole === 'coach') {
-                const idx = State.coachesAuth.findIndex(c => c.email === State.loginUser.email);
-                if(idx !== -1) { State.coachesAuth[idx].pass = p1; await setDoc(doc(db, "coaches", State.coachesAuth[idx].id), State.coachesAuth[idx]); }
-            }
-            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
-        } catch (e) { alert("Error actualizando la contraseña."); }
     },
 
     toggleDropdown: function(id) { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); },
@@ -625,7 +659,6 @@ document.getElementById('fileImportEncuestas').addEventListener('change', (e) =>
 window.onload = async () => {
     initRatings();
     await initApp(); 
-    App.poblarCoaches();
 
     window.addEventListener('click', function(e) {
         const dropColegios = document.getElementById('listaColegiosCustom'); const inputColegio = document.getElementById('q1_colegio');
