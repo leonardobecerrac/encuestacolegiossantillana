@@ -152,6 +152,7 @@ window.App = {
     configureDashboardUI: function(role) {
         const dynGrid = document.getElementById('dynamic_dashboard_grid');
         const bRankC = document.getElementById('block_rank_coach');
+        const bRankR = document.getElementById('block_rank_regional');
         const bAlertas = document.getElementById('block_alertas');
         const coreTable = document.getElementById('registros_core_container');
         
@@ -159,9 +160,10 @@ window.App = {
             document.getElementById('adminSubNav').classList.remove('hidden');
             document.getElementById('coachWelcomeBar').classList.add('hidden');
             document.getElementById('container_filter_coach').classList.remove('hidden');
-            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
+            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-6';
             bRankC.classList.remove('hidden');
-            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-2'; 
+            bRankR.classList.remove('hidden');
+            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col'; 
             document.getElementById('subTabRegistros_content').appendChild(coreTable);
             document.getElementById('coach_registros_box').classList.add('hidden');
             document.getElementById('container_reg_filter_regional').classList.remove('hidden');
@@ -171,9 +173,10 @@ window.App = {
             document.getElementById('coachWelcomeBar').classList.remove('hidden');
             document.getElementById('display_coach_name').innerText = State.loginUser.nombre;
             document.getElementById('container_filter_coach').classList.add('hidden');
-            dynGrid.className = 'grid grid-cols-1 gap-6 mb-6 mt-6';
+            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
             bRankC.classList.add('hidden');
-            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1';
+            bRankR.classList.remove('hidden');
+            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col';
             document.getElementById('content_coach_registros').appendChild(coreTable);
             document.getElementById('coach_registros_box').classList.remove('hidden');
             document.getElementById('container_reg_filter_regional').classList.add('hidden');
@@ -225,7 +228,6 @@ window.App = {
     toggleDropdown: function(id) { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); },
 
     initFiltrosBasicos: function() {
-        // Dropdown Líneas
         const lineas = [...new Set(State.colegiosBD.map(c => c.lineaNegocio ? c.lineaNegocio.trim() : '').filter(Boolean))].sort();
         const dropLineas = document.getElementById('dropdown_lineas');
         if (dropLineas) {
@@ -235,7 +237,6 @@ window.App = {
             });
         }
         
-        // Dropdown Meses
         const dropMeses = document.getElementById('dropdown_meses');
         if (dropMeses) {
             dropMeses.innerHTML = '';
@@ -301,8 +302,6 @@ window.App = {
     },
 
     updateDashboard: function() {
-        let data = State.encuestasData.map(d => { const colInfo = State.colegiosBD.find(c => c.colegio === d.colegio); return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' }; });
-
         const regF = document.getElementById('filter_regional').value; 
         const coachF = State.currentUserRole === 'admin' ? document.getElementById('filter_coach').value : State.loginUser.nombre;
         const colF = document.getElementById('filter_colegio').value; 
@@ -310,30 +309,33 @@ window.App = {
         const calF = document.getElementById('filter_calendario').value; 
         const clasF = document.getElementById('filter_clasificacion').value;
         const lineasF = Array.from(document.querySelectorAll('.linea-cb:checked')).map(cb => cb.value);
-        
-        // Logica para meses
         const mesesF = Array.from(document.querySelectorAll('.mes-cb:checked')).map(cb => parseInt(cb.value));
+
         const textSpanMeses = document.getElementById('text_filter_meses');
         if (mesesF.length === 0) textSpanMeses.textContent = "Todos los meses";
         else if (mesesF.length === 1) textSpanMeses.textContent = mesesNombres[mesesF[0]];
         else textSpanMeses.textContent = `${mesesF.length} meses seleccionados`;
 
-        let masterFilter = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-        if(regF) masterFilter = masterFilter.filter(c => c.regional === regF);
-        if(coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
-        if(colF) masterFilter = masterFilter.filter(c => c.colegio === colF);
-        if(calF) masterFilter = masterFilter.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
-        if(clasF) masterFilter = masterFilter.filter(c => c.clasificacion === clasF);
-        if(lineasF.length > 0) masterFilter = masterFilter.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
+        // 1. Filtro Global (Ignora CoachF) para Ranking Regional
+        let masterFilterGlobal = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+        if(regF) masterFilterGlobal = masterFilterGlobal.filter(c => c.regional === regF);
+        if(colF) masterFilterGlobal = masterFilterGlobal.filter(c => c.colegio === colF);
+        if(calF) masterFilterGlobal = masterFilterGlobal.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
+        if(clasF) masterFilterGlobal = masterFilterGlobal.filter(c => c.clasificacion === clasF);
+        if(lineasF.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
         
-        const colegiosPermitidos = new Set(masterFilter.map(c => c.colegio));
-        if(regF) data = data.filter(d => d.regional === regF); 
-        if(coachF) data = data.filter(d => d.coach === coachF); 
-        if(tallerF) data = data.filter(d => d.numTaller === tallerF);
-        data = data.filter(d => colegiosPermitidos.has(d.colegio));
+        const colegiosPermitidosGlobal = new Set(masterFilterGlobal.map(c => c.colegio));
 
-        // Filtrar por meses seleccionados
-        data = data.filter(d => {
+        let dataGlobal = State.encuestasData.map(d => { 
+            const colInfo = State.colegiosBD.find(c => c.colegio === d.colegio); 
+            return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' }; 
+        });
+
+        dataGlobal = dataGlobal.filter(d => {
+            if (!colegiosPermitidosGlobal.has(d.colegio)) return false;
+            if (regF && d.regional !== regF) return false;
+            if (tallerF && d.numTaller !== tallerF) return false;
+
             let dateObj;
             if (d.timestamp) dateObj = new Date(d.timestamp);
             else { 
@@ -341,14 +343,22 @@ window.App = {
                 if(parts.length === 3) dateObj = new Date(parts[2], parts[1]-1, parts[0]); 
                 else dateObj = new Date(d.fecha); 
             }
-            if (!dateObj || isNaN(dateObj.getTime())) return false; // descarta fechas invalidas
+            if (!dateObj || isNaN(dateObj.getTime())) return false; 
             
             if (mesesF.length > 0 && !mesesF.includes(dateObj.getMonth())) return false;
             return true;
         });
 
+        // 2. Filtro Local (Aplica CoachF) para gráficos propios
+        let data = [...dataGlobal];
+        if (coachF) data = data.filter(d => d.coach === coachF);
+
+        let masterFilter = [...masterFilterGlobal];
+        if (coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
+
         State.filteredEncuestas = data; 
 
+        // Cálculo KPIs
         const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
         const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
         const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
@@ -371,7 +381,6 @@ window.App = {
         document.getElementById('dash_directivos').innerText = dirs;
         document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => d.colegio)).size; document.getElementById('dash_total_colegios').innerText = masterFilter.length;
 
-        // Cálculos matemáticos blindados contra celdas vacías (NaN)
         const calc = (key) => {
             let sum = 0, count = 0;
             data.forEach(d => {
@@ -402,9 +411,9 @@ window.App = {
         const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
         if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
 
-        const buildRanking = (keyProp) => {
+        const buildRanking = (keyProp, dataset) => {
             const rankMap = {};
-            data.forEach(d => { 
+            dataset.forEach(d => { 
                 if(!d[keyProp]) return; 
                 let sum = 0, count = 0;
                 ['q6', 'q7', 'q8', 'q9'].forEach(q => {
@@ -418,22 +427,24 @@ window.App = {
                 }
             });
             const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
-            if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos en este rango.</div>';
+            if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
             let html = '';
             arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-[#002C5F] bg-blue-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
             return html;
         };
-        
-        if (State.currentUserRole === 'admin') document.getElementById('ranking_list_coach').innerHTML = buildRanking('coach');
-        document.getElementById('ranking_list_regional').innerHTML = buildRanking('regional');
 
-        // Detractores optimizado y reestructurado
+        if (State.currentUserRole === 'admin') document.getElementById('ranking_list_coach').innerHTML = buildRanking('coach', data);
+        
+        // Coach y Admin ven el Ranking Regional basado en "dataGlobal" para ver la foto completa
+        document.getElementById('ranking_list_regional').innerHTML = buildRanking('regional', dataGlobal);
+
+        // Lógica de Detractores ajustada a los roles
         const detractores = data.filter(d => {
             const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
             return scores.some(s => s <= 2);
         });
         
-        document.getElementById('detractores_badge').innerText = `${detractores.length} Casos`;
+        document.getElementById('detractores_badge').innerText = `${detractores.length}`;
         const dList = document.getElementById('detractores_list');
         
         if (detractores.length === 0) {
@@ -443,20 +454,40 @@ window.App = {
             detractores.forEach(d => {
                 const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
                 const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
+                const f = d.timestamp ? new Date(d.timestamp).toLocaleDateString('es-CO') : (d.fecha ? d.fecha.split(',')[0] : 'Sin fecha');
                 
-                detractoresHTML += `
-                <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col sm:flex-row justify-between items-center gap-4 hover:bg-red-100 transition-colors">
-                    <div class="flex items-center gap-4">
-                        <span class="w-10 h-10 flex items-center justify-center bg-red-600 text-white rounded-xl text-lg font-black shadow-sm" title="Calificación más baja recibida">${minScore}</span>
-                        <div>
-                            <p class="font-bold text-red-900 text-sm">${d.colegio}</p>
-                            <p class="text-xs text-red-700 mt-0.5"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> Docente: <span class="font-medium">${d.asistente || 'Anónimo'}</span></p>
+                if (State.currentUserRole === 'admin') {
+                    detractoresHTML += `
+                    <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
+                        <div class="flex items-start gap-3">
+                            <span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0" title="Calificación más baja">${minScore}</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p>
+                                <div class="flex flex-col mt-1 gap-1">
+                                    <p class="text-[10px] text-red-700 truncate"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> ${d.asistente || 'Anónimo'}</p>
+                                    <p class="text-[10px] font-bold text-gray-700 truncate"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="text-right text-xs">
-                        <p class="font-bold text-gray-700 bg-white px-3 py-1.5 rounded-lg border shadow-sm"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p>
-                    </div>
-                </div>`;
+                        <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">
+                            "${d.sugerencias || 'Sin comentarios registrados.'}"
+                        </div>
+                    </div>`;
+                } else {
+                    detractoresHTML += `
+                    <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0" title="Calificación más baja">${minScore}</span>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p>
+                                <p class="text-[9px] text-red-700 mt-0.5">${f}</p>
+                            </div>
+                        </div>
+                        <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">
+                            "${d.sugerencias || 'Sin comentarios registrados.'}"
+                        </div>
+                    </div>`;
+                }
             });
             dList.innerHTML = detractoresHTML;
         }
