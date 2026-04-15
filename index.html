@@ -354,7 +354,7 @@
                     </div>
                 </div>
 
-                <div id="dynamic_dashboard_grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6">
+                <div id="dynamic_dashboard_grid" class="grid grid-cols-1 gap-6 mb-6 mt-6">
                     <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest"><i class="fa-solid fa-user-tie mr-1"></i> Ranking por Coach</h3>
@@ -369,15 +369,15 @@
                         <div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2"></div>
                     </div>
                     
-                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-2">
-                        <div class="flex justify-between items-center mb-4">
+                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
                             <div>
                                 <h3 class="text-sm font-black text-red-700 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Alertas Tempranas (Detractores)</h3>
                                 <p class="text-xs text-gray-500 mt-1">Sesiones con calificaciones críticas (1 o 2 en cualquier dimensión).</p>
                             </div>
-                            <span id="detractores_badge" class="px-4 py-1.5 bg-red-100 text-red-800 rounded-full text-xs font-black shadow-sm border border-red-200">0 Casos Detectados</span>
+                            <span id="detractores_badge" class="px-4 py-1.5 bg-red-100 text-red-800 rounded-lg text-xs font-black shadow-sm border border-red-200 ml-2">0</span>
                         </div>
-                        <div id="detractores_list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                        <div id="detractores_list" class="space-y-3 max-h-[250px] overflow-y-auto pr-2 flex-1">
                             <div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div>
                         </div>
                     </div>
