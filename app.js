@@ -61,17 +61,15 @@ async function initApp() {
     }
 }
 
-// Optimización: Traer datos sin filtros ocultos
+// Optimización: Traer datos sin filtros ocultos de fecha
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
         let q;
 
         if (State.currentUserRole === 'admin') {
-            // ADMIN: Descarga absolutamente todas las encuestas
             q = query(collection(db, "encuestas"));
         } else {
-            // COACH: Descarga solo las que coincidan con su nombre
             q = query(collection(db, "encuestas"), where("coach", "==", State.loginUser.nombre));
         }
             
@@ -79,7 +77,6 @@ async function fetchEncuestas() {
         State.encuestasData = [];
         encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
         
-        // Ordenamos localmente por timestamp (las más recientes primero)
         State.encuestasData.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
         
         State.encuestasLoaded = true;
@@ -88,6 +85,7 @@ async function fetchEncuestas() {
         console.error("Error cargando encuestas:", error); 
     }
 }
+
 window.App = {
     switchTab: function(tabId) {
         ['formTab', 'dashTab'].forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -122,21 +120,19 @@ window.App = {
             let userFound = null;
 
             if (role === 'admin') {
-                // Validación Admin Local
                 if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') {
                     userFound = { email: emailInput, nombre: 'JBECERRA' };
                 } else {
                     throw new Error("Credenciales de administrador incorrectas.");
                 }
             } else {
-                // Validación Coach Local (Busca en la lista descargada de Firestore)
                 const coachInfo = State.coachesAuth.find(c => c.email && c.email.toLowerCase() === emailInput);
                 
                 if (!coachInfo) {
                     throw new Error("Correo no registrado como coach.");
                 }
                 
-                const validPass = coachInfo.pass || '12345'; // Clave por defecto si está vacía
+                const validPass = coachInfo.pass || '12345'; 
                 if (validPass !== passInput) {
                     throw new Error("Contraseña incorrecta.");
                 }
@@ -144,7 +140,6 @@ window.App = {
                 userFound = coachInfo;
             }
 
-            // Inicio de sesión exitoso
             State.currentUserRole = role;
             State.loginUser = userFound;
             State.encuestasLoaded = false; 
@@ -219,7 +214,6 @@ window.App = {
                 const idx = State.coachesAuth.findIndex(c => c.email === State.loginUser.email);
                 if(idx !== -1) { 
                     State.coachesAuth[idx].pass = p1; 
-                    // Actualiza el documento directo en la colección 'coaches' de Firestore
                     await setDoc(doc(db, "coaches", State.coachesAuth[idx].id), State.coachesAuth[idx]);
                     localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
                 }
@@ -231,9 +225,6 @@ window.App = {
             alert("Error actualizando la contraseña en la base de datos."); 
         }
     },
-
-    // --- RESTO DE FUNCIONES (DASHBOARD, TABLAS, FILTROS) ---
-    // (Se mantienen iguales a tu versión original pero integradas aquí)
 
     toggleCoachRegistros: function() {
         const content = document.getElementById('content_coach_registros');
@@ -421,13 +412,20 @@ window.App = {
         const detractores = data.filter(d => d.q6 <= 2 || d.q7 <= 2 || d.q8 <= 2 || d.q9 <= 2);
         document.getElementById('detractores_badge').innerText = `${detractores.length} Casos`;
         const dList = document.getElementById('detractores_list');
-        if (detractores.length === 0) dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>';
-        else {
-            dList.innerHTML = '';
+        
+        if (detractores.length === 0) {
+            dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>';
+        } else {
+            // OPTIMIZACIÓN: Acumular HTML de detractores
+            let detractoresHTML = '';
             detractores.forEach(d => {
-                let f = "Sin fecha"; if(d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if(d.fecha) f = d.fecha.split(',')[0];
-                dList.innerHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col sm:flex-row justify-between gap-4"><div class="flex-1"><div class="flex items-center gap-2 mb-2"><span class="px-2 py-1 bg-red-600 text-white rounded text-[10px] font-black">Min: ${Math.min(d.q6, d.q7, d.q8, d.q9)}</span><p class="font-bold text-red-900 text-sm">${d.colegio}</p></div><p class="italic text-gray-800 text-sm">"${d.sugerencias || ''}"</p></div><div class="text-right text-[10px] text-gray-500"><p class="font-bold text-gray-700">${State.currentUserRole === 'admin' ? d.asistente : 'Anónimo'}</p><p>${f}</p></div></div>`;
+                let f = "Sin fecha"; 
+                if(d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } 
+                else if(d.fecha) f = d.fecha.split(',')[0];
+                
+                detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col sm:flex-row justify-between gap-4"><div class="flex-1"><div class="flex items-center gap-2 mb-2"><span class="px-2 py-1 bg-red-600 text-white rounded text-[10px] font-black">Min: ${Math.min(d.q6, d.q7, d.q8, d.q9)}</span><p class="font-bold text-red-900 text-sm">${d.colegio}</p></div><p class="italic text-gray-800 text-sm">"${d.sugerencias || ''}"</p></div><div class="text-right text-[10px] text-gray-500"><p class="font-bold text-gray-700">${State.currentUserRole === 'admin' ? d.asistente : 'Anónimo'}</p><p>${f}</p></div></div>`;
             });
+            dList.innerHTML = detractoresHTML;
         }
         this.renderRegistrosTable();
     },
@@ -443,29 +441,55 @@ window.App = {
         else { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
     },
 
+    // OPTIMIZACIÓN: Acumular HTML de la tabla para no congelar el navegador
     renderRegistrosTable: function() {
         this.populateRegistrosFilters();
-        const fechaVal = document.getElementById('reg_filter_fecha').value; const regVal = document.getElementById('reg_filter_regional').value;
-        const colVal = document.getElementById('reg_filter_colegio').value; const tallerVal = document.getElementById('reg_filter_taller').value;
+        const fechaVal = document.getElementById('reg_filter_fecha').value; 
+        const regVal = document.getElementById('reg_filter_regional').value;
+        const colVal = document.getElementById('reg_filter_colegio').value; 
+        const tallerVal = document.getElementById('reg_filter_taller').value;
         const coachVal = document.getElementById('reg_filter_coach').value;
-        let data = State.encuestasData.map(d => { const col = State.colegiosBD.find(c => c.colegio === d.colegio); return { ...d, regional: col ? col.regional : 'Sin Regional' }; });
+        
+        let data = State.encuestasData.map(d => { 
+            const col = State.colegiosBD.find(c => c.colegio === d.colegio); 
+            return { ...d, regional: col ? col.regional : 'Sin Regional' }; 
+        });
         
         if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = d.fecha.split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
-        if (regVal) data = data.filter(d => d.regional === regVal); if (colVal) data = data.filter(d => d.colegio === colVal);
-        if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); if (coachVal && State.currentUserRole === 'admin') data = data.filter(d => d.coach === coachVal);
+        if (regVal) data = data.filter(d => d.regional === regVal); 
+        if (colVal) data = data.filter(d => d.colegio === colVal);
+        if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); 
+        if (coachVal && State.currentUserRole === 'admin') data = data.filter(d => d.coach === coachVal);
         if (State.currentUserRole === 'coach') data = data.filter(d => d.coach === State.loginUser.nombre);
+        
         State.registrosFiltrados = data;
 
-        const tHead = document.getElementById('tabla_registros_head'); const tBody = document.getElementById('tabla_registros');
+        const tHead = document.getElementById('tabla_registros_head'); 
+        const tBody = document.getElementById('tabla_registros');
+        
         tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio</th><th class="px-6 py-4">Taller</th>${State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : ''}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias</th></tr>`;
-        tBody.innerHTML = '';
-        if (data.length === 0) { tBody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-gray-400 italic">No hay registros.</td></tr>`; return; }
+        
+        if (data.length === 0) { 
+            tBody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-gray-400 italic">No hay registros.</td></tr>`; 
+            return; 
+        }
+
+        let filasHTML = ""; 
 
         [...data].reverse().forEach(d => {
             const avg = ((d.q6 + d.q7 + d.q8 + d.q9) / 4).toFixed(1);
-            let f = "Fecha no válida"; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; } else if (d.fecha) f = d.fecha.split(',')[0].trim();
-            tBody.innerHTML += `<tr class="hover:bg-orange-50 transition-colors border-b border-gray-100"><td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500">${f}</td><td class="px-6 py-4"><div class="font-bold text-xs text-[#002C5F]">${d.colegio}</div><div class="text-[9px] text-gray-400 mt-0.5">${d.regional}</div></td><td class="px-6 py-4 text-[10px] text-gray-600 font-medium">${d.numTaller}: ${d.taller}</td>${State.currentUserRole === 'admin' ? `<td class="px-6 py-4 text-xs font-bold text-gray-700">${d.asistente}</td>` : ''}<td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-blue-100">${d.perfil}</span></td><td class="px-6 py-4 text-xs whitespace-nowrap font-medium text-gray-700">${d.coach}</td><td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded font-black text-xs border shadow-sm flex items-center justify-center gap-1 w-14 mx-auto ${avg >= 4.0 ? 'text-green-700 bg-green-50' : avg >= 3.0 ? 'text-yellow-700 bg-yellow-50' : 'text-red-700 bg-red-50'}">${avg}</span></td><td class="px-6 py-4 text-xs text-gray-600 italic break-words">${d.sugerencias || 'Sin comentarios'}</td></tr>`;
+            let f = "Fecha no válida"; 
+            if (d.timestamp) { 
+                const o = new Date(d.timestamp); 
+                f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; 
+            } else if (d.fecha) {
+                f = d.fecha.split(',')[0].trim();
+            }
+            
+            filasHTML += `<tr class="hover:bg-orange-50 transition-colors border-b border-gray-100"><td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500">${f}</td><td class="px-6 py-4"><div class="font-bold text-xs text-[#002C5F]">${d.colegio}</div><div class="text-[9px] text-gray-400 mt-0.5">${d.regional}</div></td><td class="px-6 py-4 text-[10px] text-gray-600 font-medium">${d.numTaller}: ${d.taller}</td>${State.currentUserRole === 'admin' ? `<td class="px-6 py-4 text-xs font-bold text-gray-700">${d.asistente}</td>` : ''}<td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-blue-100">${d.perfil}</span></td><td class="px-6 py-4 text-xs whitespace-nowrap font-medium text-gray-700">${d.coach}</td><td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded font-black text-xs border shadow-sm flex items-center justify-center gap-1 w-14 mx-auto ${avg >= 4.0 ? 'text-green-700 bg-green-50' : avg >= 3.0 ? 'text-yellow-700 bg-yellow-50' : 'text-red-700 bg-red-50'}">${avg}</span></td><td class="px-6 py-4 text-xs text-gray-600 italic break-words">${d.sugerencias || 'Sin comentarios'}</td></tr>`;
         });
+        
+        tBody.innerHTML = filasHTML;
     },
 
     exportToExcel: function() {
