@@ -257,14 +257,15 @@
                         </select>
                     </div>
 
-                    <div class="px-2 py-1 flex flex-col justify-center">
-                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Desde</label>
-                        <input type="date" id="filter_fecha_inicio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] cursor-pointer">
-                    </div>
-
-                    <div class="px-2 py-1 flex flex-col justify-center">
-                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Hasta</label>
-                        <input type="date" id="filter_fecha_fin" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] cursor-pointer">
+                    <div class="px-2 py-1 relative flex flex-col justify-center lg:col-span-3">
+                        <label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Meses de Ejecución</label>
+                        <div class="relative">
+                            <button type="button" id="btn_dropdown_meses" onclick="App.toggleDropdown('dropdown_meses')" class="w-full text-left text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity">
+                                <span id="text_filter_meses" class="truncate pr-2">Todos los meses</span>
+                                <i class="fa-solid fa-calendar-days text-[10px]"></i>
+                            </button>
+                            <div id="dropdown_meses" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-2 grid grid-cols-2 gap-1"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -309,7 +310,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div onclick="App.showExcelenciaExplanation()" class="bg-white rounded-2xl shadow-sm p-6 flex flex-col items-center justify-center border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors group relative overflow-hidden">
                         <div class="absolute right-4 top-4 text-[#FF5A00] opacity-0 group-hover:opacity-100 transition-opacity">
                             <i class="fa-solid fa-circle-info"></i>
@@ -330,9 +331,9 @@
                         <div class="text-[10px] text-[#FF5A00] mt-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity w-full text-center">¿Qué significa? <i class="fa-solid fa-arrow-right ml-1"></i></div>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 lg:col-span-1">
-                        <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest mb-6">Promedio por Dimensión</h3>
-                        <div class="space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col justify-center">
+                        <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest mb-6 text-center">Promedio por Dimensión</h3>
+                        <div class="space-y-6 px-4">
                             <div>
                                 <div class="flex justify-between text-xs font-bold mb-2 text-gray-600"><span>Conocimiento y Preparación</span><span id="avg_q6" class="text-orange-600">0.0</span></div>
                                 <div class="w-full bg-gray-100 rounded-full h-2"><div id="bar_q6" class="bg-[#FF5A00] h-2 rounded-full transition-all duration-1000" style="width: 0%"></div></div>
@@ -351,25 +352,9 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="bg-white rounded-2xl shadow-sm p-6 flex flex-col border border-gray-100 lg:col-span-1">
-                        <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest mb-4">Diagnóstico Cualitativo</h3>
-                        <div id="rubrica_list" class="space-y-3 max-h-[250px] overflow-y-auto pr-2 flex-1">
-                            <div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos de la encuesta...</div>
-                        </div>
-                    </div>
                 </div>
 
-                <div id="dynamic_dashboard_grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <div id="block_trend" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest">Evolución del Promedio</h3>
-                        </div>
-                        <div class="relative flex-1 w-full" style="min-height: 200px;">
-                            <canvas id="trendChart"></canvas>
-                        </div>
-                    </div>
-
+                <div id="dynamic_dashboard_grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6">
                     <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest"><i class="fa-solid fa-user-tie mr-1"></i> Ranking por Coach</h3>
@@ -384,15 +369,15 @@
                         <div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2"></div>
                     </div>
                     
-                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-3">
+                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-2">
                         <div class="flex justify-between items-center mb-4">
                             <div>
                                 <h3 class="text-sm font-black text-red-700 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Alertas Tempranas (Detractores)</h3>
-                                <p class="text-xs text-gray-500 mt-1">Respuestas aisladas con calificaciones críticas (1 o 2 en cualquier dimensión).</p>
+                                <p class="text-xs text-gray-500 mt-1">Sesiones con calificaciones críticas (1 o 2 en cualquier dimensión).</p>
                             </div>
                             <span id="detractores_badge" class="px-4 py-1.5 bg-red-100 text-red-800 rounded-full text-xs font-black shadow-sm border border-red-200">0 Casos Detectados</span>
                         </div>
-                        <div id="detractores_list" class="space-y-3 max-h-[250px] overflow-y-auto pr-2">
+                        <div id="detractores_list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
                             <div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div>
                         </div>
                     </div>
