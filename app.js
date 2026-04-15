@@ -61,34 +61,33 @@ async function initApp() {
     }
 }
 
+// Optimización: Traer datos sin filtros ocultos
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
-        const inicioDeAño = new Date(new Date().getFullYear(), 0, 1).getTime();
         let q;
 
         if (State.currentUserRole === 'admin') {
-            q = query(collection(db, "encuestas"), where("timestamp", ">=", inicioDeAño));
+            // ADMIN: Descarga absolutamente todas las encuestas
+            q = query(collection(db, "encuestas"));
         } else {
-            q = query(collection(db, "encuestas"), 
-                where("coach", "==", State.loginUser.nombre), 
-                where("timestamp", ">=", inicioDeAño)
-            );
+            // COACH: Descarga solo las que coincidan con su nombre
+            q = query(collection(db, "encuestas"), where("coach", "==", State.loginUser.nombre));
         }
             
         const encuestasSnap = await getDocs(q);
         State.encuestasData = [];
         encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
         
-        State.encuestasData.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+        // Ordenamos localmente por timestamp (las más recientes primero)
+        State.encuestasData.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
         
         State.encuestasLoaded = true;
         console.log(`✅ ${State.encuestasData.length} encuestas descargadas.`);
     } catch (error) { 
-        console.error("Error cargando encuestas", error); 
+        console.error("Error cargando encuestas:", error); 
     }
 }
-
 window.App = {
     switchTab: function(tabId) {
         ['formTab', 'dashTab'].forEach(id => document.getElementById(id).classList.add('hidden'));
