@@ -119,10 +119,12 @@ window.App = {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, pass);
             const loggedUser = userCredential.user;
-            const coachInfo = State.coachesAuth.find(c => c.email.toLowerCase() === email);
             
-            if (role === 'coach' && !coachInfo) { await signOut(auth); throw new Error("No registrado como coach"); }
-            if (role === 'admin' && coachInfo) { await signOut(auth); throw new Error("No es admin"); }
+            // CORRECCIÓN: Búsqueda defensiva para evitar errores si c.email es undefined
+            const coachInfo = State.coachesAuth.find(c => c.email && c.email.toLowerCase() === email);
+            
+            if (role === 'coach' && !coachInfo) { await signOut(auth); throw new Error("No registrado como coach en la base de datos"); }
+            if (role === 'admin' && coachInfo) { await signOut(auth); throw new Error("Es un coach, no puede entrar como admin"); }
 
             State.currentUserRole = role;
             State.loginUser = role === 'admin' ? { email: loggedUser.email, nombre: loggedUser.email.split('@')[0] } : coachInfo;
@@ -168,7 +170,13 @@ window.App = {
             this.initFiltrosBasicos();
             await fetchEncuestas();
             this.handleFilterTrigger();
-        } catch (error) { document.getElementById('loginError').classList.remove('hidden'); }
+        } catch (error) { 
+            // CORRECCIÓN: Log detallado para ver el error real de Firebase
+            console.error("🕵️ Error detallado del login:", error);
+            document.getElementById('loginError').classList.remove('hidden'); 
+            // Opcional: Podrías inyectar el error en el HTML para verlo en pantalla
+            // document.getElementById('loginError').innerText = "Error: " + error.message;
+        }
     },
 
     logout: async function() {
@@ -305,7 +313,6 @@ window.App = {
         const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
         const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
         
-        // CORRECCIÓN AQUÍ: Se utiliza el objeto centralizado BusinessRules para el cálculo
         let metaAsistencias = 0;
         colegiosCiclo.forEach(c => { 
             const docs = parseInt(c.docentes) || 0;
@@ -459,7 +466,6 @@ window.App = {
             document.getElementById('encuestaForm').reset(); document.getElementById('successMsg').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
             setTimeout(() => document.getElementById('successMsg').classList.add('hidden'), 5000);
             
-            // Actualizamos la métrica global (Optimizamos Estrategia 3)
             try {
                 const resumenRef = doc(db, "metricas", "resumen_global");
                 await updateDoc(resumenRef, { total_encuestas: increment(1) });
