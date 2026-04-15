@@ -14,7 +14,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Reglas de negocio centralizadas
 const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 
 const State = {
@@ -22,9 +21,8 @@ const State = {
     encuestasLoaded: false, currentUserRole: null, loginUser: null, currentView: 'formTab', currentEdicionView: 'colegios'
 };
 
-window.trendChartInst = null;
+const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// Inicialización de la App y descarga de bases de datos
 async function initApp() {
     try {
         const cachedCol = localStorage.getItem('santillana_colegios');
@@ -36,12 +34,10 @@ async function initApp() {
         if (cachedCol && cachedCoach && isCacheValid) {
             State.colegiosBD = JSON.parse(cachedCol);
             State.coachesAuth = JSON.parse(cachedCoach);
-            console.log("✅ Datos cargados desde la memoria local");
             App.poblarCoaches();
             return; 
         }
 
-        console.log("☁️ Descargando de Firebase...");
         const colSnap = await getDocs(collection(db, "colegios"));
         State.colegiosBD = [];
         colSnap.forEach(d => State.colegiosBD.push({ id: d.id, ...d.data() }));
@@ -61,12 +57,10 @@ async function initApp() {
     }
 }
 
-// Optimización: Traer datos sin filtros ocultos de fecha
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
         let q;
-
         if (State.currentUserRole === 'admin') {
             q = query(collection(db, "encuestas"));
         } else {
@@ -76,11 +70,9 @@ async function fetchEncuestas() {
         const encuestasSnap = await getDocs(q);
         State.encuestasData = [];
         encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
-        
         State.encuestasData.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
         
         State.encuestasLoaded = true;
-        console.log(`✅ ${State.encuestasData.length} encuestas descargadas.`);
     } catch (error) { 
         console.error("Error cargando encuestas:", error); 
     }
@@ -127,15 +119,10 @@ window.App = {
                 }
             } else {
                 const coachInfo = State.coachesAuth.find(c => c.email && c.email.toLowerCase() === emailInput);
-                
-                if (!coachInfo) {
-                    throw new Error("Correo no registrado como coach.");
-                }
+                if (!coachInfo) throw new Error("Correo no registrado como coach.");
                 
                 const validPass = coachInfo.pass || '12345'; 
-                if (validPass !== passInput) {
-                    throw new Error("Contraseña incorrecta.");
-                }
+                if (validPass !== passInput) throw new Error("Contraseña incorrecta.");
                 
                 userFound = coachInfo;
             }
@@ -164,7 +151,6 @@ window.App = {
 
     configureDashboardUI: function(role) {
         const dynGrid = document.getElementById('dynamic_dashboard_grid');
-        const bTrend = document.getElementById('block_trend');
         const bRankC = document.getElementById('block_rank_coach');
         const bAlertas = document.getElementById('block_alertas');
         const coreTable = document.getElementById('registros_core_container');
@@ -173,9 +159,9 @@ window.App = {
             document.getElementById('adminSubNav').classList.remove('hidden');
             document.getElementById('coachWelcomeBar').classList.add('hidden');
             document.getElementById('container_filter_coach').classList.remove('hidden');
-            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6';
-            bTrend.classList.remove('hidden'); bRankC.classList.remove('hidden');
-            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-3'; 
+            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
+            bRankC.classList.remove('hidden');
+            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-2'; 
             document.getElementById('subTabRegistros_content').appendChild(coreTable);
             document.getElementById('coach_registros_box').classList.add('hidden');
             document.getElementById('container_reg_filter_regional').classList.remove('hidden');
@@ -185,8 +171,8 @@ window.App = {
             document.getElementById('coachWelcomeBar').classList.remove('hidden');
             document.getElementById('display_coach_name').innerText = State.loginUser.nombre;
             document.getElementById('container_filter_coach').classList.add('hidden');
-            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6';
-            bTrend.classList.add('hidden'); bRankC.classList.add('hidden');
+            dynGrid.className = 'grid grid-cols-1 gap-6 mb-6 mt-6';
+            bRankC.classList.add('hidden');
             bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1';
             document.getElementById('content_coach_registros').appendChild(coreTable);
             document.getElementById('coach_registros_box').classList.remove('hidden');
@@ -200,7 +186,6 @@ window.App = {
         State.encuestasData = []; State.filteredEncuestas = [];
         document.getElementById('user-controls').classList.add('hidden'); 
         document.getElementById('user-controls').classList.remove('flex');
-        if(window.trendChartInst) window.trendChartInst.destroy();
         this.switchTab('formTab');
     },
 
@@ -220,7 +205,7 @@ window.App = {
             } else {
                 alert("La contraseña de Administrador no se puede cambiar desde este panel.");
             }
-            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada en el sistema.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
+            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
         } catch (e) { 
             alert("Error actualizando la contraseña en la base de datos."); 
         }
@@ -240,6 +225,7 @@ window.App = {
     toggleDropdown: function(id) { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); },
 
     initFiltrosBasicos: function() {
+        // Dropdown Líneas
         const lineas = [...new Set(State.colegiosBD.map(c => c.lineaNegocio ? c.lineaNegocio.trim() : '').filter(Boolean))].sort();
         const dropLineas = document.getElementById('dropdown_lineas');
         if (dropLineas) {
@@ -248,6 +234,16 @@ window.App = {
                 dropLineas.innerHTML += `<label class="linea-label-container flex items-center space-x-2 p-2 hover:bg-orange-50 rounded-lg cursor-pointer transition-colors"><input type="checkbox" value="${l}" class="linea-cb accent-[#FF5A00] w-4 h-4" onchange="App.handleFilterTrigger()"><span class="text-xs font-medium text-gray-700">${l}</span></label>`;
             });
         }
+        
+        // Dropdown Meses
+        const dropMeses = document.getElementById('dropdown_meses');
+        if (dropMeses) {
+            dropMeses.innerHTML = '';
+            mesesNombres.forEach((m, idx) => {
+                dropMeses.innerHTML += `<label class="flex items-center space-x-2 p-2 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-blue-100"><input type="checkbox" value="${idx}" class="mes-cb accent-[#002C5F] w-4 h-4" onchange="App.handleFilterTrigger()"><span class="text-xs font-medium text-gray-700">${m}</span></label>`;
+            });
+        }
+
         this.handleFilterTrigger(); 
     },
 
@@ -307,10 +303,20 @@ window.App = {
     updateDashboard: function() {
         let data = State.encuestasData.map(d => { const colInfo = State.colegiosBD.find(c => c.colegio === d.colegio); return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' }; });
 
-        const regF = document.getElementById('filter_regional').value; const coachF = State.currentUserRole === 'admin' ? document.getElementById('filter_coach').value : State.loginUser.nombre;
-        const colF = document.getElementById('filter_colegio').value; const tallerF = document.getElementById('filter_taller').value;
-        const calF = document.getElementById('filter_calendario').value; const clasF = document.getElementById('filter_clasificacion').value;
+        const regF = document.getElementById('filter_regional').value; 
+        const coachF = State.currentUserRole === 'admin' ? document.getElementById('filter_coach').value : State.loginUser.nombre;
+        const colF = document.getElementById('filter_colegio').value; 
+        const tallerF = document.getElementById('filter_taller').value;
+        const calF = document.getElementById('filter_calendario').value; 
+        const clasF = document.getElementById('filter_clasificacion').value;
         const lineasF = Array.from(document.querySelectorAll('.linea-cb:checked')).map(cb => cb.value);
+        
+        // Logica para meses
+        const mesesF = Array.from(document.querySelectorAll('.mes-cb:checked')).map(cb => parseInt(cb.value));
+        const textSpanMeses = document.getElementById('text_filter_meses');
+        if (mesesF.length === 0) textSpanMeses.textContent = "Todos los meses";
+        else if (mesesF.length === 1) textSpanMeses.textContent = mesesNombres[mesesF[0]];
+        else textSpanMeses.textContent = `${mesesF.length} meses seleccionados`;
 
         let masterFilter = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
         if(regF) masterFilter = masterFilter.filter(c => c.regional === regF);
@@ -321,25 +327,35 @@ window.App = {
         if(lineasF.length > 0) masterFilter = masterFilter.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
         
         const colegiosPermitidos = new Set(masterFilter.map(c => c.colegio));
-        if(regF) data = data.filter(d => d.regional === regF); if(coachF) data = data.filter(d => d.coach === coachF); if(tallerF) data = data.filter(d => d.numTaller === tallerF);
+        if(regF) data = data.filter(d => d.regional === regF); 
+        if(coachF) data = data.filter(d => d.coach === coachF); 
+        if(tallerF) data = data.filter(d => d.numTaller === tallerF);
         data = data.filter(d => colegiosPermitidos.has(d.colegio));
 
-        const fInicio = document.getElementById('filter_fecha_inicio').value; const fFin = document.getElementById('filter_fecha_fin').value;
+        // Filtrar por meses seleccionados
         data = data.filter(d => {
-            const t = d.timestamp || new Date(d.fecha.split(',')[0]).getTime() || Date.now();
-            if (fInicio && t < new Date(fInicio + 'T00:00:00').getTime()) return false;
-            if (fFin && t > new Date(fFin + 'T23:59:59').getTime()) return false;
+            let dateObj;
+            if (d.timestamp) dateObj = new Date(d.timestamp);
+            else { 
+                const parts = d.fecha.split(',')[0].trim().split('/'); 
+                if(parts.length === 3) dateObj = new Date(parts[2], parts[1]-1, parts[0]); 
+                else dateObj = new Date(d.fecha); 
+            }
+            if (!dateObj || isNaN(dateObj.getTime())) return false; // descarta fechas invalidas
+            
+            if (mesesF.length > 0 && !mesesF.includes(dateObj.getMonth())) return false;
             return true;
         });
+
         State.filteredEncuestas = data; 
 
-        const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes) || 0), 0);
+        const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
         const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
         const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
         
         let metaAsistencias = 0;
         colegiosCiclo.forEach(c => { 
-            const docs = parseInt(c.docentes) || 0;
+            const docs = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
             const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
             const multiplicador = BusinessRules.metasCiclo[clasif] || 1;
             metaAsistencias += (docs * multiplicador); 
@@ -355,75 +371,92 @@ window.App = {
         document.getElementById('dash_directivos').innerText = dirs;
         document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => d.colegio)).size; document.getElementById('dash_total_colegios').innerText = masterFilter.length;
 
-        const calc = (key) => (data.reduce((s, d) => s + d[key], 0) / (data.length || 1)).toFixed(1);
-        ['q6', 'q7', 'q8', 'q9'].forEach(q => { const val = calc(q); document.getElementById(`avg_${q}`).innerText = val; document.getElementById(`bar_${q}`).style.width = (val / 5 * 100) + '%'; });
+        // Cálculos matemáticos blindados contra celdas vacías (NaN)
+        const calc = (key) => {
+            let sum = 0, count = 0;
+            data.forEach(d => {
+                const val = parseFloat(d[key] || d[key.toUpperCase()]); 
+                if (!isNaN(val)) { sum += val; count++; }
+            });
+            return count === 0 ? "0.0" : (sum / count).toFixed(1);
+        };
+
+        ['q6', 'q7', 'q8', 'q9'].forEach(q => { 
+            const val = calc(q); 
+            document.getElementById(`avg_${q}`).innerText = val; 
+            document.getElementById(`bar_${q}`).style.width = (val / 5 * 100) + '%'; 
+        });
 
         let totalRespuestas = 0; let excelentes = 0;
-        data.forEach(d => { [d.q6, d.q7, d.q8, d.q9].forEach(score => { totalRespuestas++; if(score >= 4) excelentes++; }); });
+        data.forEach(d => { 
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => {
+                const score = parseFloat(d[q] || d[q.toUpperCase()]);
+                if (!isNaN(score)) {
+                    totalRespuestas++; 
+                    if(score >= 4) excelentes++; 
+                }
+            }); 
+        });
+
         const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
         const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
         if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
 
-        const rList = document.getElementById('rubrica_list');
-        if (data.length === 0) rList.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div>';
-        else {
-            const evalRubric = (score, label) => {
-                const s = parseFloat(score); let status, color, icon, rec;
-                if (s >= 4.5) { status = "Excelente"; color = "text-green-700 bg-green-50 border-green-200"; icon = "fa-star"; rec = "Práctica consolidada."; } 
-                else if (s >= 3.8) { status = "Buen Desempeño"; color = "text-blue-700 bg-blue-50 border-blue-200"; icon = "fa-thumbs-up"; rec = "Resultados positivos."; } 
-                else { status = "Oportunidad de Mejora"; color = "text-red-700 bg-red-50 border-red-200"; icon = "fa-triangle-exclamation"; rec = "Atención requerida."; }
-                return `<div class="p-4 rounded-xl border ${color} flex gap-4 items-start"><div class="text-2xl mt-1 opacity-70"><i class="fa-solid ${icon}"></i></div><div><p class="font-bold text-sm mb-1">${label} <span class="ml-2 inline-block px-2 py-0.5 bg-white rounded-full text-xs font-black shadow-sm">${s.toFixed(1)}</span></p><p class="text-xs opacity-90"><b>${status}:</b> ${rec}</p></div></div>`;
-            };
-            rList.innerHTML = `${evalRubric(calc('q6'), 'Conocimiento')}${evalRubric(calc('q7'), 'Utilidad')}${evalRubric(calc('q8'), 'Metodología')}${evalRubric(calc('q9'), 'Recursos')}`;
-        }
-
-        if (State.currentUserRole === 'admin') {
-            const monthlyData = {};
-            data.forEach(d => {
-                let dateObj;
-                if (d.timestamp) dateObj = new Date(d.timestamp);
-                else { const parts = d.fecha.split(',')[0].trim().split('/'); if(parts.length === 3) dateObj = new Date(parts[2], parts[1]-1, parts[0]); else dateObj = new Date(d.fecha); }
-                if (dateObj && !isNaN(dateObj.getTime())) {
-                    const monthYear = `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}/${dateObj.getFullYear()}`; 
-                    if(!monthlyData[monthYear]) monthlyData[monthYear] = { sum: 0, count: 0 };
-                    monthlyData[monthYear].sum += (d.q6 + d.q7 + d.q8 + d.q9) / 4; monthlyData[monthYear].count++;
-                }
-            });
-            const labels = Object.keys(monthlyData).sort((a,b) => { const [m1,y1] = a.split('/'); const [m2,y2] = b.split('/'); return new Date(y1, m1-1) - new Date(y2, m2-1); });
-            const ctx = document.getElementById('trendChart');
-            if(ctx) {
-                if(window.trendChartInst) window.trendChartInst.destroy();
-                window.trendChartInst = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ data: labels.map(l => (monthlyData[l].sum / monthlyData[l].count).toFixed(2)), borderColor: '#FF5A00', backgroundColor: 'rgba(255, 90, 0, 0.1)', borderWidth: 3, pointBackgroundColor: '#002C5F', pointRadius: 4, fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 1, max: 5 } }, plugins: { legend: { display: false } } } });
-            }
-        }
-
         const buildRanking = (keyProp) => {
             const rankMap = {};
-            data.forEach(d => { if(!d[keyProp]) return; if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; rankMap[d[keyProp]].sum += (d.q6 + d.q7 + d.q8 + d.q9) / 4; rankMap[d[keyProp]].count++; });
+            data.forEach(d => { 
+                if(!d[keyProp]) return; 
+                let sum = 0, count = 0;
+                ['q6', 'q7', 'q8', 'q9'].forEach(q => {
+                    const s = parseFloat(d[q] || d[q.toUpperCase()]);
+                    if(!isNaN(s)){ sum += s; count++; }
+                });
+                if(count > 0){
+                    if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; 
+                    rankMap[d[keyProp]].sum += (sum / count); 
+                    rankMap[d[keyProp]].count++; 
+                }
+            });
             const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
-            if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
+            if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos en este rango.</div>';
             let html = '';
             arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-[#002C5F] bg-blue-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
             return html;
         };
+        
         if (State.currentUserRole === 'admin') document.getElementById('ranking_list_coach').innerHTML = buildRanking('coach');
         document.getElementById('ranking_list_regional').innerHTML = buildRanking('regional');
 
-        const detractores = data.filter(d => d.q6 <= 2 || d.q7 <= 2 || d.q8 <= 2 || d.q9 <= 2);
+        // Detractores optimizado y reestructurado
+        const detractores = data.filter(d => {
+            const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
+            return scores.some(s => s <= 2);
+        });
+        
         document.getElementById('detractores_badge').innerText = `${detractores.length} Casos`;
         const dList = document.getElementById('detractores_list');
         
         if (detractores.length === 0) {
             dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>';
         } else {
-            // OPTIMIZACIÓN: Acumular HTML de detractores
             let detractoresHTML = '';
             detractores.forEach(d => {
-                let f = "Sin fecha"; 
-                if(d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } 
-                else if(d.fecha) f = d.fecha.split(',')[0];
+                const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
+                const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
                 
-                detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col sm:flex-row justify-between gap-4"><div class="flex-1"><div class="flex items-center gap-2 mb-2"><span class="px-2 py-1 bg-red-600 text-white rounded text-[10px] font-black">Min: ${Math.min(d.q6, d.q7, d.q8, d.q9)}</span><p class="font-bold text-red-900 text-sm">${d.colegio}</p></div><p class="italic text-gray-800 text-sm">"${d.sugerencias || ''}"</p></div><div class="text-right text-[10px] text-gray-500"><p class="font-bold text-gray-700">${State.currentUserRole === 'admin' ? d.asistente : 'Anónimo'}</p><p>${f}</p></div></div>`;
+                detractoresHTML += `
+                <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col sm:flex-row justify-between items-center gap-4 hover:bg-red-100 transition-colors">
+                    <div class="flex items-center gap-4">
+                        <span class="w-10 h-10 flex items-center justify-center bg-red-600 text-white rounded-xl text-lg font-black shadow-sm" title="Calificación más baja recibida">${minScore}</span>
+                        <div>
+                            <p class="font-bold text-red-900 text-sm">${d.colegio}</p>
+                            <p class="text-xs text-red-700 mt-0.5"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> Docente: <span class="font-medium">${d.asistente || 'Anónimo'}</span></p>
+                        </div>
+                    </div>
+                    <div class="text-right text-xs">
+                        <p class="font-bold text-gray-700 bg-white px-3 py-1.5 rounded-lg border shadow-sm"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p>
+                    </div>
+                </div>`;
             });
             dList.innerHTML = detractoresHTML;
         }
@@ -441,7 +474,6 @@ window.App = {
         else { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
     },
 
-    // OPTIMIZACIÓN: Acumular HTML de la tabla para no congelar el navegador
     renderRegistrosTable: function() {
         this.populateRegistrosFilters();
         const fechaVal = document.getElementById('reg_filter_fecha').value; 
@@ -477,7 +509,13 @@ window.App = {
         let filasHTML = ""; 
 
         [...data].reverse().forEach(d => {
-            const avg = ((d.q6 + d.q7 + d.q8 + d.q9) / 4).toFixed(1);
+            let sum = 0, count = 0;
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => {
+                const s = parseFloat(d[q] || d[q.toUpperCase()]);
+                if(!isNaN(s)){ sum += s; count++; }
+            });
+            const avg = count > 0 ? (sum / count).toFixed(1) : '-';
+            
             let f = "Fecha no válida"; 
             if (d.timestamp) { 
                 const o = new Date(d.timestamp); 
@@ -686,7 +724,11 @@ window.onload = async () => {
     window.addEventListener('click', function(e) {
         const dropColegios = document.getElementById('listaColegiosCustom'); const inputColegio = document.getElementById('q1_colegio');
         if (dropColegios && inputColegio && !dropColegios.contains(e.target) && e.target !== inputColegio) dropColegios.classList.add('hidden');
+        
         const dropLineas = document.getElementById('dropdown_lineas'); const btnLineas = document.getElementById('btn_dropdown_lineas');
         if (dropLineas && btnLineas && !dropLineas.contains(e.target) && !btnLineas.contains(e.target)) dropLineas.classList.add('hidden');
+        
+        const dropMeses = document.getElementById('dropdown_meses'); const btnMeses = document.getElementById('btn_dropdown_meses');
+        if (dropMeses && btnMeses && !dropMeses.contains(e.target) && !btnMeses.contains(e.target)) dropMeses.classList.add('hidden');
     });
 };
