@@ -18,7 +18,8 @@ const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 
 const State = {
     colegiosBD: [], coachesAuth: [], encuestasData: [], filteredEncuestas: [], registrosFiltrados: [],
-    encuestasLoaded: false, currentUserRole: null, loginUser: null, currentView: 'formTab', currentEdicionView: 'colegios'
+    encuestasLoaded: false, currentUserRole: null, loginUser: null, currentView: 'formTab', currentEdicionView: 'colegios',
+    paginationLimit: 50, currentRendered: 0 // Control de paginación para rendimiento DOM
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -57,6 +58,7 @@ async function initApp() {
     }
 }
 
+// Eliminamos el filtro de fecha aquí para traer toda la historia y filtrar localmente
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
@@ -94,7 +96,6 @@ window.App = {
         const title = role === 'admin' ? "Coordinación Santillana" : "Acceso Coach Académico";
         this.showModal(title, `
             <div class="space-y-4">
-                <p class="text-sm text-gray-500">Ingresa tus credenciales autorizadas:</p>
                 <input type="email" id="loginEmail" class="w-full border rounded-xl px-4 py-3" placeholder="Correo corporativo">
                 <input type="password" id="loginPwd" class="w-full border rounded-xl px-4 py-3" placeholder="Contraseña">
                 <p id="loginError" class="text-red-500 text-xs hidden font-bold"></p>
@@ -150,37 +151,24 @@ window.App = {
     },
 
     configureDashboardUI: function(role) {
-        const dynGrid = document.getElementById('dynamic_dashboard_grid');
-        const bRankC = document.getElementById('block_rank_coach');
-        const bRankR = document.getElementById('block_rank_regional');
-        const bAlertas = document.getElementById('block_alertas');
-        const coreTable = document.getElementById('registros_core_container');
+        const isAdmin = role === 'admin';
+        document.getElementById('adminSubNav').classList.toggle('hidden', !isAdmin);
+        document.getElementById('coachWelcomeBar').classList.toggle('hidden', isAdmin);
+        document.getElementById('container_filter_coach').classList.toggle('hidden', !isAdmin);
         
-        if(role === 'admin') {
-            document.getElementById('adminSubNav').classList.remove('hidden');
-            document.getElementById('coachWelcomeBar').classList.add('hidden');
-            document.getElementById('container_filter_coach').classList.remove('hidden');
-            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-6';
-            bRankC.classList.remove('hidden');
-            bRankR.classList.remove('hidden');
-            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col'; 
-            document.getElementById('subTabRegistros_content').appendChild(coreTable);
-            document.getElementById('coach_registros_box').classList.add('hidden');
-            document.getElementById('container_reg_filter_regional').classList.remove('hidden');
-            document.getElementById('container_reg_filter_coach').classList.remove('hidden');
+        // Bloques de Rankings y Grillas
+        document.getElementById('block_rank_coach').classList.toggle('hidden', !isAdmin);
+        document.getElementById('dynamic_dashboard_grid').className = isAdmin ? 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-6' : 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
+        
+        // Cajas de Registros
+        document.getElementById('coach_registros_box').classList.toggle('hidden', isAdmin);
+        document.getElementById('container_reg_filter_regional').classList.toggle('hidden', !isAdmin);
+        document.getElementById('container_reg_filter_coach').classList.toggle('hidden', !isAdmin);
+        
+        if(isAdmin) {
+            document.getElementById('subTabRegistros_content').appendChild(document.getElementById('registros_core_container'));
         } else {
-            document.getElementById('adminSubNav').classList.add('hidden');
-            document.getElementById('coachWelcomeBar').classList.remove('hidden');
-            document.getElementById('display_coach_name').innerText = State.loginUser.nombre;
-            document.getElementById('container_filter_coach').classList.add('hidden');
-            dynGrid.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
-            bRankC.classList.add('hidden');
-            bRankR.classList.remove('hidden');
-            bAlertas.className = 'bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col';
-            document.getElementById('content_coach_registros').appendChild(coreTable);
-            document.getElementById('coach_registros_box').classList.remove('hidden');
-            document.getElementById('container_reg_filter_regional').classList.add('hidden');
-            document.getElementById('container_reg_filter_coach').classList.add('hidden');
+            document.getElementById('content_coach_registros').appendChild(document.getElementById('registros_core_container'));
         }
     },
 
@@ -208,7 +196,7 @@ window.App = {
             } else {
                 alert("La contraseña de Administrador no se puede cambiar desde este panel.");
             }
-            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
+            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada en el sistema.</p>", `<button onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
         } catch (e) { 
             alert("Error actualizando la contraseña en la base de datos."); 
         }
@@ -225,7 +213,23 @@ window.App = {
         App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold">Guardar</button>`);
     },
 
-    toggleDropdown: function(id) { const el = document.getElementById(id); if (el) el.classList.toggle('hidden'); },
+    // Accesibilidad (ARIA)
+    toggleDropdown: function(id, btnId) { 
+        const el = document.getElementById(id); 
+        const btn = document.getElementById(btnId);
+        if (el) {
+            const isHidden = el.classList.contains('hidden');
+            if (isHidden) {
+                el.classList.remove('hidden');
+                el.setAttribute('aria-hidden', 'false');
+                if(btn) btn.setAttribute('aria-expanded', 'true');
+            } else {
+                el.classList.add('hidden');
+                el.setAttribute('aria-hidden', 'true');
+                if(btn) btn.setAttribute('aria-expanded', 'false');
+            }
+        } 
+    },
 
     initFiltrosBasicos: function() {
         const lineas = [...new Set(State.colegiosBD.map(c => c.lineaNegocio ? c.lineaNegocio.trim() : '').filter(Boolean))].sort();
@@ -255,6 +259,7 @@ window.App = {
         const regEl = document.getElementById('filter_regional'); const coachEl = document.getElementById('filter_coach');
         const colEl = document.getElementById('filter_colegio'); const calEl = document.getElementById('filter_calendario');
         const clasEl = document.getElementById('filter_clasificacion'); const lineasCbs = document.querySelectorAll('.linea-cb');
+        
         const regVal = regEl.value; const coachVal = State.currentUserRole === 'admin' ? coachEl.value : State.loginUser.nombre;
         const colVal = colEl.value; const calVal = calEl.value; const clasVal = clasEl.value;
         const lineasVal = Array.from(lineasCbs).filter(cb => cb.checked).map(cb => cb.value);
@@ -316,7 +321,7 @@ window.App = {
         else if (mesesF.length === 1) textSpanMeses.textContent = mesesNombres[mesesF[0]];
         else textSpanMeses.textContent = `${mesesF.length} meses seleccionados`;
 
-        // 1. Filtro Global (Ignora CoachF) para Ranking Regional
+        // 1. Filtro Global (Ignora CoachF) para Ranking Regional Total
         let masterFilterGlobal = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
         if(regF) masterFilterGlobal = masterFilterGlobal.filter(c => c.regional === regF);
         if(colF) masterFilterGlobal = masterFilterGlobal.filter(c => c.colegio === colF);
@@ -358,7 +363,7 @@ window.App = {
 
         State.filteredEncuestas = data; 
 
-        // Cálculo KPIs
+        // Cálculo KPIs Matemáticamente Seguros
         const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
         const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
         const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
@@ -435,10 +440,10 @@ window.App = {
 
         if (State.currentUserRole === 'admin') document.getElementById('ranking_list_coach').innerHTML = buildRanking('coach', data);
         
-        // Coach y Admin ven el Ranking Regional basado en "dataGlobal" para ver la foto completa
+        // Ambos roles ven el Ranking Regional basado en "dataGlobal"
         document.getElementById('ranking_list_regional').innerHTML = buildRanking('regional', dataGlobal);
 
-        // Lógica de Detractores ajustada a los roles
+        // Lógica de Detractores ajustada por Roles
         const detractores = data.filter(d => {
             const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
             return scores.some(s => s <= 2);
@@ -457,6 +462,7 @@ window.App = {
                 const f = d.timestamp ? new Date(d.timestamp).toLocaleDateString('es-CO') : (d.fecha ? d.fecha.split(',')[0] : 'Sin fecha');
                 
                 if (State.currentUserRole === 'admin') {
+                    // Visual Admin: Muestra todo
                     detractoresHTML += `
                     <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
                         <div class="flex items-start gap-3">
@@ -474,6 +480,7 @@ window.App = {
                         </div>
                     </div>`;
                 } else {
+                    // Visual Coach: Oculta nombre de docente y nombre de coach (porque es el suyo)
                     detractoresHTML += `
                     <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
                         <div class="flex items-center gap-3">
@@ -491,7 +498,7 @@ window.App = {
             });
             dList.innerHTML = detractoresHTML;
         }
-        this.renderRegistrosTable();
+        this.renderRegistrosTable(true); 
     },
 
     populateRegistrosFilters: function() {
@@ -505,7 +512,10 @@ window.App = {
         else { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
     },
 
-    renderRegistrosTable: function() {
+    // RENDERIZADO CON TEMPLATE Y PAGINACIÓN
+    renderRegistrosTable: function(resetPagination = true) {
+        if (resetPagination) State.currentRendered = 0;
+
         this.populateRegistrosFilters();
         const fechaVal = document.getElementById('reg_filter_fecha').value; 
         const regVal = document.getElementById('reg_filter_regional').value;
@@ -527,38 +537,173 @@ window.App = {
         
         State.registrosFiltrados = data;
 
-        const tHead = document.getElementById('tabla_registros_head'); 
         const tBody = document.getElementById('tabla_registros');
+        if (resetPagination) tBody.innerHTML = '';
         
-        tHead.innerHTML = `<tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio</th><th class="px-6 py-4">Taller</th>${State.currentUserRole === 'admin' ? '<th class="px-6 py-4">Asistente</th>' : ''}<th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias</th></tr>`;
-        
+        const paginationContainer = document.getElementById('pagination_container');
+
         if (data.length === 0) { 
-            tBody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-gray-400 italic">No hay registros.</td></tr>`; 
+            tBody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-gray-400 italic">No hay registros para mostrar.</td></tr>`; 
+            paginationContainer.classList.add('hidden');
             return; 
         }
 
-        let filasHTML = ""; 
+        const template = document.getElementById('row-template');
+        const nextBatch = data.slice(State.currentRendered, State.currentRendered + State.paginationLimit);
 
-        [...data].reverse().forEach(d => {
+        nextBatch.forEach(d => {
+            const clone = template.content.cloneNode(true);
+            
             let sum = 0, count = 0;
-            ['q6', 'q7', 'q8', 'q9'].forEach(q => {
-                const s = parseFloat(d[q] || d[q.toUpperCase()]);
-                if(!isNaN(s)){ sum += s; count++; }
-            });
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
             const avg = count > 0 ? (sum / count).toFixed(1) : '-';
             
             let f = "Fecha no válida"; 
-            if (d.timestamp) { 
-                const o = new Date(d.timestamp); 
-                f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; 
-            } else if (d.fecha) {
-                f = d.fecha.split(',')[0].trim();
-            }
+            if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; } 
+            else if (d.fecha) { f = d.fecha.split(',')[0].trim(); }
+
+            // Inyección Segura (XSS Prevent)
+            clone.querySelector('.t-fecha').textContent = f;
+            clone.querySelector('.t-colegio').textContent = d.colegio;
+            clone.querySelector('.t-regional').textContent = d.regional;
+            clone.querySelector('.t-taller').textContent = `${d.numTaller}: ${d.taller}`;
+            clone.querySelector('.t-asistente').textContent = d.asistente || 'Anónimo';
+            clone.querySelector('.t-perfil').textContent = d.perfil;
+            clone.querySelector('.t-coach').textContent = d.coach;
             
-            filasHTML += `<tr class="hover:bg-orange-50 transition-colors border-b border-gray-100"><td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500">${f}</td><td class="px-6 py-4"><div class="font-bold text-xs text-[#002C5F]">${d.colegio}</div><div class="text-[9px] text-gray-400 mt-0.5">${d.regional}</div></td><td class="px-6 py-4 text-[10px] text-gray-600 font-medium">${d.numTaller}: ${d.taller}</td>${State.currentUserRole === 'admin' ? `<td class="px-6 py-4 text-xs font-bold text-gray-700">${d.asistente}</td>` : ''}<td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-blue-100">${d.perfil}</span></td><td class="px-6 py-4 text-xs whitespace-nowrap font-medium text-gray-700">${d.coach}</td><td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded font-black text-xs border shadow-sm flex items-center justify-center gap-1 w-14 mx-auto ${avg >= 4.0 ? 'text-green-700 bg-green-50' : avg >= 3.0 ? 'text-yellow-700 bg-yellow-50' : 'text-red-700 bg-red-50'}">${avg}</span></td><td class="px-6 py-4 text-xs text-gray-600 italic break-words">${d.sugerencias || 'Sin comentarios'}</td></tr>`;
+            const badge = clone.querySelector('.t-promedio');
+            badge.textContent = avg;
+            if (avg >= 4.0) badge.className += ' text-green-700 bg-green-50';
+            else if (avg >= 3.0) badge.className += ' text-yellow-700 bg-yellow-50';
+            else badge.className += ' text-red-700 bg-red-50';
+
+            clone.querySelector('.t-sugerencias').textContent = d.sugerencias || 'Sin comentarios';
+
+            const btnEdit = clone.querySelector('.btn-edit');
+            const btnDelete = clone.querySelector('.btn-delete');
+            btnEdit.onclick = () => App.openEditRegistroModal(d.id);
+            btnDelete.onclick = () => App.deleteRegistro(d.id);
+
+            // SEGURIDAD DE ROLES EN DOM
+            if(State.currentUserRole !== 'admin') {
+                const colAsistente = clone.querySelector('.t-asistente');
+                if(colAsistente) colAsistente.style.display = 'none';
+                
+                const colAcciones = clone.querySelector('.t-acciones');
+                if(colAcciones) colAcciones.style.display = 'none';
+            }
+
+            tBody.appendChild(clone);
         });
+
+        State.currentRendered += nextBatch.length;
+        const remaining = data.length - State.currentRendered;
+
+        if (remaining > 0) {
+            paginationContainer.classList.remove('hidden');
+            document.getElementById('count_restantes').textContent = remaining;
+        } else {
+            paginationContainer.classList.add('hidden');
+        }
+    },
+
+    loadMoreRegistros: function() {
+        this.renderRegistrosTable(false);
+    },
+
+    // MÉTODOS CRUD CON CANDADOS DE SEGURIDAD (ADMIN ONLY)
+    deleteRegistro: async function(id) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado: Solo los administradores pueden eliminar registros.");
         
-        tBody.innerHTML = filasHTML;
+        if(!confirm("⚠️ ATENCIÓN: ¿Estás seguro que deseas ELIMINAR este registro de la base de datos?\nEsta acción no se puede deshacer.")) return;
+        if(!confirm("Por favor, confirma de nuevo la eliminación.")) return;
+        
+        try {
+            await deleteDoc(doc(db, "encuestas", id));
+            State.encuestasData = State.encuestasData.filter(d => d.id !== id);
+            this.updateDashboard(); 
+            alert("Registro eliminado exitosamente.");
+        } catch(e) {
+            alert("Error al eliminar el registro.");
+            console.error(e);
+        }
+    },
+
+    openEditRegistroModal: function(id) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado: Solo los administradores pueden editar registros.");
+
+        const registro = State.encuestasData.find(d => d.id === id);
+        if(!registro) return;
+
+        let coachOptions = '<option value="">Seleccione...</option>'; 
+        [...new Set(State.coachesAuth.map(c => c.nombre))].sort().forEach(c => coachOptions += `<option value="${c}" ${registro.coach === c ? 'selected' : ''}>${c}</option>`);
+
+        let colOptions = '<option value="">Seleccione...</option>'; 
+        [...new Set(State.colegiosBD.map(c => c.colegio))].sort().forEach(c => colOptions += `<option value="${c}" ${registro.colegio === c ? 'selected' : ''}>${c}</option>`);
+
+        this.showModal("Editar Registro de Encuesta", `
+            <div class="space-y-4">
+                <p class="text-xs text-red-500 mb-4 bg-red-50 p-2 rounded">Cualquier cambio aquí afectará directamente las estadísticas del dashboard.</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs font-bold text-gray-500">Colegio</label>
+                    <select id="edit_reg_colegio" class="w-full border rounded-xl px-3 py-2 text-sm">${colOptions}</select></div>
+                    <div><label class="text-xs font-bold text-gray-500">Coach Asignado</label>
+                    <select id="edit_reg_coach" class="w-full border rounded-xl px-3 py-2 text-sm">${coachOptions}</select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs font-bold text-gray-500">Perfil</label>
+                    <select id="edit_reg_perfil" class="w-full border rounded-xl px-3 py-2 text-sm">
+                        <option value="Docente" ${registro.perfil === 'Docente' ? 'selected' : ''}>Docente</option>
+                        <option value="Directivo" ${registro.perfil === 'Directivo' ? 'selected' : ''}>Directivo</option>
+                    </select></div>
+                    <div><label class="text-xs font-bold text-gray-500">Asistente</label>
+                    <input type="text" id="edit_reg_asistente" value="${registro.asistente || ''}" class="w-full border rounded-xl px-3 py-2 text-sm"></div>
+                </div>
+                <div class="grid grid-cols-4 gap-2 border-t pt-4">
+                    <div><label class="text-[10px] font-bold text-gray-500">Q6 (Conoc.)</label>
+                    <input type="number" id="edit_reg_q6" value="${registro.q6 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Q7 (Utilidad)</label>
+                    <input type="number" id="edit_reg_q7" value="${registro.q7 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Q8 (Dinam.)</label>
+                    <input type="number" id="edit_reg_q8" value="${registro.q8 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Q9 (Recurso)</label>
+                    <input type="number" id="edit_reg_q9" value="${registro.q9 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                </div>
+            </div>
+        `, `<button onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button>
+            <button onclick="App.saveEditRegistro('${id}')" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold shadow-md">Guardar Cambios</button>`);
+    },
+
+    saveEditRegistro: async function(id) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+
+        const btn = event.target;
+        btn.disabled = true; btn.innerText = "Guardando...";
+
+        const dataActualizada = {
+            colegio: document.getElementById('edit_reg_colegio').value,
+            coach: document.getElementById('edit_reg_coach').value,
+            perfil: document.getElementById('edit_reg_perfil').value,
+            asistente: document.getElementById('edit_reg_asistente').value,
+            q6: parseFloat(document.getElementById('edit_reg_q6').value) || 0,
+            q7: parseFloat(document.getElementById('edit_reg_q7').value) || 0,
+            q8: parseFloat(document.getElementById('edit_reg_q8').value) || 0,
+            q9: parseFloat(document.getElementById('edit_reg_q9').value) || 0,
+        };
+
+        try {
+            await setDoc(doc(db, "encuestas", id), dataActualizada, { merge: true });
+            const index = State.encuestasData.findIndex(d => d.id === id);
+            if(index !== -1) State.encuestasData[index] = { ...State.encuestasData[index], ...dataActualizada };
+            
+            this.hideModal();
+            this.updateDashboard();
+            alert("Cambios guardados con éxito.");
+        } catch (error) {
+            alert("Hubo un error al guardar.");
+            console.error(error);
+            btn.disabled = false; btn.innerText = "Guardar Cambios";
+        }
     },
 
     exportToExcel: function() {
@@ -622,6 +767,7 @@ window.App = {
     showModal: function(title, body, footer) { document.getElementById('modalHeader').innerText = title; document.getElementById('modalBody').innerHTML = body; document.getElementById('modalFooter').innerHTML = footer; document.getElementById('customModal').classList.remove('hidden'); },
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
     switchDashSubTab: function(id) { ['subTabResultados', 'subTabRegistros', 'subTabEdicion'].forEach(t => document.getElementById(t).classList.add('hidden')); document.getElementById(`subTab${id.charAt(0).toUpperCase() + id.slice(1)}`).classList.remove('hidden'); ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion'].forEach(b => { const btn = document.getElementById(b); if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50"; }); const activeBtn = document.getElementById(`btn-sub-${id}`); if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white"; if(id === 'edicion') document.getElementById('edicionTableContainer').classList.add('hidden'); },
+    
     handleEdicionFilterTrigger: function() { this.refreshEdicionFilters(); this.renderActiveEdicionTable(); },
     refreshEdicionFilters: function() {
         let base = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
@@ -757,9 +903,13 @@ window.onload = async () => {
         if (dropColegios && inputColegio && !dropColegios.contains(e.target) && e.target !== inputColegio) dropColegios.classList.add('hidden');
         
         const dropLineas = document.getElementById('dropdown_lineas'); const btnLineas = document.getElementById('btn_dropdown_lineas');
-        if (dropLineas && btnLineas && !dropLineas.contains(e.target) && !btnLineas.contains(e.target)) dropLineas.classList.add('hidden');
+        if (dropLineas && btnLineas && !dropLineas.contains(e.target) && !btnLineas.contains(e.target)) {
+            dropLineas.classList.add('hidden'); dropLineas.setAttribute('aria-hidden', 'true'); if(btnLineas) btnLineas.setAttribute('aria-expanded', 'false');
+        }
         
         const dropMeses = document.getElementById('dropdown_meses'); const btnMeses = document.getElementById('btn_dropdown_meses');
-        if (dropMeses && btnMeses && !dropMeses.contains(e.target) && !btnMeses.contains(e.target)) dropMeses.classList.add('hidden');
+        if (dropMeses && btnMeses && !dropMeses.contains(e.target) && !btnMeses.contains(e.target)) {
+            dropMeses.classList.add('hidden'); dropMeses.setAttribute('aria-hidden', 'true'); if(btnMeses) btnMeses.setAttribute('aria-expanded', 'false');
+        }
     });
 };
