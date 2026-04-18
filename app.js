@@ -19,7 +19,7 @@ const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 const State = {
     colegiosBD: [], coachesAuth: [], encuestasData: [], filteredEncuestas: [], registrosFiltrados: [],
     encuestasLoaded: false, currentUserRole: null, loginUser: null, currentView: 'formTab', currentEdicionView: 'colegios',
-    paginationLimit: 50, currentRendered: 0 // Control de paginación para rendimiento DOM
+    paginationLimit: 50, currentRendered: 0 
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -58,7 +58,6 @@ async function initApp() {
     }
 }
 
-// Eliminamos el filtro de fecha aquí para traer toda la historia y filtrar localmente
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
@@ -156,11 +155,9 @@ window.App = {
         document.getElementById('coachWelcomeBar').classList.toggle('hidden', isAdmin);
         document.getElementById('container_filter_coach').classList.toggle('hidden', !isAdmin);
         
-        // Bloques de Rankings y Grillas
         document.getElementById('block_rank_coach').classList.toggle('hidden', !isAdmin);
         document.getElementById('dynamic_dashboard_grid').className = isAdmin ? 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-6' : 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
         
-        // Cajas de Registros
         document.getElementById('coach_registros_box').classList.toggle('hidden', isAdmin);
         document.getElementById('container_reg_filter_regional').classList.toggle('hidden', !isAdmin);
         document.getElementById('container_reg_filter_coach').classList.toggle('hidden', !isAdmin);
@@ -213,7 +210,6 @@ window.App = {
         App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold">Guardar</button>`);
     },
 
-    // Accesibilidad (ARIA)
     toggleDropdown: function(id, btnId) { 
         const el = document.getElementById(id); 
         const btn = document.getElementById(btnId);
@@ -307,198 +303,214 @@ window.App = {
     },
 
     updateDashboard: function() {
-        const regF = document.getElementById('filter_regional').value; 
-        const coachF = State.currentUserRole === 'admin' ? document.getElementById('filter_coach').value : State.loginUser.nombre;
-        const colF = document.getElementById('filter_colegio').value; 
-        const tallerF = document.getElementById('filter_taller').value;
-        const calF = document.getElementById('filter_calendario').value; 
-        const clasF = document.getElementById('filter_clasificacion').value;
-        const lineasF = Array.from(document.querySelectorAll('.linea-cb:checked')).map(cb => cb.value);
-        const mesesF = Array.from(document.querySelectorAll('.mes-cb:checked')).map(cb => parseInt(cb.value));
+        try {
+            const regF = document.getElementById('filter_regional')?.value || ""; 
+            const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : State.loginUser.nombre;
+            const colF = document.getElementById('filter_colegio')?.value || ""; 
+            const tallerF = document.getElementById('filter_taller')?.value || "";
+            const calF = document.getElementById('filter_calendario')?.value || ""; 
+            const clasF = document.getElementById('filter_clasificacion')?.value || "";
+            const lineasF = Array.from(document.querySelectorAll('.linea-cb:checked')).map(cb => cb.value);
+            const mesesF = Array.from(document.querySelectorAll('.mes-cb:checked')).map(cb => parseInt(cb.value));
 
-        const textSpanMeses = document.getElementById('text_filter_meses');
-        if (mesesF.length === 0) textSpanMeses.textContent = "Todos los meses";
-        else if (mesesF.length === 1) textSpanMeses.textContent = mesesNombres[mesesF[0]];
-        else textSpanMeses.textContent = `${mesesF.length} meses seleccionados`;
-
-        // 1. Filtro Global (Ignora CoachF) para Ranking Regional Total
-        let masterFilterGlobal = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-        if(regF) masterFilterGlobal = masterFilterGlobal.filter(c => c.regional === regF);
-        if(colF) masterFilterGlobal = masterFilterGlobal.filter(c => c.colegio === colF);
-        if(calF) masterFilterGlobal = masterFilterGlobal.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
-        if(clasF) masterFilterGlobal = masterFilterGlobal.filter(c => c.clasificacion === clasF);
-        if(lineasF.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
-        
-        const colegiosPermitidosGlobal = new Set(masterFilterGlobal.map(c => c.colegio));
-
-        let dataGlobal = State.encuestasData.map(d => { 
-            const colInfo = State.colegiosBD.find(c => c.colegio === d.colegio); 
-            return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' }; 
-        });
-
-        dataGlobal = dataGlobal.filter(d => {
-            if (!colegiosPermitidosGlobal.has(d.colegio)) return false;
-            if (regF && d.regional !== regF) return false;
-            if (tallerF && d.numTaller !== tallerF) return false;
-
-            let dateObj;
-            if (d.timestamp) dateObj = new Date(d.timestamp);
-            else { 
-                const parts = d.fecha.split(',')[0].trim().split('/'); 
-                if(parts.length === 3) dateObj = new Date(parts[2], parts[1]-1, parts[0]); 
-                else dateObj = new Date(d.fecha); 
+            const textSpanMeses = document.getElementById('text_filter_meses');
+            if(textSpanMeses) {
+                if (mesesF.length === 0) textSpanMeses.textContent = "Todos los meses";
+                else if (mesesF.length === 1) textSpanMeses.textContent = mesesNombres[mesesF[0]];
+                else textSpanMeses.textContent = `${mesesF.length} meses seleccionados`;
             }
-            if (!dateObj || isNaN(dateObj.getTime())) return false; 
+
+            // 1. Filtro Global (Ignora CoachF) para Ranking Regional Total
+            let masterFilterGlobal = State.colegiosBD.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+            if(regF) masterFilterGlobal = masterFilterGlobal.filter(c => c.regional === regF);
+            if(colF) masterFilterGlobal = masterFilterGlobal.filter(c => c.colegio === colF);
+            if(calF) masterFilterGlobal = masterFilterGlobal.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
+            if(clasF) masterFilterGlobal = masterFilterGlobal.filter(c => c.clasificacion === clasF);
+            if(lineasF.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
             
-            if (mesesF.length > 0 && !mesesF.includes(dateObj.getMonth())) return false;
-            return true;
-        });
+            // BLINDAJE: Transformamos todo a mayuscula para evitar errores de escritura
+            const colegiosPermitidosGlobal = new Set(masterFilterGlobal.map(c => (c.colegio || "").trim().toUpperCase()));
 
-        // 2. Filtro Local (Aplica CoachF) para gráficos propios
-        let data = [...dataGlobal];
-        if (coachF) data = data.filter(d => d.coach === coachF);
-
-        let masterFilter = [...masterFilterGlobal];
-        if (coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
-
-        State.filteredEncuestas = data; 
-
-        // Cálculo KPIs Matemáticamente Seguros
-        const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
-        const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
-        const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => c.colegio));
-        
-        let metaAsistencias = 0;
-        colegiosCiclo.forEach(c => { 
-            const docs = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
-            const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
-            const multiplicador = BusinessRules.metasCiclo[clasif] || 1;
-            metaAsistencias += (docs * multiplicador); 
-        });
-
-        const docs = data.filter(d => d.perfil === 'Docente').length; const dirs = data.filter(d => d.perfil === 'Directivo').length;
-        const asistenciasReales = data.filter(d => nombresColegiosCiclo.has(d.colegio)).length; 
-        const avanceCiclo = metaAsistencias > 0 ? ((asistenciasReales / metaAsistencias) * 100).toFixed(1) : 0;
-        
-        document.getElementById('dash_docentes').innerText = docs; document.getElementById('dash_meta_docentes').innerText = metaAlcance === 0 ? "0" : metaAlcance;
-        document.getElementById('dash_avance_porcentaje').innerText = avanceCiclo + '%'; document.getElementById('dash_asistencias_reales').innerText = asistenciasReales;
-        document.getElementById('dash_asistencias_meta').innerText = metaAsistencias === 0 ? "0" : metaAsistencias;
-        document.getElementById('dash_directivos').innerText = dirs;
-        document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => d.colegio)).size; document.getElementById('dash_total_colegios').innerText = masterFilter.length;
-
-        const calc = (key) => {
-            let sum = 0, count = 0;
-            data.forEach(d => {
-                const val = parseFloat(d[key] || d[key.toUpperCase()]); 
-                if (!isNaN(val)) { sum += val; count++; }
+            let dataGlobal = State.encuestasData.map(d => { 
+                const colInfo = State.colegiosBD.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
+                return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' }; 
             });
-            return count === 0 ? "0.0" : (sum / count).toFixed(1);
-        };
 
-        ['q6', 'q7', 'q8', 'q9'].forEach(q => { 
-            const val = calc(q); 
-            document.getElementById(`avg_${q}`).innerText = val; 
-            document.getElementById(`bar_${q}`).style.width = (val / 5 * 100) + '%'; 
-        });
+            dataGlobal = dataGlobal.filter(d => {
+                if (!colegiosPermitidosGlobal.has((d.colegio || "").trim().toUpperCase())) return false;
+                if (regF && d.regional !== regF) return false;
+                if (tallerF && d.numTaller !== tallerF) return false;
 
-        let totalRespuestas = 0; let excelentes = 0;
-        data.forEach(d => { 
-            ['q6', 'q7', 'q8', 'q9'].forEach(q => {
-                const score = parseFloat(d[q] || d[q.toUpperCase()]);
-                if (!isNaN(score)) {
-                    totalRespuestas++; 
-                    if(score >= 4) excelentes++; 
+                // BLINDAJE FECHAS: Evitamos colapso si la fecha viene rota desde Excel
+                if (mesesF.length > 0) {
+                    let dateObj = null;
+                    if (d.timestamp) { 
+                        dateObj = new Date(d.timestamp); 
+                    } else if (d.fecha) { 
+                        const fechaStr = String(d.fecha);
+                        const parts = fechaStr.split(',')[0].trim().split('/'); 
+                        if(parts.length === 3) dateObj = new Date(parts[2], parts[1]-1, parts[0]); 
+                        else dateObj = new Date(fechaStr); 
+                    }
+                    if (dateObj && !isNaN(dateObj.getTime())) {
+                        if (!mesesF.includes(dateObj.getMonth())) return false;
+                    }
                 }
-            }); 
-        });
+                return true;
+            });
 
-        const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
-        const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
-        if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
+            // 2. Filtro Local (Aplica CoachF) para gráficos propios
+            let data = [...dataGlobal];
+            if (coachF) data = data.filter(d => d.coach === coachF);
 
-        const buildRanking = (keyProp, dataset) => {
-            const rankMap = {};
-            dataset.forEach(d => { 
-                if(!d[keyProp]) return; 
+            let masterFilter = [...masterFilterGlobal];
+            if (coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
+
+            State.filteredEncuestas = data; 
+
+            const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
+            const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
+            const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => (c.colegio || "").toUpperCase()));
+            
+            let metaAsistencias = 0;
+            colegiosCiclo.forEach(c => { 
+                const docs = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
+                const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
+                const multiplicador = BusinessRules.metasCiclo[clasif] || 1;
+                metaAsistencias += (docs * multiplicador); 
+            });
+
+            const docs = data.filter(d => d.perfil === 'Docente').length; 
+            const dirs = data.filter(d => d.perfil === 'Directivo').length;
+            const asistenciasReales = data.filter(d => nombresColegiosCiclo.has((d.colegio || "").toUpperCase())).length; 
+            const avanceCiclo = metaAsistencias > 0 ? ((asistenciasReales / metaAsistencias) * 100).toFixed(1) : 0;
+            
+            document.getElementById('dash_docentes').innerText = docs; 
+            document.getElementById('dash_meta_docentes').innerText = metaAlcance === 0 ? "0" : metaAlcance;
+            document.getElementById('dash_avance_porcentaje').innerText = avanceCiclo + '%'; 
+            document.getElementById('dash_asistencias_reales').innerText = asistenciasReales;
+            document.getElementById('dash_asistencias_meta').innerText = metaAsistencias === 0 ? "0" : metaAsistencias;
+            document.getElementById('dash_directivos').innerText = dirs;
+            document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size; 
+            document.getElementById('dash_total_colegios').innerText = masterFilter.length;
+
+            const calc = (key) => {
                 let sum = 0, count = 0;
-                ['q6', 'q7', 'q8', 'q9'].forEach(q => {
-                    const s = parseFloat(d[q] || d[q.toUpperCase()]);
-                    if(!isNaN(s)){ sum += s; count++; }
+                data.forEach(d => {
+                    const val = parseFloat(d[key] || d[key?.toUpperCase()]); 
+                    if (!isNaN(val)) { sum += val; count++; }
                 });
-                if(count > 0){
-                    if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; 
-                    rankMap[d[keyProp]].sum += (sum / count); 
-                    rankMap[d[keyProp]].count++; 
-                }
+                return count === 0 ? "0.0" : (sum / count).toFixed(1);
+            };
+
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => { 
+                const val = calc(q); 
+                const avgEl = document.getElementById(`avg_${q}`);
+                const barEl = document.getElementById(`bar_${q}`);
+                if(avgEl) avgEl.innerText = val; 
+                if(barEl) barEl.style.width = (val / 5 * 100) + '%'; 
             });
-            const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
-            if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
-            let html = '';
-            arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-[#002C5F] bg-blue-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
-            return html;
-        };
 
-        if (State.currentUserRole === 'admin') document.getElementById('ranking_list_coach').innerHTML = buildRanking('coach', data);
-        
-        // Ambos roles ven el Ranking Regional basado en "dataGlobal"
-        document.getElementById('ranking_list_regional').innerHTML = buildRanking('regional', dataGlobal);
+            let totalRespuestas = 0; let excelentes = 0;
+            data.forEach(d => { 
+                ['q6', 'q7', 'q8', 'q9'].forEach(q => {
+                    const score = parseFloat(d[q] || d[q?.toUpperCase()]);
+                    if (!isNaN(score)) { totalRespuestas++; if(score >= 4) excelentes++; } 
+                }); 
+            });
 
-        // Lógica de Detractores ajustada por Roles
-        const detractores = data.filter(d => {
-            const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
-            return scores.some(s => s <= 2);
-        });
-        
-        document.getElementById('detractores_badge').innerText = `${detractores.length}`;
-        const dList = document.getElementById('detractores_list');
-        
-        if (detractores.length === 0) {
-            dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>';
-        } else {
-            let detractoresHTML = '';
-            detractores.forEach(d => {
+            const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
+            const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
+            if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
+
+            const buildRanking = (keyProp, dataset) => {
+                const rankMap = {};
+                dataset.forEach(d => { 
+                    if(!d[keyProp]) return; 
+                    let sum = 0, count = 0;
+                    ['q6', 'q7', 'q8', 'q9'].forEach(q => {
+                        const s = parseFloat(d[q] || d[q?.toUpperCase()]);
+                        if(!isNaN(s)){ sum += s; count++; }
+                    });
+                    if(count > 0){
+                        if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; 
+                        rankMap[d[keyProp]].sum += (sum / count); 
+                        rankMap[d[keyProp]].count++; 
+                    }
+                });
+                const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
+                if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
+                let html = '';
+                arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-[#002C5F] bg-blue-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
+                return html;
+            };
+
+            const rankCoachEl = document.getElementById('ranking_list_coach');
+            if (State.currentUserRole === 'admin' && rankCoachEl) rankCoachEl.innerHTML = buildRanking('coach', data);
+            
+            const rankRegEl = document.getElementById('ranking_list_regional');
+            if(rankRegEl) rankRegEl.innerHTML = buildRanking('regional', dataGlobal);
+
+            // Lógica de Detractores ajustada
+            const detractores = data.filter(d => {
                 const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
-                const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
-                const f = d.timestamp ? new Date(d.timestamp).toLocaleDateString('es-CO') : (d.fecha ? d.fecha.split(',')[0] : 'Sin fecha');
-                
-                if (State.currentUserRole === 'admin') {
-                    // Visual Admin: Muestra todo
-                    detractoresHTML += `
-                    <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
-                        <div class="flex items-start gap-3">
-                            <span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0" title="Calificación más baja">${minScore}</span>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p>
-                                <div class="flex flex-col mt-1 gap-1">
-                                    <p class="text-[10px] text-red-700 truncate"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> ${d.asistente || 'Anónimo'}</p>
-                                    <p class="text-[10px] font-bold text-gray-700 truncate"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">
-                            "${d.sugerencias || 'Sin comentarios registrados.'}"
-                        </div>
-                    </div>`;
-                } else {
-                    // Visual Coach: Oculta nombre de docente y nombre de coach (porque es el suyo)
-                    detractoresHTML += `
-                    <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
-                        <div class="flex items-center gap-3">
-                            <span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0" title="Calificación más baja">${minScore}</span>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p>
-                                <p class="text-[9px] text-red-700 mt-0.5">${f}</p>
-                            </div>
-                        </div>
-                        <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">
-                            "${d.sugerencias || 'Sin comentarios registrados.'}"
-                        </div>
-                    </div>`;
-                }
+                return scores.some(s => s <= 2);
             });
-            dList.innerHTML = detractoresHTML;
+            
+            const detBadge = document.getElementById('detractores_badge');
+            if(detBadge) detBadge.innerText = `${detractores.length}`;
+            const dList = document.getElementById('detractores_list');
+            
+            if (dList) {
+                if (detractores.length === 0) {
+                    dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>';
+                } else {
+                    let detractoresHTML = '';
+                    detractores.forEach(d => {
+                        const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
+                        const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
+                        const f = d.timestamp ? new Date(d.timestamp).toLocaleDateString('es-CO') : (d.fecha ? String(d.fecha).split(',')[0] : 'Sin fecha');
+                        
+                        if (State.currentUserRole === 'admin') {
+                            detractoresHTML += `
+                            <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
+                                <div class="flex items-start gap-3">
+                                    <span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0" title="Calificación más baja">${minScore}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p>
+                                        <div class="flex flex-col mt-1 gap-1">
+                                            <p class="text-[10px] text-red-700 truncate"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> ${d.asistente || 'Anónimo'}</p>
+                                            <p class="text-[10px] font-bold text-gray-700 truncate"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">
+                                    "${d.sugerencias || 'Sin comentarios registrados.'}"
+                                </div>
+                            </div>`;
+                        } else {
+                            detractoresHTML += `
+                            <div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0" title="Calificación más baja">${minScore}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p>
+                                        <p class="text-[9px] text-red-700 mt-0.5">${f}</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">
+                                    "${d.sugerencias || 'Sin comentarios registrados.'}"
+                                </div>
+                            </div>`;
+                        }
+                    });
+                    dList.innerHTML = detractoresHTML;
+                }
+            }
+            this.renderRegistrosTable(true);
+        } catch (err) {
+            console.error("Error en updateDashboard (Datos corruptos en BD):", err);
         }
-        this.renderRegistrosTable(true); 
     },
 
     populateRegistrosFilters: function() {
@@ -512,23 +524,22 @@ window.App = {
         else { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
     },
 
-    // RENDERIZADO CON TEMPLATE Y PAGINACIÓN
     renderRegistrosTable: function(resetPagination = true) {
         if (resetPagination) State.currentRendered = 0;
 
         this.populateRegistrosFilters();
-        const fechaVal = document.getElementById('reg_filter_fecha').value; 
-        const regVal = document.getElementById('reg_filter_regional').value;
-        const colVal = document.getElementById('reg_filter_colegio').value; 
-        const tallerVal = document.getElementById('reg_filter_taller').value;
-        const coachVal = document.getElementById('reg_filter_coach').value;
+        const fechaVal = document.getElementById('reg_filter_fecha')?.value; 
+        const regVal = document.getElementById('reg_filter_regional')?.value;
+        const colVal = document.getElementById('reg_filter_colegio')?.value; 
+        const tallerVal = document.getElementById('reg_filter_taller')?.value;
+        const coachVal = document.getElementById('reg_filter_coach')?.value;
         
         let data = State.encuestasData.map(d => { 
-            const col = State.colegiosBD.find(c => c.colegio === d.colegio); 
+            const col = State.colegiosBD.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
             return { ...d, regional: col ? col.regional : 'Sin Regional' }; 
         });
         
-        if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = d.fecha.split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
+        if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
         if (regVal) data = data.filter(d => d.regional === regVal); 
         if (colVal) data = data.filter(d => d.colegio === colVal);
         if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); 
@@ -538,31 +549,33 @@ window.App = {
         State.registrosFiltrados = data;
 
         const tBody = document.getElementById('tabla_registros');
-        if (resetPagination) tBody.innerHTML = '';
+        if(!tBody) return;
         
+        if (resetPagination) tBody.innerHTML = '';
         const paginationContainer = document.getElementById('pagination_container');
 
         if (data.length === 0) { 
             tBody.innerHTML = `<tr><td colspan="9" class="px-6 py-8 text-center text-gray-400 italic">No hay registros para mostrar.</td></tr>`; 
-            paginationContainer.classList.add('hidden');
+            if(paginationContainer) paginationContainer.classList.add('hidden');
             return; 
         }
 
         const template = document.getElementById('row-template');
+        if(!template) return;
+        
         const nextBatch = data.slice(State.currentRendered, State.currentRendered + State.paginationLimit);
 
         nextBatch.forEach(d => {
             const clone = template.content.cloneNode(true);
             
             let sum = 0, count = 0;
-            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q?.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
             const avg = count > 0 ? (sum / count).toFixed(1) : '-';
             
             let f = "Fecha no válida"; 
             if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; } 
-            else if (d.fecha) { f = d.fecha.split(',')[0].trim(); }
+            else if (d.fecha) { f = String(d.fecha).split(',')[0].trim(); }
 
-            // Inyección Segura (XSS Prevent)
             clone.querySelector('.t-fecha').textContent = f;
             clone.querySelector('.t-colegio').textContent = d.colegio;
             clone.querySelector('.t-regional').textContent = d.regional;
@@ -584,7 +597,7 @@ window.App = {
             btnEdit.onclick = () => App.openEditRegistroModal(d.id);
             btnDelete.onclick = () => App.deleteRegistro(d.id);
 
-            // SEGURIDAD DE ROLES EN DOM
+            // SEGURIDAD EN DOM
             if(State.currentUserRole !== 'admin') {
                 const colAsistente = clone.querySelector('.t-asistente');
                 if(colAsistente) colAsistente.style.display = 'none';
@@ -599,11 +612,13 @@ window.App = {
         State.currentRendered += nextBatch.length;
         const remaining = data.length - State.currentRendered;
 
-        if (remaining > 0) {
-            paginationContainer.classList.remove('hidden');
-            document.getElementById('count_restantes').textContent = remaining;
-        } else {
-            paginationContainer.classList.add('hidden');
+        if(paginationContainer) {
+            if (remaining > 0) {
+                paginationContainer.classList.remove('hidden');
+                document.getElementById('count_restantes').textContent = remaining;
+            } else {
+                paginationContainer.classList.add('hidden');
+            }
         }
     },
 
@@ -611,7 +626,7 @@ window.App = {
         this.renderRegistrosTable(false);
     },
 
-    // MÉTODOS CRUD CON CANDADOS DE SEGURIDAD (ADMIN ONLY)
+    // CRUD SEGURO (SOLO ADMIN)
     deleteRegistro: async function(id) {
         if(State.currentUserRole !== 'admin') return alert("Acceso denegado: Solo los administradores pueden eliminar registros.");
         
@@ -710,7 +725,7 @@ window.App = {
         const list = State.registrosFiltrados && State.registrosFiltrados.length > 0 ? State.registrosFiltrados : State.filteredEncuestas;
         if (!list || list.length === 0) { alert("No hay datos para exportar."); return; }
         const data = list.map(d => {
-            let f = "Sin Fecha"; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${(o.getMonth() + 1)}/${o.getFullYear()}`; } else if (d.fecha) f = d.fecha.split(',')[0].trim();
+            let f = "Sin Fecha"; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${(o.getMonth() + 1)}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim();
             return { id: d.id, fecha: f, ciclo: d.ciclo, regional: d.regional || 'Sin Regional', colegio: d.colegio, asistente: d.asistente, perfil: d.perfil, coach: d.coach, numTaller: d.numTaller, taller: d.taller, q6: d.q6, q7: d.q7, q8: d.q8, q9: d.q9, sugerencias: d.sugerencias };
         });
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reporte"); XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
