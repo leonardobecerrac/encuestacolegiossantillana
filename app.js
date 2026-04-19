@@ -17,9 +17,18 @@ const db = getFirestore(app);
 const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 
 const State = {
-    colegiosBD: [], coachesAuth: [], encuestasData: [], filteredEncuestas: [], registrosFiltrados: [],
-    encuestasLoaded: false, currentUserRole: null, loginUser: null, currentView: 'formTab', currentEdicionView: 'colegios',
-    paginationLimit: 50, currentRendered: 0,
+    colegiosBD: [], 
+    coachesAuth: [], 
+    encuestasData: [], 
+    filteredEncuestas: [], 
+    registrosFiltrados: [],
+    encuestasLoaded: false, 
+    currentUserRole: null, 
+    loginUser: null, 
+    currentView: 'formTab', 
+    currentEdicionView: 'colegios',
+    paginationLimit: 50, 
+    currentRendered: 0,
     selectedRegistros: new Set(),
     regSort: { col: 'timestamp', dir: 'desc' } // Control para Ordenamiento A-Z
 };
@@ -77,7 +86,9 @@ async function fetchEncuestas() {
         State.encuestasData.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
         
         State.encuestasLoaded = true;
-    } catch (error) { console.error("Error cargando encuestas:", error); }
+    } catch (error) { 
+        console.error("Error cargando encuestas:", error); 
+    }
 }
 
 window.App = {
@@ -125,7 +136,9 @@ window.App = {
                 userFound = coachInfo;
             }
 
-            State.currentUserRole = role; State.loginUser = userFound; State.encuestasLoaded = false; 
+            State.currentUserRole = role; 
+            State.loginUser = userFound; 
+            State.encuestasLoaded = false; 
             this.hideModal();
             
             const userControls = document.getElementById('user-controls');
@@ -271,7 +284,8 @@ window.App = {
         let numChecked = 0;
         document.querySelectorAll('.linea-label-container').forEach(label => {
             const cb = label.querySelector('input');
-            if (validLineas.has(cb.value)) { label.style.display = 'flex'; if(cb.checked) numChecked++; } else { label.style.display = 'none'; cb.checked = false; }
+            if (validLineas.has(cb.value)) { label.style.display = 'flex'; if(cb.checked) numChecked++; } 
+            else { label.style.display = 'none'; cb.checked = false; }
         });
         
         const textSpan = document.getElementById('text_filter_lineas');
@@ -316,7 +330,6 @@ window.App = {
 
             let dataGlobal = safeEncuestas.map(d => { 
                 const colInfo = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
-                // Aplicamos override manual de regional si existe
                 return { ...d, regional: d.regional || (colInfo ? colInfo.regional : 'Sin Regional') }; 
             });
 
@@ -340,6 +353,7 @@ window.App = {
 
             let data = [...dataGlobal]; if (coachF) data = data.filter(d => d.coach === coachF);
             let masterFilter = [...masterFilterGlobal]; if (coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
+            
             State.filteredEncuestas = data; 
 
             const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
@@ -422,7 +436,7 @@ window.App = {
         } catch (err) { console.error("Error dibujando el dashboard:", err); }
     },
 
-    // --- BULK ACTIONS ---
+    // --- ACCIONES MASIVAS ---
     toggleSelectAll: function() {
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         const isChecked = selectAllCheckbox ? selectAllCheckbox.checked : false;
@@ -524,7 +538,7 @@ window.App = {
     },
     // --- FIN BULK ACTIONS ---
 
-    // ORDENAMIENTO (A-Z)
+    // --- ORDENAMIENTO (A-Z) ---
     setSort: function(col) {
         if (State.regSort.col === col) {
             State.regSort.dir = State.regSort.dir === 'asc' ? 'desc' : 'asc';
@@ -536,7 +550,10 @@ window.App = {
     },
 
     populateRegistrosFilters: function() {
-        const regSel = document.getElementById('reg_filter_regional'); const colSel = document.getElementById('reg_filter_colegio'); const coachSel = document.getElementById('reg_filter_coach'); const tallerSel = document.getElementById('reg_filter_taller');
+        const regSel = document.getElementById('reg_filter_regional'); 
+        const colSel = document.getElementById('reg_filter_colegio'); 
+        const coachSel = document.getElementById('reg_filter_coach'); 
+        const tallerSel = document.getElementById('reg_filter_taller');
         if (!colSel) return;
 
         const regVal = regSel.value || ""; const colVal = colSel.value || "";
@@ -547,11 +564,9 @@ window.App = {
         
         const datosEnriquecidos = safeEncuestas.map(d => { 
             const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
-            // Regional hereda del override de la encuesta, o de la base de colegios
             return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
         });
 
-        // Cascada Inteligente
         const getFilteredExcluding = (exclude) => {
             return datosEnriquecidos.filter(d => {
                 if (exclude !== 'regional' && regVal && d.regional !== regVal) return false;
@@ -582,7 +597,7 @@ window.App = {
         const colVal = document.getElementById('reg_filter_colegio')?.value; 
         const tallerVal = document.getElementById('reg_filter_taller')?.value;
         const coachVal = document.getElementById('reg_filter_coach')?.value;
-        const perfilVal = document.getElementById('reg_filter_perfil')?.value; // Nuevo Filtro
+        const perfilVal = document.getElementById('reg_filter_perfil')?.value; 
         
         const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
@@ -600,7 +615,7 @@ window.App = {
         if (coachVal && State.currentUserRole === 'admin') data = data.filter(d => d.coach === coachVal);
         if (State.currentUserRole === 'coach') data = data.filter(d => d.coach === State.loginUser.nombre);
         
-        // Logica de Ordenamiento (A-Z)
+        // Aplicar Ordenamiento A-Z
         data.sort((a, b) => {
             let valA = a[State.regSort.col] || '';
             let valB = b[State.regSort.col] || '';
@@ -620,12 +635,13 @@ window.App = {
 
         State.registrosFiltrados = data;
 
-        const tBody = document.getElementById('tabla_registros'); const tHead = document.getElementById('tabla_registros_head');
+        const tBody = document.getElementById('tabla_registros'); 
+        const tHead = document.getElementById('tabla_registros_head');
         if(!tBody || !tHead) return;
         
         if (resetPagination) tBody.innerHTML = '';
         
-        // Render dinámico del T-Head con Botones de Ordenamiento
+        // DIBUJAR CABECERAS ORDENABLES
         const getSortIcon = (col) => {
             if (State.regSort.col !== col) return '<i class="fa-solid fa-sort ml-1 opacity-30"></i>';
             return State.regSort.dir === 'asc' ? '<i class="fa-solid fa-sort-up ml-1 text-[#FF5A00]"></i>' : '<i class="fa-solid fa-sort-down ml-1 text-[#FF5A00]"></i>';
@@ -734,7 +750,7 @@ window.App = {
         let colOptions = '<option value="">Seleccione...</option>'; 
         [...new Set(safeColegios.map(c => c.colegio))].sort().forEach(c => colOptions += `<option value="${c}" ${registro.colegio === c ? 'selected' : ''}>${c}</option>`);
 
-        // Calculamos la regional actual (si ya tiene un override, usamos ese, sino la del colegio)
+        // Extraer regional actual (si tiene un override en la encuesta, usamos esa, sino la de la DB de colegios)
         const colEncontrado = safeColegios.find(c => (c.colegio || "").toUpperCase() === (registro.colegio || "").toUpperCase());
         const currentRegional = registro.regional || (colEncontrado ? colEncontrado.regional : '');
         let regOptions = '<option value="">Sin Regional</option>';
@@ -801,7 +817,77 @@ window.App = {
 
     showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento.</p><div class="bg-green-50 p-4 rounded-xl">Colegios AAA: 6 talleres | Colegios Ri: 4 talleres | Colegios AA: 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl">Entendido</button>'); },
     showExcelenciaExplanation: function() { App.showModal('Sobre el Índice de Excelencia', `<div class="space-y-4 text-sm"><p>Porcentaje de calificaciones 4 y 5 en la encuesta.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl">Entendido</button>'); },
-    mostrarEstadoCobertura: function() { App.showModal(`Estado de Cobertura`, `<p class="mb-4 text-sm text-gray-600">Estado de colegios asignados:</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Cerrar</button>`); },
+    
+    mostrarEstadoCobertura: function() {
+        const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : (State.loginUser?.nombre || "");
+        const regF = document.getElementById('filter_regional')?.value || ""; 
+        const calF = document.getElementById('filter_calendario')?.value || ""; 
+        const clasF = document.getElementById('filter_clasificacion')?.value || "";
+        const lineaNodes = document.querySelectorAll('.linea-cb:checked'); 
+        const lineasF = lineaNodes ? Array.from(lineaNodes).map(cb => cb.value) : [];
+
+        let colegiosAsignados = (State.colegiosBD || []).filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
+        if(regF) colegiosAsignados = colegiosAsignados.filter(c => c.regional === regF);
+        if(coachF) colegiosAsignados = colegiosAsignados.filter(c => c.coach === coachF);
+        if(calF) colegiosAsignados = colegiosAsignados.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
+        if(clasF) colegiosAsignados = colegiosAsignados.filter(c => c.clasificacion === clasF);
+        if(lineasF.length > 0) colegiosAsignados = colegiosAsignados.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
+
+        const encuestasActuales = State.filteredEncuestas || [];
+        const colegiosConEncuestas = new Set(encuestasActuales.map(e => (e.colegio || "").toUpperCase()));
+
+        const grouped = {};
+        colegiosAsignados.forEach(c => {
+            const reg = c.regional || 'Sin Regional';
+            if (!grouped[reg]) grouped[reg] = [];
+            const atendido = colegiosConEncuestas.has((c.colegio || "").toUpperCase());
+            grouped[reg].push({ nombre: c.colegio, coach: c.coach, atendido: atendido });
+        });
+
+        let bodyHtml = `<div class="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">`;
+        
+        if (Object.keys(grouped).length === 0) {
+            bodyHtml += `<p class="text-sm text-gray-500 italic text-center py-8">No hay colegios asignados bajo estos filtros.</p>`;
+        } else {
+            for (const [reg, colegios] of Object.entries(grouped)) {
+                const atendidosCount = colegios.filter(c => c.atendido).length;
+                const totalCount = colegios.length;
+                const pct = Math.round((atendidosCount / totalCount) * 100) || 0;
+                
+                bodyHtml += `
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div class="flex justify-between items-center mb-3 border-b border-gray-200 pb-2">
+                        <h4 class="font-black text-[#FF5A00] uppercase text-xs tracking-widest"><i class="fa-solid fa-map-location-dot mr-1"></i> ${reg}</h4>
+                        <span class="text-xs font-bold ${pct === 100 ? 'text-green-600 bg-green-100' : 'text-gray-500 bg-white'} px-2 py-1 rounded shadow-sm">${atendidosCount} de ${totalCount} (${pct}%)</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">`;
+                
+                colegios.sort((a,b) => {
+                    if(a.atendido === b.atendido) return a.nombre.localeCompare(b.nombre);
+                    return a.atendido ? 1 : -1; 
+                });
+
+                colegios.forEach(c => {
+                    const icon = c.atendido ? `<i class="fa-solid fa-circle-check text-green-500"></i>` : `<i class="fa-regular fa-circle text-gray-300"></i>`;
+                    const textStyle = c.atendido ? `text-gray-700` : `text-gray-400 italic`;
+                    const bgStyle = c.atendido ? `bg-white border-green-200 shadow-sm` : `bg-white/50 border-gray-100 opacity-80`;
+                    
+                    bodyHtml += `
+                    <div class="flex flex-col p-2.5 rounded-lg border ${bgStyle}">
+                        <div class="flex items-center gap-2">
+                            ${icon}
+                            <span class="text-xs font-bold ${textStyle} truncate" title="${c.nombre}">${c.nombre}</span>
+                        </div>
+                        ${State.currentUserRole === 'admin' && !coachF ? `<span class="text-[9px] text-gray-500 ml-6 mt-0.5"><i class="fa-solid fa-user-tie opacity-50 mr-1"></i>${c.coach}</span>` : ''}
+                    </div>`;
+                });
+                bodyHtml += `</div></div>`;
+            }
+        }
+        bodyHtml += `</div>`;
+
+        App.showModal(`Estado de Cobertura`, bodyHtml, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold transition-colors hover:bg-blue-900">Cerrar Panel</button>`);
+    },
 
     submitForm: async function(e) {
         e.preventDefault();
@@ -817,7 +903,7 @@ window.App = {
             setTimeout(() => document.getElementById('successMsg').classList.add('hidden'), 5000);
             try { const resumenRef = doc(db, "metricas", "resumen_global"); await updateDoc(resumenRef, { total_encuestas: increment(1) }); } catch (e) { if (e.code === 'not-found') await setDoc(doc(db, "metricas", "resumen_global"), { total_encuestas: 1 }); }
             if (State.currentUserRole) App.handleFilterTrigger(); 
-        } catch (error) { alert("Hubo un error guardando la encuesta."); } finally { btn.disabled = false; btn.innerHTML = '<span>Enviar Feedback</span>'; }
+        } catch (error) { alert("Hubo un error guardando la encuesta. Intenta de nuevo."); } finally { btn.disabled = false; btn.innerHTML = '<span>Enviar Feedback</span>'; }
     },
 
     handleColegioInput: function() {
