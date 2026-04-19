@@ -222,12 +222,13 @@
                 </div>
 
                 <div id="registros_core_container" class="space-y-6 relative">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fecha</label><input type="date" id="reg_filter_fecha" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm"></div>
-                        <div id="container_reg_filter_regional"><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Regional</label><select id="reg_filter_regional" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm"><option value="">Todas</option></select></div>
-                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Colegio</label><select id="reg_filter_colegio" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm"><option value="">Todos los Colegios</option></select></div>
-                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Taller</label><select id="reg_filter_taller" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm"><option value="">Todos</option></select></div>
-                        <div id="container_reg_filter_coach"><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Coach</label><select id="reg_filter_coach" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm"><option value="">Todos los Coaches</option></select></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fecha</label><input type="date" id="reg_filter_fecha" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"></div>
+                        <div id="container_reg_filter_regional"><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Regional</label><select id="reg_filter_regional" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todas</option></select></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Colegio</label><select id="reg_filter_colegio" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos los Colegios</option></select></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Taller</label><select id="reg_filter_taller" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos</option></select></div>
+                        <div id="container_reg_filter_coach"><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Coach</label><select id="reg_filter_coach" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos los Coaches</option></select></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Perfil</label><select id="reg_filter_perfil" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos</option><option value="Docente">Docente</option><option value="Directivo">Directivo</option></select></div>
                     </div>
 
                     <div id="bulk_action_bar" class="hidden bg-[#002C5F] text-white p-4 rounded-2xl shadow-lg flex justify-between items-center sticky top-24 z-30 animate-in slide-in-from-top-4">
@@ -251,9 +252,7 @@
                             
                             <template id="row-template">
                                 <tr class="hover:bg-orange-50 transition-colors border-b border-gray-100">
-                                    <td class="px-6 py-4 text-center t-checkbox-col col-admin-only">
-                                        <input type="checkbox" class="row-checkbox cursor-pointer w-4 h-4 accent-[#FF5A00] rounded">
-                                    </td>
+                                    <td class="px-6 py-4 text-center t-checkbox-col col-admin-only"><input type="checkbox" class="row-checkbox cursor-pointer w-4 h-4 accent-[#FF5A00] rounded"></td>
                                     <td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500 t-fecha"></td>
                                     <td class="px-6 py-4"><div class="font-bold text-xs text-[#002C5F] t-colegio"></div><div class="text-[9px] text-gray-400 mt-0.5 t-regional"></div></td>
                                     <td class="px-6 py-4 text-[10px] text-gray-600 font-medium t-taller"></td>
