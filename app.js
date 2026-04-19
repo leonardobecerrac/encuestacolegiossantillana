@@ -20,7 +20,8 @@ const State = {
     colegiosBD: [], coachesAuth: [], encuestasData: [], filteredEncuestas: [], registrosFiltrados: [],
     encuestasLoaded: false, currentUserRole: null, loginUser: null, currentView: 'formTab', currentEdicionView: 'colegios',
     paginationLimit: 50, currentRendered: 0,
-    selectedRegistros: new Set() 
+    selectedRegistros: new Set(),
+    regSort: { col: 'timestamp', dir: 'desc' } // Control para Ordenamiento A-Z
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -315,7 +316,8 @@ window.App = {
 
             let dataGlobal = safeEncuestas.map(d => { 
                 const colInfo = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
-                return { ...d, regional: colInfo ? colInfo.regional : 'Sin Regional' }; 
+                // Aplicamos override manual de regional si existe
+                return { ...d, regional: d.regional || (colInfo ? colInfo.regional : 'Sin Regional') }; 
             });
 
             dataGlobal = dataGlobal.filter(d => {
@@ -473,14 +475,18 @@ window.App = {
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         [...new Set(safeColegios.map(c => c.colegio))].sort().forEach(c => colOptions += `<option value="${c}">${c}</option>`);
 
+        let regOptions = '<option value="">(No modificar este campo)</option>'; 
+        [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => regOptions += `<option value="${r}">${r}</option>`);
+
         this.showModal(`Edición Masiva (${count} registros)`, `
             <div class="space-y-4">
                 <p class="text-xs text-blue-600 mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                    <i class="fa-solid fa-circle-info mr-1"></i> Selecciona únicamente los campos que deseas cambiar para las <b>${count}</b> encuestas. Los campos en "(No modificar)" mantendrán su valor.
+                    <i class="fa-solid fa-circle-info mr-1"></i> Selecciona únicamente los campos que deseas cambiar para las <b>${count}</b> encuestas.
                 </p>
                 <div class="grid grid-cols-1 gap-4">
                     <div><label class="text-xs font-bold text-gray-600">Cambiar Colegio a:</label><select id="bulk_edit_colegio" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${colOptions}</select></div>
                     <div><label class="text-xs font-bold text-gray-600">Cambiar Coach asignado a:</label><select id="bulk_edit_coach" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${coachOptions}</select></div>
+                    <div><label class="text-xs font-bold text-gray-600">Sobrescribir Regional a:</label><select id="bulk_edit_regional" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">${regOptions}</select></div>
                     <div><label class="text-xs font-bold text-gray-600">Cambiar Perfil del asistente a:</label><select id="bulk_edit_perfil" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"><option value="">(No modificar este campo)</option><option value="Docente">Docente</option><option value="Directivo">Directivo</option></select></div>
                 </div>
             </div>
@@ -494,11 +500,15 @@ window.App = {
         const nuevoColegio = document.getElementById('bulk_edit_colegio').value;
         const nuevoCoach = document.getElementById('bulk_edit_coach').value;
         const nuevoPerfil = document.getElementById('bulk_edit_perfil').value;
+        const nuevaRegional = document.getElementById('bulk_edit_regional').value;
 
-        if(!nuevoColegio && !nuevoCoach && !nuevoPerfil) { alert("No seleccionaste ningún campo para modificar."); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-bolt mr-2"></i>Aplicar Cambios'; return; }
+        if(!nuevoColegio && !nuevoCoach && !nuevoPerfil && !nuevaRegional) { alert("No seleccionaste ningún campo para modificar."); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-bolt mr-2"></i>Aplicar Cambios'; return; }
 
         const dataActualizada = {};
-        if (nuevoColegio) dataActualizada.colegio = nuevoColegio; if (nuevoCoach) dataActualizada.coach = nuevoCoach; if (nuevoPerfil) dataActualizada.perfil = nuevoPerfil;
+        if (nuevoColegio) dataActualizada.colegio = nuevoColegio; 
+        if (nuevoCoach) dataActualizada.coach = nuevoCoach; 
+        if (nuevoPerfil) dataActualizada.perfil = nuevoPerfil;
+        if (nuevaRegional) dataActualizada.regional = nuevaRegional;
 
         try {
             const arrIds = Array.from(State.selectedRegistros);
@@ -514,6 +524,17 @@ window.App = {
     },
     // --- FIN BULK ACTIONS ---
 
+    // ORDENAMIENTO (A-Z)
+    setSort: function(col) {
+        if (State.regSort.col === col) {
+            State.regSort.dir = State.regSort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            State.regSort.col = col;
+            State.regSort.dir = 'asc';
+        }
+        this.renderRegistrosTable(true);
+    },
+
     populateRegistrosFilters: function() {
         const regSel = document.getElementById('reg_filter_regional'); const colSel = document.getElementById('reg_filter_colegio'); const coachSel = document.getElementById('reg_filter_coach'); const tallerSel = document.getElementById('reg_filter_taller');
         if (!colSel) return;
@@ -526,7 +547,8 @@ window.App = {
         
         const datosEnriquecidos = safeEncuestas.map(d => { 
             const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
-            return { ...d, regional: col ? col.regional : 'Sin Regional' }; 
+            // Regional hereda del override de la encuesta, o de la base de colegios
+            return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
         });
 
         // Cascada Inteligente
@@ -555,22 +577,47 @@ window.App = {
         if (resetPagination) State.currentRendered = 0;
 
         this.populateRegistrosFilters();
-        const fechaVal = document.getElementById('reg_filter_fecha')?.value; const regVal = document.getElementById('reg_filter_regional')?.value;
-        const colVal = document.getElementById('reg_filter_colegio')?.value; const tallerVal = document.getElementById('reg_filter_taller')?.value;
+        const fechaVal = document.getElementById('reg_filter_fecha')?.value; 
+        const regVal = document.getElementById('reg_filter_regional')?.value;
+        const colVal = document.getElementById('reg_filter_colegio')?.value; 
+        const tallerVal = document.getElementById('reg_filter_taller')?.value;
         const coachVal = document.getElementById('reg_filter_coach')?.value;
+        const perfilVal = document.getElementById('reg_filter_perfil')?.value; // Nuevo Filtro
         
         const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         
-        let data = safeEncuestas.map(d => { const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); return { ...d, regional: col ? col.regional : 'Sin Regional' }; });
+        let data = safeEncuestas.map(d => { 
+            const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
+            return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
+        });
         
         if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
         if (regVal) data = data.filter(d => d.regional === regVal); 
         if (colVal) data = data.filter(d => d.colegio === colVal);
         if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); 
+        if (perfilVal) data = data.filter(d => d.perfil === perfilVal);
         if (coachVal && State.currentUserRole === 'admin') data = data.filter(d => d.coach === coachVal);
         if (State.currentUserRole === 'coach') data = data.filter(d => d.coach === State.loginUser.nombre);
         
+        // Logica de Ordenamiento (A-Z)
+        data.sort((a, b) => {
+            let valA = a[State.regSort.col] || '';
+            let valB = b[State.regSort.col] || '';
+            
+            if (State.regSort.col === 'timestamp') {
+                valA = a.timestamp || 0; valB = b.timestamp || 0;
+                return State.regSort.dir === 'asc' ? valA - valB : valB - valA;
+            }
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            if (valA < valB) return State.regSort.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return State.regSort.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
         State.registrosFiltrados = data;
 
         const tBody = document.getElementById('tabla_registros'); const tHead = document.getElementById('tabla_registros_head');
@@ -578,11 +625,22 @@ window.App = {
         
         if (resetPagination) tBody.innerHTML = '';
         
+        // Render dinámico del T-Head con Botones de Ordenamiento
+        const getSortIcon = (col) => {
+            if (State.regSort.col !== col) return '<i class="fa-solid fa-sort ml-1 opacity-30"></i>';
+            return State.regSort.dir === 'asc' ? '<i class="fa-solid fa-sort-up ml-1 text-[#FF5A00]"></i>' : '<i class="fa-solid fa-sort-down ml-1 text-[#FF5A00]"></i>';
+        };
+
         tHead.innerHTML = `<tr>
-            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 w-10 text-center col-admin-only"><input type="checkbox" id="selectAllCheckbox" class="cursor-pointer w-4 h-4 accent-[#FF5A00] rounded" onchange="App.toggleSelectAll()" title="Seleccionar todos los visibles"></th>' : ''}
-            <th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Colegio</th><th class="px-6 py-4">Taller</th>
-            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 col-admin-only">Asistente</th>' : ''}
-            <th class="px-6 py-4">Perfil</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Promedio</th><th class="px-6 py-4 min-w-[250px]">Sugerencias</th>
+            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 w-10 text-center col-admin-only"><input type="checkbox" id="selectAllCheckbox" class="cursor-pointer w-4 h-4 accent-[#FF5A00] rounded" onchange="App.toggleSelectAll()" title="Seleccionar todos"></th>' : ''}
+            <th class="px-6 py-4">Fecha</th>
+            <th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none" onclick="App.setSort('colegio')">Colegio ${getSortIcon('colegio')}</th>
+            <th class="px-6 py-4">Taller</th>
+            ${State.currentUserRole === 'admin' ? `<th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none col-admin-only" onclick="App.setSort('asistente')">Asistente ${getSortIcon('asistente')}</th>` : ''}
+            <th class="px-6 py-4">Perfil</th>
+            <th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none" onclick="App.setSort('coach')">Coach ${getSortIcon('coach')}</th>
+            <th class="px-6 py-4 text-center">Promedio</th>
+            <th class="px-6 py-4 min-w-[250px]">Sugerencias</th>
             ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 text-center col-admin-only">Acciones</th>' : ''}
         </tr>`;
 
@@ -667,13 +725,20 @@ window.App = {
         const registro = safeEncuestas.find(d => d.id === id);
         if(!registro) return;
 
+        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
+        
         let coachOptions = '<option value="">Seleccione...</option>'; 
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
         [...new Set(safeCoaches.map(c => c.nombre))].sort().forEach(c => coachOptions += `<option value="${c}" ${registro.coach === c ? 'selected' : ''}>${c}</option>`);
 
         let colOptions = '<option value="">Seleccione...</option>'; 
-        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         [...new Set(safeColegios.map(c => c.colegio))].sort().forEach(c => colOptions += `<option value="${c}" ${registro.colegio === c ? 'selected' : ''}>${c}</option>`);
+
+        // Calculamos la regional actual (si ya tiene un override, usamos ese, sino la del colegio)
+        const colEncontrado = safeColegios.find(c => (c.colegio || "").toUpperCase() === (registro.colegio || "").toUpperCase());
+        const currentRegional = registro.regional || (colEncontrado ? colEncontrado.regional : '');
+        let regOptions = '<option value="">Sin Regional</option>';
+        [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => regOptions += `<option value="${r}" ${currentRegional === r ? 'selected' : ''}>${r}</option>`);
 
         this.showModal("Editar Registro", `
             <div class="space-y-4">
@@ -681,7 +746,8 @@ window.App = {
                     <div><label class="text-xs font-bold text-gray-500">Colegio</label><select id="edit_reg_colegio" class="w-full border rounded-xl px-3 py-2 text-sm">${colOptions}</select></div>
                     <div><label class="text-xs font-bold text-gray-500">Coach Asignado</label><select id="edit_reg_coach" class="w-full border rounded-xl px-3 py-2 text-sm">${coachOptions}</select></div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div><label class="text-xs font-bold text-gray-500">Regional (Override)</label><select id="edit_reg_regional" class="w-full border rounded-xl px-3 py-2 text-sm">${regOptions}</select></div>
                     <div><label class="text-xs font-bold text-gray-500">Perfil</label>
                     <select id="edit_reg_perfil" class="w-full border rounded-xl px-3 py-2 text-sm">
                         <option value="Docente" ${registro.perfil === 'Docente' ? 'selected' : ''}>Docente</option>
@@ -703,7 +769,17 @@ window.App = {
         if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
 
         const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
-        const dataActualizada = { colegio: document.getElementById('edit_reg_colegio').value, coach: document.getElementById('edit_reg_coach').value, perfil: document.getElementById('edit_reg_perfil').value, asistente: document.getElementById('edit_reg_asistente').value, q6: parseFloat(document.getElementById('edit_reg_q6').value) || 0, q7: parseFloat(document.getElementById('edit_reg_q7').value) || 0, q8: parseFloat(document.getElementById('edit_reg_q8').value) || 0, q9: parseFloat(document.getElementById('edit_reg_q9').value) || 0, };
+        const dataActualizada = { 
+            colegio: document.getElementById('edit_reg_colegio').value, 
+            coach: document.getElementById('edit_reg_coach').value, 
+            regional: document.getElementById('edit_reg_regional').value, 
+            perfil: document.getElementById('edit_reg_perfil').value, 
+            asistente: document.getElementById('edit_reg_asistente').value, 
+            q6: parseFloat(document.getElementById('edit_reg_q6').value) || 0, 
+            q7: parseFloat(document.getElementById('edit_reg_q7').value) || 0, 
+            q8: parseFloat(document.getElementById('edit_reg_q8').value) || 0, 
+            q9: parseFloat(document.getElementById('edit_reg_q9').value) || 0 
+        };
 
         try {
             await setDoc(doc(db, "encuestas", id), dataActualizada, { merge: true });
