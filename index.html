@@ -17,7 +17,7 @@
     <input type="file" id="fileImportCoaches" class="hidden" accept=".xlsx, .xls">
 
     <nav class="bg-white shadow-md sticky top-0 z-40">
-        <div class="max-w-6xl mx-auto px-4">
+        <div class="max-w-[1600px] w-[98%] mx-auto px-4">
             <div class="flex justify-between h-20">
                 <div class="flex items-center gap-8">
                     <div class="flex-shrink-0">
@@ -56,7 +56,7 @@
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-4 py-8">
+    <main class="max-w-[1600px] w-[98%] mx-auto px-4 py-8">
         
         <div id="formTab" class="fade-in">
             <div class="bg-white shadow-xl rounded-2xl overflow-hidden max-w-2xl mx-auto border-t-8 border-[#FF5A00]">
@@ -188,7 +188,7 @@
                     <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-600 flex flex-col justify-between"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Alcance (Docentes)</div><div class="text-4xl font-black text-gray-800"><span id="dash_docentes">0</span><span class="text-gray-300 text-xl font-normal mx-1">/</span><span id="dash_meta_docentes" class="text-2xl text-gray-500">0</span></div></div>
                     <div onclick="App.showAvanceExplanation()" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-green-500 flex flex-col justify-between cursor-pointer hover:bg-green-50 transition-colors group relative overflow-hidden"><div class="absolute right-4 top-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-circle-info"></i></div><div class="text-xs font-bold text-gray-400 uppercase mb-1">Avance del Ciclo Anual</div><div class="flex items-end gap-2 mt-auto"><div class="text-4xl font-black text-gray-800" id="dash_avance_porcentaje">0%</div><div class="text-sm font-bold text-gray-400 mb-1">(<span id="dash_asistencias_reales">0</span> / <span id="dash_asistencias_meta">0</span>)</div></div></div>
                     <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-purple-600 flex flex-col justify-between"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Directivos Atendidos</div><div class="text-4xl font-black text-gray-800" id="dash_directivos">0</div></div>
-                    <div onclick="App.mostrarEstadoCobertura()" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-[#002C5F] flex flex-col justify-between cursor-pointer hover:bg-blue-50 transition-colors group relative overflow-hidden"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Colegios Atendidos</div><div class="text-4xl font-black text-gray-800"><span id="dash_cobertura_colegios">0</span><span class="text-gray-300 text-xl font-normal mx-1">/</span><span id="dash_total_colegios" class="text-2xl text-gray-500">0</span></div></div>
+                    <div onclick="App.mostrarEstadoCobertura()" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-[#002C5F] flex flex-col justify-between cursor-pointer hover:bg-blue-50 transition-colors group relative overflow-hidden"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Colegios Atendidos</div><div class="text-4xl font-black text-gray-800"><span id="dash_cobertura_colegios">0</span><span class="text-gray-300 text-xl font-normal mx-1">/</span><span id="dash_total_colegios" class="text-2xl text-gray-500">0</span></div><div class="text-[10px] text-[#002C5F] mt-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Ver listado y estado <i class="fa-solid fa-arrow-right ml-1"></i></div></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -197,9 +197,9 @@
                 </div>
 
                 <div id="dynamic_dashboard_grid" class="grid grid-cols-1 gap-6 mb-6 mt-6">
-                    <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest mb-4"><i class="fa-solid fa-user-tie mr-1"></i> Ranking Coach</h3><div id="ranking_list_coach" class="space-y-2 max-h-[250px] overflow-y-auto pr-2"></div></div>
-                    <div id="block_rank_regional" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#FF5A00] uppercase tracking-widest mb-4"><i class="fa-solid fa-map-location-dot mr-1"></i> Ranking Regional Total</h3><div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2"></div></div>
-                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col"><div class="flex justify-between items-start mb-4"><div><h3 class="text-sm font-black text-red-700 uppercase tracking-widest"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Alertas (Detractores)</h3></div><span id="detractores_badge" class="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-black shadow-sm">0</span></div><div id="detractores_list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 flex-1"><div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div></div></div>
+                    <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest mb-4"><i class="fa-solid fa-user-tie mr-1"></i> Ranking Coach</h3><div id="ranking_list_coach" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
+                    <div id="block_rank_regional" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#FF5A00] uppercase tracking-widest mb-4"><i class="fa-solid fa-map-location-dot mr-1"></i> Ranking Regional Total</h3><div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
+                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col"><div class="flex justify-between items-start mb-4"><div><h3 class="text-sm font-black text-red-700 uppercase tracking-widest"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Alertas (Detractores)</h3></div><span id="detractores_badge" class="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-black shadow-sm">0</span></div><div id="detractores_list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 flex-1 custom-scrollbar"><div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div></div></div>
                 </div>
 
                 <div id="coach_registros_box" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-6 mb-8">
@@ -243,7 +243,7 @@
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-                        <div class="overflow-x-auto" id="table_scroll_container">
+                        <div class="overflow-x-auto custom-scrollbar" id="table_scroll_container">
                             <table class="w-full text-sm text-left relative">
                                 <thead id="tabla_registros_head" class="text-[10px] text-gray-400 uppercase bg-gray-50 tracking-widest border-b sticky top-0 z-10 shadow-sm">
                                     </thead>
