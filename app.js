@@ -1,6 +1,7 @@
 // app.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 
@@ -30,7 +32,7 @@ const State = {
     paginationLimit: 50, 
     currentRendered: 0,
     selectedRegistros: new Set(),
-    regSort: { col: 'timestamp', dir: 'desc' } // Control para Ordenamiento A-Z
+    regSort: { col: 'timestamp', dir: 'desc' } 
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -125,8 +127,15 @@ window.App = {
         try {
             let userFound = null;
             if (role === 'admin') {
-                if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') userFound = { email: emailInput, nombre: 'JBECERRA' };
-                else throw new Error("Credenciales de administrador incorrectas.");
+                const userCredential = await signInWithEmailAndPassword(auth, emailInput, passInput);
+                const user = userCredential.user;
+                
+                if (user.email === 'jbecerra@santillana.com') {
+                    userFound = { email: user.email, nombre: 'JBECERRA' };
+                } else {
+                    await signOut(auth);
+                    throw new Error("Acceso denegado. Este usuario no cuenta con privilegios de administración.");
+                }
             } else {
                 const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
                 const coachInfo = safeCoaches.find(c => c.email && c.email.toLowerCase() === emailInput);
@@ -151,7 +160,14 @@ window.App = {
             this.initFiltrosBasicos();
             this.switchTab('dashTab');
         } catch (error) { 
-            if(errEl) { errEl.innerText = error.message; errEl.classList.remove('hidden'); }
+            if(errEl) { 
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errEl.innerText = "Credenciales de administrador incorrectas.";
+                } else {
+                    errEl.innerText = error.message; 
+                }
+                errEl.classList.remove('hidden'); 
+            }
         }
     },
 
@@ -177,6 +193,7 @@ window.App = {
     },
 
     logout: function() {
+        signOut(auth).catch(err => console.error("Error cerrando sesión Firebase:", err));
         State.currentUserRole = null; State.loginUser = null; State.encuestasLoaded = false;
         State.encuestasData = []; State.filteredEncuestas = []; State.selectedRegistros.clear();
         this.updateBulkActionBar();
@@ -200,7 +217,7 @@ window.App = {
                     await setDoc(doc(db, "coaches", State.coachesAuth[idx].id), State.coachesAuth[idx]);
                     localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
                 }
-            } else { alert("La contraseña de Administrador no se puede cambiar desde este panel."); }
+            } else { alert("La contraseña de Administrador se cambia desde la consola de Firebase Authentication."); }
             App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada en el sistema.</p>", `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
         } catch (e) { alert("Error actualizando la contraseña en la base de datos."); }
     },
@@ -215,6 +232,7 @@ window.App = {
     },
 
     openChangePasswordModal: function() {
+        if(State.currentUserRole === 'admin') { alert("Cambia tu clave de administrador desde Firebase Console."); return; }
         App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button type="button" onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold">Guardar</button>`);
     },
 
@@ -460,7 +478,7 @@ window.App = {
     },
 
     bulkDelete: async function() {
-        if(State.currentUserRole !== 'admin') return;
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Solo lectura.");
         const count = State.selectedRegistros.size; if(count === 0) return;
         if(!confirm(`⚠️ PELIGRO: Vas a eliminar ${count} encuestas simultáneamente.\nEsta acción NO se puede deshacer.\n¿Deseas continuar?`)) return;
 
@@ -478,7 +496,7 @@ window.App = {
     },
 
     openBulkEditModal: function() {
-        if(State.currentUserRole !== 'admin') return;
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
         const count = State.selectedRegistros.size; if(count === 0) return;
 
         let coachOptions = '<option value="">(No modificar este campo)</option>'; 
@@ -509,6 +527,7 @@ window.App = {
     },
 
     saveBulkEdit: async function() {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Solo lectura.");
         const btn = event.target; btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Procesando...';
 
         const nuevoColegio = document.getElementById('bulk_edit_colegio').value;
@@ -724,7 +743,7 @@ window.App = {
     loadMoreRegistros: function() { this.renderRegistrosTable(false); },
 
     deleteRegistroIndividual: async function(id) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
         if(!confirm("¿Estás seguro que deseas ELIMINAR este registro de la base de datos?")) return;
         try {
             await deleteDoc(doc(db, "encuestas", id));
@@ -736,7 +755,7 @@ window.App = {
     },
 
     openEditRegistroModal: function(id) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
         const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
         const registro = safeEncuestas.find(d => d.id === id);
         if(!registro) return;
@@ -782,7 +801,7 @@ window.App = {
     },
 
     saveEditRegistroIndividual: async function(id) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
 
         const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
         const dataActualizada = { 
@@ -917,7 +936,7 @@ window.App = {
     poblarCoaches: function() { const sel = document.getElementById('q4_coach'); if(sel) { sel.innerHTML = '<option value="">Seleccione coach...</option>'; const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : []; [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`); } },
     openImportModal: function() { this.showModal("Importar", `<div class="flex gap-4 pt-2"><button type="button" onclick="App.downloadEncuestaTemplate()" class="flex-1 py-3 bg-gray-100 rounded-xl">Plantilla</button><button type="button" onclick="document.getElementById('fileImportEncuestas').click()" class="flex-1 py-3 bg-[#002C5F] text-white rounded-xl">Subir Excel</button></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl">Cerrar</button>`); },
     downloadEncuestaTemplate: function() { const ws = XLSX.utils.json_to_sheet([{ id: "DEJAR_VACIO_NUEVO_REGISTRO", fecha: new Date().toLocaleDateString('es-CO'), ciclo: "Ciclo Inclusión", colegio: "COLEGIO DE EJEMPLO", asistente: "Juan", perfil: "Docente", coach: "Coach X", numTaller: "Taller 1", taller: "Tema Y", q6: 5, q7: 4, q8: 5, q9: 5, sugerencias: "Buen taller." }]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Encuestas"); XLSX.writeFile(wb, "Plantilla_Encuestas.xlsx"); },
-    clearData: async function() { if(!confirm("⚠️ PELIGRO: ¿Borrar todas las encuestas en la nube?")) return; try { const btn = document.getElementById('btn_clear_data'); btn.innerText = "Borrando..."; btn.disabled = true; const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : []; for(const enc of safeEncuestas) await deleteDoc(doc(db, "encuestas", enc.id)); State.encuestasData = []; State.filteredEncuestas = []; this.updateDashboard(); alert("Borradas."); } catch(e) { alert("Error"); } finally { document.getElementById('btn_clear_data').innerHTML = 'Borrar Todo'; document.getElementById('btn_clear_data').disabled = false; } },
+    clearData: async function() { if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura."); if(!confirm("⚠️ PELIGRO: ¿Borrar todas las encuestas en la nube?")) return; try { const btn = document.getElementById('btn_clear_data'); btn.innerText = "Borrando..."; btn.disabled = true; const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : []; for(const enc of safeEncuestas) await deleteDoc(doc(db, "encuestas", enc.id)); State.encuestasData = []; State.filteredEncuestas = []; this.updateDashboard(); alert("Borradas."); } catch(e) { alert("Error"); } finally { document.getElementById('btn_clear_data').innerHTML = 'Borrar Todo'; document.getElementById('btn_clear_data').disabled = false; } },
     showModal: function(title, body, footer) { document.getElementById('modalHeader').innerText = title; document.getElementById('modalBody').innerHTML = body; document.getElementById('modalFooter').innerHTML = footer; document.getElementById('customModal').classList.remove('hidden'); },
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
     switchDashSubTab: function(id) { ['subTabResultados', 'subTabRegistros', 'subTabEdicion'].forEach(t => { const el = document.getElementById(t); if(el) el.classList.add('hidden'); }); const target = document.getElementById(`subTab${id.charAt(0).toUpperCase() + id.slice(1)}`); if(target) target.classList.remove('hidden'); ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion'].forEach(b => { const btn = document.getElementById(b); if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50"; }); const activeBtn = document.getElementById(`btn-sub-${id}`); if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white"; const edContainer = document.getElementById('edicionTableContainer'); if(id === 'edicion' && edContainer) edContainer.classList.add('hidden'); },
@@ -956,8 +975,8 @@ window.App = {
             safeCoaches.forEach((c, idx) => { if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold">${c.nombre}</td><td class="px-6 py-4">${c.email}</td><td class="px-6 py-4">${c.regional}</td><td class="px-6 py-4 text-center"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-1"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-1"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
         }
     },
-    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
-    deleteCoach: async function(idx) { if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteColegio: async function(idx) { if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura."); if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteCoach: async function(idx) { if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura."); if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
     openEditColegioModal: function(idx) {
         const isEdit = idx >= 0; const data = isEdit ? State.colegiosBD[idx] : { colegio: '', regional: '', coach: '', docentes: 0, calendario: 'A', lineaNegocio: 'Compartir', clasificacion: 'AA' };
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
@@ -975,11 +994,13 @@ window.App = {
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : []; safeCoaches.filter(c => c.regional === reg).forEach(c => selCoach.innerHTML += `<option value="${c.nombre}" ${c.nombre === selectedCoach ? 'selected' : ''}>${c.nombre}</option>`);
     },
     saveEditColegio: async function(idx) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
         const colData = { colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(), regional: document.getElementById('edit_col_reg').value, coach: document.getElementById('edit_col_coach').value, docentes: parseInt(document.getElementById('edit_col_docentes').value) || 0, clasificacion: document.getElementById('edit_col_clasif').value.trim() };
         if(!colData.colegio || !colData.regional || !colData.coach) { alert("Completa Nombre, Regional y Coach."); return; }
         try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch (e) { alert("Error al guardar."); }
     },
     saveEditCoach: async function(idx) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
         const coachData = { nombre: document.getElementById('edit_coach_nombre').value.trim(), email: document.getElementById('edit_coach_email').value.trim().toLowerCase(), regional: document.getElementById('edit_coach_regional').value.trim(), pass: document.getElementById('edit_coach_pass').value.trim() };
         if(!coachData.nombre || !coachData.email || !coachData.regional) { alert("Faltan datos."); return; }
         try { const coachId = State.coachesAuth[idx].id; await setDoc(doc(db, "coaches", coachId), coachData); State.coachesAuth[idx] = { id: coachId, ...coachData }; localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
@@ -993,6 +1014,7 @@ window.App = {
 function initRatings() { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const container = document.getElementById(`${q}_group`); if(container){ for(let i=1; i<=5; i++) container.innerHTML += `<label class="rating-label"><input type="radio" name="${q}" value="${i}" required><span class="text-xs mt-1">${i}</span></label>`; } }); }
 
 document.getElementById('fileImportColegios')?.addEventListener('change', (e) => {
+    if(State.currentUserRole !== 'admin') { alert("Acceso denegado. Solo lectura."); e.target.value = null; return; }
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
         App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4'>Procesando...</p></div>", "");
@@ -1012,6 +1034,7 @@ document.getElementById('fileImportColegios')?.addEventListener('change', (e) =>
 });
 
 document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => {
+    if(State.currentUserRole !== 'admin') { alert("Acceso denegado. Solo lectura."); e.target.value = null; return; }
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
         App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4'>Procesando...</p></div>", "");
@@ -1030,6 +1053,7 @@ document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => 
 });
 
 document.getElementById('fileImportEncuestas')?.addEventListener('change', (e) => {
+    if(State.currentUserRole !== 'admin') { alert("Acceso denegado. Solo lectura."); e.target.value = null; return; }
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
         App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span></div>", "");
