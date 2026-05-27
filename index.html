@@ -76,8 +76,11 @@
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Ciclo Formativo <span class="text-red-500">*</span></label>
                             <select id="q0_ciclo" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                                <option value="2025" selected>Ciclo Formativo 2025</option>
-                                <option value="2026">Ciclo Formativo 2026</option>
+                                <option value="" disabled selected>Seleccione el ciclo...</option>
+                                <option value="Ambientes de Aprendizaje">Ambientes de Aprendizaje</option>
+                                <option value="Reingeniería Curricular">Reingeniería Curricular</option>
+                                <option value="Ciclo Inclusión">Ciclo Inclusión</option>
+                                <option value="Evaluación Formativa">Evaluación Formativa</option>
                             </select>
                         </div>
                         <div class="relative">
@@ -134,7 +137,7 @@
                     </div>
 
                     <div class="pt-2">
-                        <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Coach Orientador Asignado <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Coach Orientador Encargado <span class="text-red-500">*</span></label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400"><i class="fa-solid fa-user-tie"></i></span>
                             <select id="q4_coach" required class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-[#FF5A00] transition-all"></select>
@@ -167,7 +170,7 @@
 
                     <div class="border-t border-gray-100 pt-6">
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Sugerencias / Comentarios Adicionales</label>
-                        <textarea id="q10_sugerencias" rows="4" placeholder="Escriba aquí sus comentarios, aspectos a destacar o recomendaciones de mejora..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#FF5A00] transition-all resize-none"></textarea>
+                        <textarea id="q10_sugerencias" rows="4" placeholder="Escriba aquí sus comentarios, aspectos a destacar o recommendations de mejora..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#FF5A00] transition-all resize-none"></textarea>
                     </div>
 
                     <button type="submit" id="btnSubmitForm" class="w-full py-4 bg-[#FF5A00] text-white font-black text-base rounded-2xl hover:bg-[#e04f00] transition-all shadow-md tracking-wide">Enviar Respuestas</button>
@@ -175,22 +178,29 @@
             </div>
         </div>
 
-        <div id="dashTab" class="tab-content hidden space-y-8 animate-in fade-in duration-300">
+        <div id="dashTab" class="tab-content hidden space-y-8">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center space-x-2 overflow-x-auto py-1">
+                <div class="flex items-center space-x-2 overflow-x-auto py-1" id="adminSubNav">
                     <button onclick="App.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white">Vista General</button>
                     <button onclick="App.switchDashSubTab('registros')" id="btn-sub-registros" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Resultados e Historial</button>
+                    <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Bases del Sistema</button>
+                </div>
+                <div id="coachWelcomeBar" class="hidden text-left">
+                    <h2 class="text-sm font-black text-[#002C5F]">Panel de Gestión Docente</h2>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="App.exportToExcel()" class="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all flex items-center shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i> Exportar Todo</button>
+                    <button onclick="App.exportToExcel()" class="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all flex items-center shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i> Exportar Lote</button>
                     <button onclick="App.openImportModal()" id="btn_import_admin_encuestas" class="px-4 py-2 bg-[#002C5F] text-white text-xs font-bold rounded-xl hover:bg-[#001f44] transition-all flex items-center shadow-sm col-admin-only hidden"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Importar Respuestas</button>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Regional</label>
-                    <select id="filter_regional" onchange="App.handleFilterTrigger()" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00] transition-all"></select>
+                <div class="relative">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Regional (Multi)</label>
+                    <button type="button" id="btn_dropdown_regionales" onclick="App.toggleMultiSelectDropdown('dropdown_regionales_list', event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
+                        <span id="lbl_dropdown_regionales" class="truncate">Todas Regionales</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
+                    </button>
+                    <div id="dropdown_regionales_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
                 
                 <div id="container_filter_coach" class="relative">
@@ -213,27 +223,34 @@
                 </div>
                 <div>
                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Línea de Negocio</label>
-                    <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas', 'btn_dropdown_lineas')" aria-haspopup="listbox" aria-expanded="false" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
+                    <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas', 'btn_dropdown_lineas')" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
                         <span id="text_filter_lineas">Todas</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
                     </button>
-                    <div id="dropdown_lineas" aria-hidden="true" class="hidden absolute bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 w-64 space-y-2"></div>
+                    <div id="dropdown_lineas" class="hidden absolute bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 w-64 space-y-2"></div>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Calendario</label>
-                    <select id="filter_calendario" onchange="App.handleFilterTrigger()" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00] transition-all">
-                        <option value="">Todos</option><option value="A">Calendario A</option><option value="B">Calendario B</option>
-                    </select>
+
+                <div class="relative">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Calendario (Multi)</label>
+                    <button type="button" id="btn_dropdown_calendarios" onclick="App.toggleMultiSelectDropdown('dropdown_calendarios_list', event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
+                        <span id="lbl_dropdown_calendarios" class="truncate">Todos Calendarios</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
+                    </button>
+                    <div id="dropdown_calendarios_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Clasificación</label>
-                    <select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00] transition-all"></select>
+
+                <div class="relative">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Clasificación (Multi)</label>
+                    <button type="button" id="btn_dropdown_clasificaciones" onclick="App.toggleMultiSelectDropdown('dropdown_clasificaciones_list', event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
+                        <span id="lbl_dropdown_clasificaciones" class="truncate">Todas Clasificaciones</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
+                    </button>
+                    <div id="dropdown_clasificaciones_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
+
                 <div>
                     <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Mes de Ejecución</label>
-                    <button type="button" id="btn_dropdown_meses" onclick="App.toggleDropdown('dropdown_meses', 'btn_dropdown_meses')" aria-haspopup="listbox" aria-expanded="false" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
+                    <button type="button" id="btn_dropdown_meses" onclick="App.toggleDropdown('dropdown_meses', 'btn_dropdown_meses')" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
                         <span id="text_filter_meses">Todos los meses</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
                     </button>
-                    <div id="dropdown_meses" aria-hidden="true" class="hidden absolute bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 w-64 space-y-2 max-h-60 overflow-y-auto"></div>
+                    <div id="dropdown_meses" class="hidden absolute bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 w-64 space-y-2 max-h-60 overflow-y-auto"></div>
                 </div>
             </div>
 
@@ -389,11 +406,11 @@
             </div>
         </div>
 
-        <div id="edicionTab" class="tab-content hidden space-y-8 animate-in fade-in duration-300">
+        <div id="edicionTab" class="tab-content hidden space-y-8">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
                 <div class="flex items-center space-x-2">
-                    <button onclick="App.openEditView('colegios')" id="subbtn-colegios" class="subtab-btn-master px-4 py-2 text-xs font-black rounded-xl bg-gray-100 text-gray-600 transition-all">Base Colegios</button>
-                    <button onclick="App.openEditView('coaches')" id="subbtn-coaches" class="subtab-btn-master px-4 py-2 text-xs font-black rounded-xl text-gray-400 hover:text-gray-600 transition-all admin-only">Base Coaches</button>
+                    <button onclick="App.openEditView('colegios')" id="subbtn-colegios" class="subtab-btn-master px-4 py-2 text-xs font-black rounded-xl bg-gray-100 text-gray-600 transition-all">Base Maestra Colegios</button>
+                    <button onclick="App.openEditView('coaches')" id="subbtn-coaches" class="subtab-btn-master px-4 py-2 text-xs font-black rounded-xl text-gray-400 hover:text-gray-600 transition-all admin-only">Base Autenticación Coaches</button>
                 </div>
                 <div class="flex items-center space-x-2">
                     <button onclick="App.exportData(State.currentEdicionView)" class="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all flex items-center shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i> Descargar Estructura</button>
@@ -406,7 +423,7 @@
                 <div class="p-6 border-b flex items-center justify-between flex-wrap gap-4 bg-gray-50/30">
                     <div class="text-left">
                         <h3 class="text-base font-black text-[#002C5F]" id="txt_edicion_title">Bases</h3>
-                        <p class="text-xs text-gray-400 font-bold mt-0.5">Gestión y sincronización directa con Firestore</p>
+                        <p class="text-xs text-gray-400 font-bold mt-0.5" id="txt_edicion_subtitle">Gestión y sincronización directa con Firestore</p>
                     </div>
                     <div class="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                         <div id="edicion_filters" class="hidden flex gap-2">
