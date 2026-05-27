@@ -1,4 +1,7 @@
+/* styles.css */
+
 :root {
+    /* Identidad cromática de Santillana */
     --santillana-orange: #FF5A00;
     --santillana-blue: #002C5F;
 }
@@ -7,15 +10,23 @@ body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
 }
 
-.tab-active { 
-    border-bottom: 3px solid var(--santillana-orange); 
+/* Control de Pestañas Principales (Navbar) */
+.tab-btn.tab-active { 
+    border-bottom-color: var(--santillana-orange); 
     color: var(--santillana-orange) !important; 
-    font-weight: 700; 
+    font-weight: 800; 
 }
 
+/* Control de Subpestañas (Dashboard y Configuración) */
+.subtab-btn.subtab-active {
+    background-color: var(--santillana-blue);
+    color: #ffffff !important;
+}
+
+/* Matriz de Criterios Evaluativos (Formulario) */
 .rating-group { 
     display: flex; 
-    gap: 0.5rem; 
+    gap: 0.75rem; 
     align-items: center; 
     flex-wrap: wrap; 
     justify-content: space-between; 
@@ -26,47 +37,60 @@ body {
     flex-direction: column; 
     align-items: center; 
     cursor: pointer; 
-    padding: 0.75rem; 
-    border-radius: 0.5rem; 
+    padding: 0.75rem 0.5rem; 
+    border-radius: 1rem; 
     border: 1px solid #e5e7eb; 
-    transition: all 0.2s;
+    background-color: #ffffff;
+    transition: all 0.2s ease-in-out;
     flex: 1; 
-    min-width: 50px;
+    min-width: 55px;
 }
 
 .rating-label:hover { 
     background-color: #fff7ed; 
     border-color: var(--santillana-orange); 
-}
-
-.rating-label input:checked + span { 
-    color: var(--santillana-orange); 
-    font-weight: bold; 
+    transform: translateY(-1px);
 }
 
 .rating-label input { 
     accent-color: var(--santillana-orange); 
-    width: 1.2rem; 
-    height: 1.2rem; 
+    width: 1.15rem; 
+    height: 1.15rem; 
+    cursor: pointer;
 }
 
+/* Estado cuando el radio button es seleccionado por el profesor */
+.rating-label:has(input:checked) {
+    background-color: #fff7ed;
+    border-color: var(--santillana-orange);
+    box-shadow: 0 4px 6px -1px rgb(255 90 0 / 0.1);
+}
+
+.rating-label input:checked + span { 
+    color: var(--santillana-orange); 
+    font-weight: 900; 
+}
+
+/* Animaciones de Entrada (Fade In) */
 .fade-in { 
-    animation: fadeIn 0.4s ease-out; 
+    animation: fadeIn 0.3s ease-out forwards; 
 }
 
 @keyframes fadeIn { 
-    from { opacity: 0; transform: translateY(10px); } 
+    from { opacity: 0; transform: translateY(8px); } 
     to { opacity: 1; transform: translateY(0); } 
 }
 
+/* Animación del Componente de Carga (Spinner) */
 .loader {
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid var(--santillana-orange);
+    border: 2.5px solid #f3f3f3;
+    border-top: 2.5px solid var(--santillana-orange);
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    animation: spin 1s linear infinite;
+    width: 18px;
+    height: 18px;
+    animation: spin 0.85s linear infinite;
     display: inline-block;
+    vertical-align: middle;
 }
 
 @keyframes spin { 
@@ -74,51 +98,43 @@ body {
     100% { transform: rotate(360deg); } 
 }
 
+/* Personalización de Barras de Desplazamiento (Scrollbars) */
 ::-webkit-scrollbar { 
     width: 6px; 
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track { 
-    background: #f1f1f1; 
+    background: #f8fafc; 
 }
 
 ::-webkit-scrollbar-thumb { 
-    background: #ccc; 
-    border-radius: 10px; 
+    background: #cbd5e1; 
+    border-radius: 9999px; 
 }
 
 ::-webkit-scrollbar-thumb:hover { 
-    background: #999; 
+    background: #94a3b8; 
 }
 
-.circular-chart { 
-    display: block; 
-    margin: 0 auto; 
-    max-width: 80%; 
-    max-height: 250px; 
+/* Utilidades para Ocultar Scrollbars en Menús Desplegables de Filtros */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
-.circle-bg { 
-    fill: none; 
-    stroke: #f1f5f9; 
-    stroke-width: 3.8; 
+/* Tabla de Registros: Forzar comportamiento elástico y truncado */
+table {
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
-.circle { 
-    fill: none; 
-    stroke-width: 2.8; 
-    stroke-linecap: round; 
-    animation: progress 1s ease-out forwards; 
-}
-
-.percentage { 
-    fill: #002C5F; 
-    font-family: sans-serif; 
-    font-size: 0.5em; 
-    text-anchor: middle; 
-    font-weight: bold; 
-}
-
-@keyframes progress { 
-    0% { stroke-dasharray: 0 100; } 
+th {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 10;
 }
