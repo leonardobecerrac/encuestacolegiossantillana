@@ -1,9 +1,6 @@
 // app.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { 
-    getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, 
-    query, where, updateDoc, increment, orderBy, limit, startAfter 
-} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
@@ -25,10 +22,6 @@ const State = {
     encuestasData: [], 
     filteredEncuestas: [], 
     registrosFiltrados: [],
-    selectedCoaches: [],      // PUNTO 1: Coaches seleccionados (Multi)
-    selectedRegionales: [],   // PUNTO 5: Regionales seleccionadas (Multi)
-    selectedCalendarios: [],  // PUNTO 5: Calendarios seleccionados (Multi)
-    selectedClasificaciones: [], // PUNTO 5: Clasificaciones seleccionadas (Multi)
     encuestasLoaded: false, 
     currentUserRole: null, 
     loginUser: null, 
@@ -37,8 +30,7 @@ const State = {
     paginationLimit: 50, 
     currentRendered: 0,
     selectedRegistros: new Set(),
-    regSort: { col: 'timestamp', dir: 'desc' },
-    lastVisibleDoc: null 
+    regSort: { col: 'timestamp', dir: 'desc' } // Control para Ordenamiento A-Z
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -80,85 +72,52 @@ async function initApp() {
 async function fetchEncuestas() {
     if (State.encuestasLoaded) return;
     try {
-        let q = query(collection(db, "encuestas"));
+        let q;
+        if (State.currentUserRole === 'admin') {
+            q = query(collection(db, "encuestas"));
+        } else {
+            const userName = State.loginUser ? State.loginUser.nombre : "";
+            q = query(collection(db, "encuestas"), where("coach", "==", userName));
+        }
+            
         const encuestasSnap = await getDocs(q);
         State.encuestasData = [];
-        encuestasSnap.forEach((d) => {
-            const dataDoc = d.data();
-            // PUNTO 2: El coach descarga de forma segura únicamente los registros asociados a su nombre
-            if (State.currentUserRole === 'admin' || (dataDoc.coach && dataDoc.coach.toLowerCase() === State.loginUser.nombre.toLowerCase())) {
-                State.encuestasData.push({ id: d.id, ...dataDoc });
-            }
-        });
+        encuestasSnap.forEach((d) => State.encuestasData.push({ id: d.id, ...d.data() }));
+        State.encuestasData.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
         
-        // PUNTO 4 SOLUCIÓN: Ordenamiento ágil en memoria para no requerir la creación de índices compuestos complejos
-        State.encuestasData.sort((a,b) => (b.timestamp || b.fechaStamp || 0) - (a.timestamp || a.fechaStamp || 0));
         State.encuestasLoaded = true;
     } catch (error) { 
-        console.error("Error cargando encuestas generales:", error); 
+        console.error("Error cargando encuestas:", error); 
     }
 }
 
 window.App = {
     switchTab: function(tabId) {
-        ['formTab', 'dashTab', 'edicionTab'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
+        ['formTab', 'dashTab'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); });
         const targetTab = document.getElementById(tabId); if(targetTab) targetTab.classList.remove('hidden');
         
         ['btn-formTab', 'btn-dashTab', 'btn-coachTab'].forEach(btn => { const el = document.getElementById(btn); if(el) el.classList.remove('tab-active'); });
         if(tabId === 'formTab') { const b = document.getElementById('btn-formTab'); if(b) b.classList.add('tab-active'); }
-        else if(tabId === 'dashTab') { const b = document.getElementById('btn-dashTab'); if(b) b.classList.add('tab-active'); }
-        else if(tabId === 'edicionTab') { const b = document.getElementById('btn-coachTab'); if(b) b.classList.add('tab-active'); }
+        else if(State.currentUserRole === 'admin') { const b = document.getElementById('btn-dashTab'); if(b) b.classList.add('tab-active'); }
+        else { const b = document.getElementById('btn-coachTab'); if(b) b.classList.add('tab-active'); }
         
         if(tabId === 'dashTab') App.updateDashboard();
-        // PUNTO 3: Limpiar la tabla de edición al cambiar de pestaña para que cargue solo bajo demanda
-        if(tabId === 'edicionTab') {
-            document.getElementById('edicionTableContainer')?.classList.add('hidden');
-            document.querySelectorAll('.subtab-btn-master').forEach(el => el.classList.remove('bg-gray-200', 'text-[#002C5F]'));
-        }
     },
 
-    // PUNTO 3: MODAL DE INGRESO SEPARADO POR ROLES MEDIANTE PESTAÑAS
-    openLoginModal: function(defaultRole = 'coach') {
-        const title = "Ingreso Interno de Consultoría";
+    attemptLogin: function(role) {
+        if (State.currentUserRole === role) { this.switchTab('dashTab'); return; }
+        const title = role === 'admin' ? "Coordinación Santillana" : "Acceso Coach Académico";
         this.showModal(title, `
-            <div class="space-y-4 text-left">
-                <div class="flex border-b border-gray-200 mb-4">
-                    <button id="modal-tab-coach" onclick="App.switchModalLoginRole('coach')" class="flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 ${defaultRole === 'coach' ? 'border-[#FF5A00] text-[#002C5F]' : 'border-transparent text-gray-400'}">Portal Coach</button>
-                    <button id="modal-tab-admin" onclick="App.switchModalLoginRole('admin')" class="flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 ${defaultRole === 'admin' ? 'border-[#FF5A00] text-[#002C5F]' : 'border-transparent text-gray-400'}">Coordinación</button>
-                </div>
-                <input type="hidden" id="loginTargetRole" value="${defaultRole}">
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Correo Electrónico</label>
-                    <input type="email" id="loginEmail" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="usuario@santillana.com">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Contraseña</label>
-                    <input type="password" id="loginPwd" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="••••••••">
-                </div>
+            <div class="space-y-4">
+                <input type="email" id="loginEmail" class="w-full border rounded-xl px-4 py-3" placeholder="Correo corporativo">
+                <input type="password" id="loginPwd" class="w-full border rounded-xl px-4 py-3" placeholder="Contraseña">
                 <p id="loginError" class="text-red-500 text-xs hidden font-bold"></p>
             </div>
-        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-100 rounded-xl font-bold text-xs">Cancelar</button>
-            <button type="button" onclick="App.verifyLogin()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-xs shadow-sm">Entrar</button>`);
+        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-100 rounded-xl font-bold">Cancelar</button>
+            <button type="button" onclick="App.verifyLogin('${role}')" class="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold">Entrar</button>`);
     },
 
-    switchModalLoginRole: function(role) {
-        const inputRole = document.getElementById('loginTargetRole');
-        const tabCoach = document.getElementById('modal-tab-coach');
-        const tabAdmin = document.getElementById('modal-tab-admin');
-        if(!inputRole) return;
-
-        inputRole.value = role;
-        if(role === 'coach') {
-            tabCoach.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-[#FF5A00] text-[#002C5F]";
-            tabAdmin.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-gray-400";
-        } else {
-            tabCoach.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-gray-400";
-            tabAdmin.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-[#FF5A00] text-[#002C5F]";
-        }
-    },
-
-    verifyLogin: async function() {
-        const role = document.getElementById('loginTargetRole').value;
+    verifyLogin: async function(role) {
         const emailInput = document.getElementById('loginEmail').value.trim().toLowerCase();
         const passInput = document.getElementById('loginPwd').value;
         const errEl = document.getElementById('loginError');
@@ -184,27 +143,9 @@ window.App = {
             
             const userControls = document.getElementById('user-controls');
             if(userControls) { userControls.classList.remove('hidden'); userControls.classList.add('flex'); }
-            const loginTrigger = document.getElementById('login-trigger-container');
-            if(loginTrigger) loginTrigger.classList.add('hidden');
-
             const navName = document.getElementById('nav-user-name'); if(navName) navName.innerText = State.loginUser.nombre;
-            const navRole = document.getElementById('nav-user-role'); if(navRole) navRole.innerText = role === 'admin' ? 'Administrador' : 'Coach';
+            const navRole = document.getElementById('nav-user-role'); if(navRole) navRole.innerText = role;
             
-            document.getElementById('btn-dashTab')?.classList.remove('hidden');
-            document.getElementById('btn-coachTab')?.classList.remove('hidden');
-
-            // PUNTO 1: Al iniciar sesión como administrador, marcar todos los coaches por defecto
-            if (role === 'admin') {
-                State.selectedCoaches = State.coachesAuth.map(c => c.nombre);
-            } else {
-                State.selectedCoaches = [State.loginUser.nombre];
-            }
-
-            // PUNTO 5: Inicializadores por defecto de arrays de multiselección
-            State.selectedRegionales = [...new Set(State.colegiosBD.map(c => c.regional).filter(Boolean))];
-            State.selectedCalendarios = ['A', 'B'];
-            State.selectedClasificaciones = [...new Set(State.colegiosBD.map(c => c.clasificacion).filter(Boolean))];
-
             this.configureDashboardUI(role);
             await fetchEncuestas();
             this.initFiltrosBasicos();
@@ -218,33 +159,29 @@ window.App = {
         const isAdmin = role === 'admin';
         document.getElementById('adminSubNav')?.classList.toggle('hidden', !isAdmin);
         document.getElementById('coachWelcomeBar')?.classList.toggle('hidden', isAdmin);
+        document.getElementById('container_filter_coach')?.classList.toggle('hidden', !isAdmin);
         document.getElementById('block_rank_coach')?.classList.toggle('hidden', !isAdmin);
         
         const dynGrid = document.getElementById('dynamic_dashboard_grid');
         if(dynGrid) dynGrid.className = isAdmin ? 'grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-6' : 'grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-6';
         
-        // PUNTO 2 SOLUCIÓN: El coach ahora puede visualizar el coreTable dentro de su caja colapsable de registros
+        document.getElementById('coach_registros_box')?.classList.toggle('hidden', isAdmin);
+        document.getElementById('container_reg_filter_regional')?.classList.toggle('hidden', !isAdmin);
+        document.getElementById('container_reg_filter_coach')?.classList.toggle('hidden', !isAdmin);
+        
         const coreTable = document.getElementById('registros_core_container');
         if(coreTable) {
-            if(isAdmin) {
-                document.getElementById('subTabRegistros')?.appendChild(coreTable);
-                document.getElementById('coach_registros_box')?.classList.add('hidden');
-            } else {
-                document.getElementById('coach_registros_box')?.appendChild(coreTable);
-                document.getElementById('coach_registros_box')?.classList.remove('hidden');
-                document.getElementById('registros_core_container')?.classList.add('hidden'); // Inicia colapsado por orden visual
-            }
+            if(isAdmin) document.getElementById('subTabRegistros_content')?.appendChild(coreTable);
+            else document.getElementById('content_coach_registros')?.appendChild(coreTable);
         }
     },
 
     logout: function() {
         State.currentUserRole = null; State.loginUser = null; State.encuestasLoaded = false;
-        State.encuestasData = []; State.filteredEncuestas = []; State.selectedRegistros.clear(); State.selectedCoaches = [];
+        State.encuestasData = []; State.filteredEncuestas = []; State.selectedRegistros.clear();
         this.updateBulkActionBar();
-        const uc = document.getElementById('user-controls'); if(uc) { uc.classList.add('hidden'); uc.classList.remove('flex'); }
-        const loginTrigger = document.getElementById('login-trigger-container'); if(loginTrigger) loginTrigger.classList.remove('hidden');
-        document.getElementById('btn-dashTab')?.classList.add('hidden');
-        document.getElementById('btn-coachTab')?.classList.add('hidden');
+        const uc = document.getElementById('user-controls');
+        if(uc) { uc.classList.add('hidden'); uc.classList.remove('flex'); }
         this.switchTab('formTab');
     },
 
@@ -264,21 +201,21 @@ window.App = {
                     localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
                 }
             } else { alert("La contraseña de Administrador no se puede cambiar desde este panel."); }
-            App.showModal("Éxito", "<p class='text-sm font-bold text-gray-500'>Tu contraseña ha sido actualizada en el sistema.</p>", `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-xs">Aceptar</button>`);
+            App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada en el sistema.</p>", `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
         } catch (e) { alert("Error actualizando la contraseña en la base de datos."); }
     },
 
     toggleCoachRegistros: function() {
-        const content = document.getElementById('registros_core_container');
+        const content = document.getElementById('content_coach_registros');
         const icon = document.getElementById('icon_coach_registros');
         if(content && icon) {
-            if(content.classList.contains('hidden')) { content.classList.remove('hidden'); icon.classList.add('rotate-180'); App.renderRegistrosTable(true); } 
+            if(content.classList.contains('hidden')) { content.classList.remove('hidden'); icon.classList.add('rotate-180'); } 
             else { content.classList.add('hidden'); icon.classList.remove('rotate-180'); }
         }
     },
 
     openChangePasswordModal: function() {
-        App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-xs mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-xs">Cancelar</button><button type="button" onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-xs">Guardar</button>`);
+        App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button type="button" onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold">Guardar</button>`);
     },
 
     toggleDropdown: function(id, btnId) { 
@@ -313,18 +250,21 @@ window.App = {
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         let base = safeColegios.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
         
-        const colEl = document.getElementById('filter_colegio'); 
-        const lineasCbs = document.querySelectorAll('.linea-cb:checked');
+        const regEl = document.getElementById('filter_regional'); const coachEl = document.getElementById('filter_coach');
+        const colEl = document.getElementById('filter_colegio'); const calEl = document.getElementById('filter_calendario');
+        const clasEl = document.getElementById('filter_clasificacion'); const lineasCbs = document.querySelectorAll('.linea-cb:checked');
         
-        const colVal = colEl?.value || ""; 
+        const regVal = regEl?.value || ""; const coachVal = State.currentUserRole === 'admin' ? (coachEl?.value || "") : (State.loginUser?.nombre || "");
+        const colVal = colEl?.value || ""; const calVal = calEl?.value || ""; const clasVal = clasEl?.value || "";
         const lineasVal = lineasCbs ? Array.from(lineasCbs).map(cb => cb.value) : [];
 
         const getFilteredExcluding = (exclude) => {
             return base.filter(c => {
-                if (State.selectedRegionales.length > 0 && !State.selectedRegionales.includes(c.regional)) return false;
+                if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
+                if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
                 if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
-                if (State.selectedCalendarios.length > 0 && c.calendario && !State.selectedCalendarios.includes(c.calendario.trim().toUpperCase())) return false;
-                if (State.selectedClasificaciones.length > 0 && c.clasificacion && !State.selectedClasificaciones.includes(c.clasificacion.trim())) return false;
+                if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
+                if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
                 if (exclude !== 'lineas' && lineasVal.length > 0 && c.lineaNegocio && !lineasVal.includes(c.lineaNegocio.trim())) return false;
                 return true;
             });
@@ -334,7 +274,11 @@ window.App = {
             if(!el) return; el.innerHTML = `<option value="">${text}</option>`; validData.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`); if (validData.includes(currentVal)) el.value = currentVal;
         };
 
+        updateSelect(regEl, [...new Set(getFilteredExcluding('regional').map(c => c.regional).filter(Boolean))].sort(), "Todas", regVal);
+        if (State.currentUserRole === 'admin') updateSelect(coachEl, [...new Set(getFilteredExcluding('coach').map(c => c.coach))].sort(), "Todos los Coaches", coachVal);
         updateSelect(colEl, [...new Set(getFilteredExcluding('colegio').map(c => c.colegio))].sort(), "Todos los Colegios", colVal);
+        updateSelect(calEl, [...new Set(getFilteredExcluding('calendario').map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort(), "Todos", calVal);
+        updateSelect(clasEl, [...new Set(getFilteredExcluding('clasificacion').map(c => c.clasificacion ? c.clasificacion.trim() : '').filter(Boolean))].sort(), "Todas", clasVal);
 
         const validLineas = new Set(getFilteredExcluding('lineas').map(c => c.lineaNegocio ? c.lineaNegocio.trim() : '').filter(Boolean));
         let numChecked = 0;
@@ -354,124 +298,6 @@ window.App = {
             if (colEl.value !== "") { tSel.disabled = false; tSel.classList.remove('cursor-not-allowed'); document.getElementById('container_filter_taller')?.classList.remove('opacity-50'); tSel.options[0].text = "Todos los Talleres"; } 
             else { tSel.value = ""; tSel.disabled = true; tSel.classList.add('cursor-not-allowed'); document.getElementById('container_filter_taller')?.classList.add('opacity-50'); tSel.options[0].text = "Primero elija colegio"; }
         }
-        
-        App.renderFiltroMultiCoachesList(); 
-        App.renderFiltrosMultiSelectsComplementarios(); // PUNTO 5: Inicializador de los checkboxes dinámicos
-    },
-
-    // PUNTO 5: RENDERIZADOR COMPLETO DE LOS COMPONENTES MULTI-SELECT CON CHECKBOXES SOLICITADOS
-    renderFiltrosMultiSelectsComplementarios: function() {
-        const regContainer = document.getElementById('dropdown_regionales_list');
-        const calContainer = document.getElementById('dropdown_calendarios_list');
-        const clasContainer = document.getElementById('dropdown_clasificaciones_list');
-
-        // Volcado de Regionales Multi-Select
-        if (regContainer && regContainer.children.length === 0) {
-            const regionales = [...new Set(State.colegiosBD.map(c => c.regional).filter(Boolean))].sort();
-            regContainer.innerHTML = regionales.map(r => `
-                <label class="flex items-center space-x-2 p-1 rounded hover:bg-slate-50 text-xs font-semibold cursor-pointer">
-                    <input type="checkbox" value="${r}" checked onchange="App.handleMultiSelectGenericChange('regionales')" class="chk-reg-filter rounded text-[#FF5A00] w-4 h-4">
-                    <span>${r}</span>
-                </label>
-            `).join('');
-        }
-
-        // Volcado de Calendarios Multi-Select
-        if (calContainer && calContainer.children.length === 0) {
-            const calendarios = ['A', 'B'];
-            calContainer.innerHTML = calendarios.map(c => `
-                <label class="flex items-center space-x-2 p-1 rounded hover:bg-slate-50 text-xs font-semibold cursor-pointer">
-                    <input type="checkbox" value="${c}" checked onchange="App.handleMultiSelectGenericChange('calendarios')" class="chk-cal-filter rounded text-[#FF5A00] w-4 h-4">
-                    <span>Calendario ${c}</span>
-                </label>
-            `).join('');
-        }
-
-        // Volcado de Clasificaciones Multi-Select
-        if (clasContainer && clasContainer.children.length === 0) {
-            const clasificaciones = [...new Set(State.colegiosBD.map(c => c.clasificacion).filter(Boolean))].sort();
-            clasContainer.innerHTML = clasificaciones.map(cl => `
-                <label class="flex items-center space-x-2 p-1 rounded hover:bg-slate-50 text-xs font-semibold cursor-pointer">
-                    <input type="checkbox" value="${cl}" checked onchange="App.handleMultiSelectGenericChange('clasificaciones')" class="chk-clasif-filter rounded text-[#FF5A00] w-4 h-4">
-                    <span>Clasificación ${cl}</span>
-                </label>
-            `).join('');
-        }
-    },
-
-    toggleMultiSelectDropdown: function(idDropdown, e) {
-        e.stopPropagation();
-        document.getElementById(idDropdown).classList.toggle('hidden');
-    },
-
-    handleMultiSelectGenericChange: function(tipo) {
-        if(tipo === 'regionales') {
-            const arr = []; document.querySelectorAll('.chk-reg-filter:checked').forEach(c => arr.push(c.value));
-            State.selectedRegionales = arr;
-            document.getElementById('lbl_dropdown_regionales').innerText = arr.length === 0 ? "Ninguna Regional" : arr.length === document.querySelectorAll('.chk-reg-filter').length ? "Todas Regionales" : `${arr.length} seleccionadas`;
-        } else if(tipo === 'calendarios') {
-            const arr = []; document.querySelectorAll('.chk-cal-filter:checked').forEach(c => arr.push(c.value));
-            State.selectedCalendarios = arr;
-            document.getElementById('lbl_dropdown_calendarios').innerText = arr.length === 0 ? "Ningún Calendario" : arr.length === 2 ? "Todos Calendarios" : `Calendario ${arr[0]}`;
-        } else if(tipo === 'clasificaciones') {
-            const arr = []; document.querySelectorAll('.chk-clasif-filter:checked').forEach(c => arr.push(c.value));
-            State.selectedClasificaciones = arr;
-            document.getElementById('lbl_dropdown_clasificaciones').innerText = arr.length === 0 ? "Ninguna Clasif." : arr.length === document.querySelectorAll('.chk-clasif-filter').length ? "Todas Clasificaciones" : `${arr.length} seleccionadas`;
-        }
-        App.updateDashboard();
-    },
-
-    renderFiltroMultiCoachesList: function() {
-        const container = document.getElementById('dropdown_coaches_list');
-        if(!container) return;
-
-        let coachesDisponibles = [...State.coachesAuth].sort((a,b) => a.nombre.localeCompare(b.nombre));
-        
-        if (State.currentUserRole === 'coach') {
-            coachesDisponibles = coachesDisponibles.filter(c => c.nombre.toLowerCase() === State.loginUser.nombre.toLowerCase());
-            State.selectedCoaches = [State.loginUser.nombre];
-            document.getElementById('container_filter_coach')?.classList.add('pointer-events-none', 'opacity-80');
-        } else {
-            document.getElementById('container_filter_coach')?.classList.remove('pointer-events-none', 'opacity-80');
-            if (State.selectedCoaches.length === 0 && State.coachesAuth.length > 0) {
-                State.selectedCoaches = State.coachesAuth.map(c => c.nombre);
-            }
-        }
-
-        container.innerHTML = coachesDisponibles.map(c => {
-            const isChecked = State.selectedCoaches.includes(c.nombre) ? 'checked' : '';
-            return `
-                <label class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-slate-50 text-xs font-semibold cursor-pointer transition-colors">
-                    <input type="checkbox" value="${c.nombre}" ${isChecked} onchange="App.handleMultiCoachCheckboxChange()" class="chk-coach-filter rounded text-[#FF5A00] focus:ring-0 w-4 h-4">
-                    <span class="text-gray-700">${c.nombre}</span>
-                </label>
-            `;
-        }).join('');
-
-        App.actualizarLabelMultiCoaches();
-    },
-
-    handleMultiCoachCheckboxChange: function() {
-        const checkboxes = document.querySelectorAll('.chk-coach-filter');
-        const seleccionados = [];
-        checkboxes.forEach(chk => { if (chk.checked) seleccionados.push(chk.value); });
-        State.selectedCoaches = seleccionados;
-        App.actualizarLabelMultiCoaches();
-        App.updateDashboard(); 
-    },
-
-    actualizarLabelMultiCoaches: function() {
-        const lbl = document.getElementById('lbl_dropdown_coaches');
-        if (!lbl) return;
-        if (State.selectedCoaches.length === 0) { lbl.innerText = "Ningún Coach Seleccionado"; } 
-        else if (State.selectedCoaches.length === State.coachesAuth.length) { lbl.innerText = "Todos los Coaches"; } 
-        else if (State.selectedCoaches.length === 1) { lbl.innerText = State.selectedCoaches[0]; } 
-        else { lbl.innerText = `${State.selectedCoaches.length} Coaches seleccionados`; }
-    },
-
-    toggleMultiCoachDropdown: function(e) {
-        e.stopPropagation();
-        document.getElementById('dropdown_coaches_list').classList.toggle('hidden');
     },
 
     updateDashboard: function() {
@@ -479,17 +305,25 @@ window.App = {
             const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
             const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
 
+            const regF = document.getElementById('filter_regional')?.value || ""; 
+            const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : (State.loginUser?.nombre || "");
             const colF = document.getElementById('filter_colegio')?.value || ""; 
             const tallerF = document.getElementById('filter_taller')?.value || "";
+            const calF = document.getElementById('filter_calendario')?.value || ""; 
+            const clasF = document.getElementById('filter_clasificacion')?.value || "";
             const lineaNodes = document.querySelectorAll('.linea-cb:checked'); const lineasF = lineaNodes ? Array.from(lineaNodes).map(cb => cb.value) : [];
             const mesNodes = document.querySelectorAll('.mes-cb:checked'); const mesesF = mesNodes ? Array.from(mesNodes).map(cb => parseInt(cb.value)) : [];
 
+            const textSpanMeses = document.getElementById('text_filter_meses');
+            if(textSpanMeses) {
+                if (mesesF.length === 0) textSpanMeses.textContent = "Todos los meses"; else if (mesesF.length === 1) textSpanMeses.textContent = mesesNombres[mesesF[0]]; else textSpanMeses.textContent = `${mesesF.length} meses seleccionados`;
+            }
+
             let masterFilterGlobal = safeColegios.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-            // PUNTO 5: Filtrado elástico cruzado por colecciones de multiselección
-            if(State.selectedRegionales.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => State.selectedRegionales.includes(c.regional));
+            if(regF) masterFilterGlobal = masterFilterGlobal.filter(c => c.regional === regF);
             if(colF) masterFilterGlobal = masterFilterGlobal.filter(c => c.colegio === colF);
-            if(State.selectedCalendarios.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => c.calendario && State.selectedCalendarios.includes(c.calendario.trim().toUpperCase()));
-            if(State.selectedClasificaciones.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => c.clasificacion && State.selectedClasificaciones.includes(c.clasificacion.trim()));
+            if(calF) masterFilterGlobal = masterFilterGlobal.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
+            if(clasF) masterFilterGlobal = masterFilterGlobal.filter(c => c.clasificacion === clasF);
             if(lineasF.length > 0) masterFilterGlobal = masterFilterGlobal.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
             
             const colegiosPermitidosGlobal = new Set(masterFilterGlobal.map(c => (c.colegio || "").trim().toUpperCase()));
@@ -501,6 +335,7 @@ window.App = {
 
             dataGlobal = dataGlobal.filter(d => {
                 if (!colegiosPermitidosGlobal.has((d.colegio || "").trim().toUpperCase())) return false;
+                if (regF && d.regional !== regF) return false;
                 if (tallerF && d.numTaller !== tallerF) return false;
                 if (mesesF.length > 0) {
                     let dateObj = null;
@@ -516,19 +351,8 @@ window.App = {
                 return true;
             });
 
-            let data = [...dataGlobal]; 
-            if (State.selectedCoaches.length > 0) {
-                data = data.filter(d => State.selectedCoaches.some(name => d.coach && d.coach.toLowerCase() === name.toLowerCase()));
-            } else {
-                data = [];
-            }
-
-            let masterFilter = [...masterFilterGlobal]; 
-            if (State.selectedCoaches.length > 0) {
-                masterFilter = masterFilter.filter(c => State.selectedCoaches.some(name => c.coach && c.coach.toLowerCase() === name.toLowerCase()));
-            } else {
-                masterFilter = [];
-            }
+            let data = [...dataGlobal]; if (coachF) data = data.filter(d => d.coach === coachF);
+            let masterFilter = [...masterFilterGlobal]; if (coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
             
             State.filteredEncuestas = data; 
 
@@ -563,7 +387,6 @@ window.App = {
             let totalRespuestas = 0; let excelentes = 0;
             data.forEach(d => { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const score = parseFloat(d[q] || d[q?.toUpperCase()]); if (!isNaN(score)) { totalRespuestas++; if(score >= 4) excelentes++; } }); });
             const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
-            
             const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
             if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
 
@@ -576,9 +399,9 @@ window.App = {
                     if(count > 0){ if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; rankMap[d[keyProp]].sum += (sum / count); rankMap[d[keyProp]].count++; }
                 });
                 const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
-                if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos de ránkings.</div>';
+                if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
                 let html = '';
-                arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
+                arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-[#002C5F] bg-blue-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
                 return html;
             };
 
@@ -593,7 +416,7 @@ window.App = {
             const dList = document.getElementById('detractores_list');
             
             if (dList) {
-                if (detractores.length === 0) { dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold text-sm">¡Sin alertas críticas de detractores!</div>'; } 
+                if (detractores.length === 0) { dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>'; } 
                 else {
                     let detractoresHTML = '';
                     detractores.forEach(d => {
@@ -609,15 +432,11 @@ window.App = {
                     dList.innerHTML = detractoresHTML;
                 }
             }
-            
-            // Renderizado ágil en memoria para el coach o administrador
-            if (State.currentUserRole === 'admin' || !document.getElementById('registros_core_container').classList.contains('hidden')) {
-                this.renderRegistrosTable(true);
-            }
+            this.renderRegistrosTable(true);
         } catch (err) { console.error("Error dibujando el dashboard:", err); }
     },
 
-    // --- ACCIONES MASIVAS GLOBALES ---
+    // --- ACCIONES MASIVAS ---
     toggleSelectAll: function() {
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         const isChecked = selectAllCheckbox ? selectAllCheckbox.checked : false;
@@ -717,7 +536,9 @@ window.App = {
             alert(`✅ Edición aplicada correctamente a ${arrIds.length} registros.`);
         } catch (error) { alert("Hubo un error al guardar masivamente."); console.error(error); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-bolt mr-2"></i>Aplicar Cambios'; }
     },
+    // --- FIN BULK ACTIONS ---
 
+    // --- ORDENAMIENTO (A-Z) ---
     setSort: function(col) {
         if (State.regSort.col === col) {
             State.regSort.dir = State.regSort.dir === 'asc' ? 'desc' : 'asc';
@@ -736,7 +557,7 @@ window.App = {
         if (!colSel) return;
 
         const regVal = regSel.value || ""; const colVal = colSel.value || "";
-        const coachVal = State.currentUserRole === 'admin' ? (coachSel?.value || "") : (State.loginUser?.nombre || "");
+        const coachVal = State.currentUserRole === 'admin' ? (coachSel.value || "") : (State.loginUser?.nombre || "");
 
         const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
@@ -759,7 +580,7 @@ window.App = {
             if(el) { el.innerHTML = `<option value="">${text}</option>`; validData.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`); if (validData.includes(currVal)) el.value = currVal; else el.value = ""; } 
         };
 
-        updateSelect(regSel, [...new Set(getFilteredExcluding('regional').map(d => d.regional).filter(Boolean))].sort(), regVal, "Todas Regionales");
+        updateSelect(regSel, [...new Set(getFilteredExcluding('regional').map(d => d.regional).filter(Boolean))].sort(), regVal, "Todas");
         updateSelect(colSel, [...new Set(getFilteredExcluding('colegio').map(d => d.colegio).filter(Boolean))].sort(), colVal, "Todos los Colegios");
         if (State.currentUserRole === 'admin') { updateSelect(coachSel, [...new Set(getFilteredExcluding('coach').map(d => d.coach).filter(Boolean))].sort(), coachVal, "Todos los Coaches"); } 
         else if(coachSel) { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
@@ -767,170 +588,249 @@ window.App = {
         if (tallerSel) { const tallVal = tallerSel.value || ""; updateSelect(tallerSel, [...new Set(getFilteredExcluding('taller').map(d => d.numTaller).filter(Boolean))].sort(), tallVal, "Todos los Talleres"); }
     },
 
-    renderRegistrosTable: async function(resetPagination = true) {
-        try {
-            const tBody = document.getElementById('tabla_registros'); 
-            const tHead = document.getElementById('tabla_registros_head');
-            const paginationContainer = document.getElementById('pagination_container');
-            if(!tBody || !tHead) return;
+    renderRegistrosTable: function(resetPagination = true) {
+        if (resetPagination) State.currentRendered = 0;
 
-            if (resetPagination) {
-                State.currentRendered = 0;
-                tBody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-gray-400 font-bold"><span class="loader"></span> Buscando en memoria...</td></tr>`;
+        this.populateRegistrosFilters();
+        const fechaVal = document.getElementById('reg_filter_fecha')?.value; 
+        const regVal = document.getElementById('reg_filter_regional')?.value;
+        const colVal = document.getElementById('reg_filter_colegio')?.value; 
+        const tallerVal = document.getElementById('reg_filter_taller')?.value;
+        const coachVal = document.getElementById('reg_filter_coach')?.value;
+        const perfilVal = document.getElementById('reg_filter_perfil')?.value; 
+        
+        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
+        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
+        
+        let data = safeEncuestas.map(d => { 
+            const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
+            return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
+        });
+        
+        if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
+        if (regVal) data = data.filter(d => d.regional === regVal); 
+        if (colVal) data = data.filter(d => d.colegio === colVal);
+        if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); 
+        if (perfilVal) data = data.filter(d => d.perfil === perfilVal);
+        if (coachVal && State.currentUserRole === 'admin') data = data.filter(d => d.coach === coachVal);
+        if (State.currentUserRole === 'coach') data = data.filter(d => d.coach === State.loginUser.nombre);
+        
+        // Aplicar Ordenamiento A-Z
+        data.sort((a, b) => {
+            let valA = a[State.regSort.col] || '';
+            let valB = b[State.regSort.col] || '';
+            
+            if (State.regSort.col === 'timestamp') {
+                valA = a.timestamp || 0; valB = b.timestamp || 0;
+                return State.regSort.dir === 'asc' ? valA - valB : valB - valA;
             }
 
-            // PUNTO 4 SOLUCIÓN: El paginador consume directamente del array filtrado en memoria elástica
-            let datasetFiltradoLocal = [...State.encuestasData];
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
 
-            const regVal = document.getElementById('reg_filter_regional')?.value;
-            if (regVal) datasetFiltradoLocal = datasetFiltradoLocal.filter(d => d.regional === regVal);
+            if (valA < valB) return State.regSort.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return State.regSort.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
 
-            const colVal = document.getElementById('reg_filter_colegio')?.value;
-            if (colVal) datasetFiltradoLocal = datasetFiltradoLocal.filter(d => d.colegio === colVal);
+        State.registrosFiltrados = data;
 
-            const tallerVal = document.getElementById('reg_filter_taller')?.value;
-            if (tallerVal) datasetFiltradoLocal = datasetFiltradoLocal.filter(d => d.numTaller === tallerVal);
+        const tBody = document.getElementById('tabla_registros'); 
+        const tHead = document.getElementById('tabla_registros_head');
+        if(!tBody || !tHead) return;
+        
+        if (resetPagination) tBody.innerHTML = '';
+        
+        // DIBUJAR CABECERAS ORDENABLES
+        const getSortIcon = (col) => {
+            if (State.regSort.col !== col) return '<i class="fa-solid fa-sort ml-1 opacity-30"></i>';
+            return State.regSort.dir === 'asc' ? '<i class="fa-solid fa-sort-up ml-1 text-[#FF5A00]"></i>' : '<i class="fa-solid fa-sort-down ml-1 text-[#FF5A00]"></i>';
+        };
 
-            const perfilVal = document.getElementById('reg_filter_perfil')?.value;
-            if (perfilVal) datasetFiltradoLocal = datasetFiltradoLocal.filter(d => d.perfil === perfilVal);
+        tHead.innerHTML = `<tr>
+            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 w-10 text-center col-admin-only"><input type="checkbox" id="selectAllCheckbox" class="cursor-pointer w-4 h-4 accent-[#FF5A00] rounded" onchange="App.toggleSelectAll()" title="Seleccionar todos"></th>' : ''}
+            <th class="px-6 py-4">Fecha</th>
+            <th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none" onclick="App.setSort('colegio')">Colegio ${getSortIcon('colegio')}</th>
+            <th class="px-6 py-4">Taller</th>
+            ${State.currentUserRole === 'admin' ? `<th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none col-admin-only" onclick="App.setSort('asistente')">Asistente ${getSortIcon('asistente')}</th>` : ''}
+            <th class="px-6 py-4">Perfil</th>
+            <th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none" onclick="App.setSort('coach')">Coach ${getSortIcon('coach')}</th>
+            <th class="px-6 py-4 text-center">Promedio</th>
+            <th class="px-6 py-4 min-w-[250px]">Sugerencias</th>
+            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 text-center col-admin-only">Acciones</th>' : ''}
+        </tr>`;
 
-            if (State.currentUserRole === 'admin') {
-                const coachVal = document.getElementById('reg_filter_coach')?.value;
-                if (coachVal) datasetFiltradoLocal = datasetFiltradoLocal.filter(d => d.coach === coachVal);
-            }
+        const masterCb = document.getElementById('selectAllCheckbox');
+        if(masterCb && State.selectedRegistros.size > 0 && State.selectedRegistros.size >= data.length) { masterCb.checked = true; }
 
-            if(State.regSort.col === 'colegio') {
-                datasetFiltradoLocal.sort((a,b) => State.regSort.dir === 'asc' ? a.colegio.localeCompare(b.colegio) : b.colegio.localeCompare(a.colegio));
-            }
+        const paginationContainer = document.getElementById('pagination_container');
 
-            const startIdx = State.currentRendered;
-            const endIdx = startIdx + State.paginationLimit;
-            const subLoteRender = datasetFiltradoLocal.slice(startIdx, endIdx);
+        if (data.length === 0) { 
+            tBody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-gray-400 italic">No hay registros para mostrar.</td></tr>`; 
+            if(paginationContainer) paginationContainer.classList.add('hidden');
+            return; 
+        }
 
-            if (resetPagination) tBody.innerHTML = '';
+        const template = document.getElementById('row-template');
+        if(!template) return;
+        
+        const nextBatch = data.slice(State.currentRendered, State.currentRendered + State.paginationLimit);
 
-            const getSortIcon = (col) => {
-                if (State.regSort.col !== col) return '<i class="fa-solid fa-sort ml-1 opacity-30"></i>';
-                return State.regSort.dir === 'asc' ? '<i class="fa-solid fa-sort-up ml-1 text-[#FF5A00]"></i>' : '<i class="fa-solid fa-sort-down ml-1 text-[#FF5A00]"></i>';
-            };
+        nextBatch.forEach(d => {
+            const clone = template.content.cloneNode(true);
+            
+            let sum = 0, count = 0;
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q?.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
+            const avg = count > 0 ? (sum / count).toFixed(1) : '-';
+            let f = "Fecha no válida"; 
+            if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; } 
+            else if (d.fecha) { f = String(d.fecha).split(',')[0].trim(); }
 
-            // PUNTO 2: Eliminación condicional de columna del Asistente para anonimato ante el Coach
-            tHead.innerHTML = `<tr>
-                ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 w-10 text-center col-admin-only"><input type="checkbox" id="selectAllCheckbox" class="cursor-pointer w-4 h-4 accent-[#FF5A00] rounded" onchange="App.toggleSelectAll()"></th>' : ''}
-                <th class="px-6 py-4">Fecha</th>
-                <th class="px-6 py-4 cursor-pointer hover:bg-gray-200" onclick="App.setSort('colegio')">Colegio ${getSortIcon('colegio')}</th>
-                <th class="px-6 py-4">Taller</th>
-                ${State.currentUserRole === 'admin' ? `<th class="px-6 py-4 col-admin-only">Asistente</th>` : ''}
-                <th class="px-6 py-4">Perfil</th>
-                <th class="px-6 py-4">Coach</th>
-                <th class="px-6 py-4 text-center">Promedio</th>
-                <th class="px-6 py-4 min-w-[250px]">Sugerencias</th>
-                ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 text-center col-admin-only">Acciones</th>' : ''}
-            </tr>`;
+            const cb = clone.querySelector('.row-checkbox');
+            if(cb) { cb.checked = State.selectedRegistros.has(d.id); cb.onchange = (e) => App.toggleRowSelection(d.id, e.target.checked); }
 
-            if (datasetFiltradoLocal.length === 0) { 
-                tBody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-gray-400 italic">No hay registros para mostrar con estos filtros.</td></tr>`; 
-                if(paginationContainer) paginationContainer.classList.add('hidden');
-                return; 
-            }
+            clone.querySelector('.t-fecha').textContent = f;
+            clone.querySelector('.t-colegio').textContent = d.colegio;
+            clone.querySelector('.t-regional').textContent = d.regional;
+            clone.querySelector('.t-taller').textContent = `${d.numTaller}: ${d.taller}`;
+            clone.querySelector('.t-asistente').textContent = d.asistente || 'Anónimo';
+            clone.querySelector('.t-perfil').textContent = d.perfil;
+            clone.querySelector('.t-coach').textContent = d.coach;
+            
+            const badge = clone.querySelector('.t-promedio');
+            badge.textContent = avg;
+            if (avg >= 4.0) badge.className += ' text-green-700 bg-green-50'; else if (avg >= 3.0) badge.className += ' text-yellow-700 bg-yellow-50'; else badge.className += ' text-red-700 bg-red-50';
 
-            const template = document.getElementById('row-template');
-            if(!template) return;
+            clone.querySelector('.t-sugerencias').textContent = d.sugerencias || 'Sin comentarios';
 
-            subLoteRender.forEach(d => {
-                const clone = template.content.cloneNode(true);
-                let sum = 0, count = 0;
-                ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q]); if(!isNaN(s)){ sum += s; count++; } });
-                const avg = count > 0 ? (sum / count).toFixed(1) : '-';
-                
-                let f = d.fecha || "Sin Fecha";
-                if (d.timestamp) { 
-                    const o = new Date(d.timestamp); 
-                    f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; 
-                }
+            const btnEdit = clone.querySelector('.btn-edit'); const btnDelete = clone.querySelector('.btn-delete');
+            if(btnEdit) btnEdit.onclick = () => App.openEditRegistroModal(d.id);
+            if(btnDelete) btnDelete.onclick = () => App.deleteRegistroIndividual(d.id);
 
-                const cb = clone.querySelector('.row-checkbox');
-                if(cb) { cb.checked = State.selectedRegistros.has(d.id); cb.onchange = (e) => App.toggleRowSelection(d.id, e.target.checked); }
+            if(State.currentUserRole !== 'admin') { clone.querySelectorAll('.col-admin-only').forEach(col => col.style.display = 'none'); }
 
-                clone.querySelector('.t-fecha').textContent = f;
-                clone.querySelector('.t-colegio').textContent = d.colegio;
-                clone.querySelector('.t-regional').textContent = d.regional || 'Sin Regional';
-                clone.querySelector('.t-taller').textContent = `${d.numTaller || 'Taller'}: ${d.taller || ''}`;
-                
-                if (State.currentUserRole === 'admin') {
-                    clone.querySelector('.t-asistente').textContent = d.asistente || 'Anónimo';
-                } else {
-                    clone.querySelectorAll('.col-admin-only').forEach(col => col.remove());
-                }
+            tBody.appendChild(clone);
+        });
 
-                clone.querySelector('.t-perfil').textContent = d.perfil;
-                clone.querySelector('.t-coach').textContent = d.coach;
-                
-                const badge = clone.querySelector('.t-promedio');
-                badge.textContent = avg;
-                if (avg >= 4.0) badge.className += ' text-green-700 bg-green-50'; 
-                else if (avg >= 3.0) badge.className += ' text-yellow-700 bg-yellow-50'; 
-                else badge.className += ' text-red-700 bg-red-50';
+        State.currentRendered += nextBatch.length;
+        const remaining = data.length - State.currentRendered;
 
-                clone.querySelector('.t-sugerencias').textContent = d.sugerencias || 'Sin comentarios';
-
-                const btnEdit = clone.querySelector('.btn-edit'); 
-                const btnDelete = clone.querySelector('.btn-delete');
-                if(btnEdit) btnEdit.onclick = () => App.openEditRegistroModal(d.id);
-                if(btnDelete) btnDelete.onclick = () => App.deleteRegistroIndividual(d.id);
-
-                if(State.currentUserRole !== 'admin') { clone.querySelectorAll('.col-admin-only').forEach(col => col.remove()); }
-
-                tBody.appendChild(clone);
-            });
-
-            State.currentRendered += subLoteRender.length;
-            if(paginationContainer) {
-                if (endIdx < datasetFiltradoLocal.length) { 
-                    paginationContainer.classList.remove('hidden'); 
-                    document.getElementById('count_restantes').textContent = `${datasetFiltradoLocal.length - State.currentRendered} restantes`; 
-                } else { 
-                    paginationContainer.classList.add('hidden'); 
-                }
-            }
-            this.populateRegistrosFilters();
-        } catch(error) {
-            console.error("Error en la paginación local elástica:", error);
+        if(paginationContainer) {
+            if (remaining > 0) { paginationContainer.classList.remove('hidden'); document.getElementById('count_restantes').textContent = remaining; } 
+            else { paginationContainer.classList.add('hidden'); }
         }
     },
 
-    loadMoreRegistros: function() { 
-        this.renderRegistrosTable(false); 
+    loadMoreRegistros: function() { this.renderRegistrosTable(false); },
+
+    deleteRegistroIndividual: async function(id) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+        if(!confirm("¿Estás seguro que deseas ELIMINAR este registro de la base de datos?")) return;
+        try {
+            await deleteDoc(doc(db, "encuestas", id));
+            State.encuestasData = State.encuestasData.filter(d => d.id !== id);
+            State.selectedRegistros.delete(id);
+            this.updateBulkActionBar(); this.updateDashboard(); 
+            alert("Registro eliminado.");
+        } catch(e) { alert("Error al eliminar el registro."); console.error(e); }
+    },
+
+    openEditRegistroModal: function(id) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
+        const registro = safeEncuestas.find(d => d.id === id);
+        if(!registro) return;
+
+        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
+        
+        let coachOptions = '<option value="">Seleccione...</option>'; 
+        const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
+        [...new Set(safeCoaches.map(c => c.nombre))].sort().forEach(c => coachOptions += `<option value="${c}" ${registro.coach === c ? 'selected' : ''}>${c}</option>`);
+
+        let colOptions = '<option value="">Seleccione...</option>'; 
+        [...new Set(safeColegios.map(c => c.colegio))].sort().forEach(c => colOptions += `<option value="${c}" ${registro.colegio === c ? 'selected' : ''}>${c}</option>`);
+
+        // Extraer regional actual (si tiene un override en la encuesta, usamos esa, sino la de la DB de colegios)
+        const colEncontrado = safeColegios.find(c => (c.colegio || "").toUpperCase() === (registro.colegio || "").toUpperCase());
+        const currentRegional = registro.regional || (colEncontrado ? colEncontrado.regional : '');
+        let regOptions = '<option value="">Sin Regional</option>';
+        [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => regOptions += `<option value="${r}" ${currentRegional === r ? 'selected' : ''}>${r}</option>`);
+
+        this.showModal("Editar Registro", `
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-xs font-bold text-gray-500">Colegio</label><select id="edit_reg_colegio" class="w-full border rounded-xl px-3 py-2 text-sm">${colOptions}</select></div>
+                    <div><label class="text-xs font-bold text-gray-500">Coach Asignado</label><select id="edit_reg_coach" class="w-full border rounded-xl px-3 py-2 text-sm">${coachOptions}</select></div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div><label class="text-xs font-bold text-gray-500">Regional (Override)</label><select id="edit_reg_regional" class="w-full border rounded-xl px-3 py-2 text-sm">${regOptions}</select></div>
+                    <div><label class="text-xs font-bold text-gray-500">Perfil</label>
+                    <select id="edit_reg_perfil" class="w-full border rounded-xl px-3 py-2 text-sm">
+                        <option value="Docente" ${registro.perfil === 'Docente' ? 'selected' : ''}>Docente</option>
+                        <option value="Directivo" ${registro.perfil === 'Directivo' ? 'selected' : ''}>Directivo</option>
+                    </select></div>
+                    <div><label class="text-xs font-bold text-gray-500">Asistente</label><input type="text" id="edit_reg_asistente" value="${registro.asistente || ''}" class="w-full border rounded-xl px-3 py-2 text-sm"></div>
+                </div>
+                <div class="grid grid-cols-4 gap-2 border-t pt-4">
+                    <div><label class="text-[10px] font-bold text-gray-500">Q6</label><input type="number" id="edit_reg_q6" value="${registro.q6 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Q7</label><input type="number" id="edit_reg_q7" value="${registro.q7 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Q8</label><input type="number" id="edit_reg_q8" value="${registro.q8 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                    <div><label class="text-[10px] font-bold text-gray-500">Q9</label><input type="number" id="edit_reg_q9" value="${registro.q9 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
+                </div>
+            </div>
+        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button type="button" onclick="App.saveEditRegistroIndividual('${id}')" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold shadow-md">Guardar Cambios</button>`);
+    },
+
+    saveEditRegistroIndividual: async function(id) {
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+
+        const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
+        const dataActualizada = { 
+            colegio: document.getElementById('edit_reg_colegio').value, 
+            coach: document.getElementById('edit_reg_coach').value, 
+            regional: document.getElementById('edit_reg_regional').value, 
+            perfil: document.getElementById('edit_reg_perfil').value, 
+            asistente: document.getElementById('edit_reg_asistente').value, 
+            q6: parseFloat(document.getElementById('edit_reg_q6').value) || 0, 
+            q7: parseFloat(document.getElementById('edit_reg_q7').value) || 0, 
+            q8: parseFloat(document.getElementById('edit_reg_q8').value) || 0, 
+            q9: parseFloat(document.getElementById('edit_reg_q9').value) || 0 
+        };
+
+        try {
+            await setDoc(doc(db, "encuestas", id), dataActualizada, { merge: true });
+            const index = State.encuestasData.findIndex(d => d.id === id);
+            if(index !== -1) State.encuestasData[index] = { ...State.encuestasData[index], ...dataActualizada };
+            this.hideModal(); this.updateDashboard(); alert("Cambio guardado.");
+        } catch (error) { alert("Error al guardar."); console.error(error); btn.disabled = false; btn.innerText = "Guardar Cambios"; }
     },
 
     exportToExcel: function() {
-        const list = State.filteredEncuestas;
+        const list = State.registrosFiltrados && State.registrosFiltrados.length > 0 ? State.registrosFiltrados : State.filteredEncuestas;
         if (!list || list.length === 0) { alert("No hay datos para exportar."); return; }
         const data = list.map(d => {
             let f = "Sin Fecha"; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${(o.getMonth() + 1)}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim();
-            const rowData = { id: d.id, fecha: f, ciclo: d.ciclo, regional: d.regional || 'Sin Regional', colegio: d.colegio };
-            if(State.currentUserRole === 'admin') rowData.asistente = d.asistente || 'Anónimo';
-            return { ...rowData, perfil: d.perfil, coach: d.coach, numTaller: d.numTaller, taller: d.taller, q6: d.q6, q7: d.q7, q8: d.q8, q9: d.q9, sugerencias: d.sugerencias };
+            return { id: d.id, fecha: f, ciclo: d.ciclo, regional: d.regional || 'Sin Regional', colegio: d.colegio, asistente: d.asistente, perfil: d.perfil, coach: d.coach, numTaller: d.numTaller, taller: d.taller, q6: d.q6, q7: d.q7, q8: d.q8, q9: d.q9, sugerencias: d.sugerencias };
         });
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reporte"); XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
     },
 
-    showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm font-medium text-gray-600"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento académico.</p><div class="bg-green-50 p-4 rounded-xl text-green-800 font-bold border border-green-100">Colegios AAA: Meta de 6 talleres<br>Colegios Ri: Meta de 4 talleres<br>Colegios AA: Meta de 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl text-xs font-bold">Entendido</button>'); },
-    showExcelenciaExplanation: function() { App.showModal('Sobre el Índice de Excelencia', `<div class="space-y-4 text-sm font-medium text-gray-600"><p>Representa el porcentaje total de calificaciones sobresalientes (notas de 4.0 y 5.0) asignadas por los profesores en las dimensiones evaluadas.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl text-xs font-bold">Entendido</button>'); },
+    showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento.</p><div class="bg-green-50 p-4 rounded-xl">Colegios AAA: 6 talleres | Colegios Ri: 4 talleres | Colegios AA: 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl">Entendido</button>'); },
+    showExcelenciaExplanation: function() { App.showModal('Sobre el Índice de Excelencia', `<div class="space-y-4 text-sm"><p>Porcentaje de calificaciones 4 y 5 en la encuesta.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl">Entendido</button>'); },
     
     mostrarEstadoCobertura: function() {
-        const colF = document.getElementById('filter_colegio')?.value || ""; 
+        const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : (State.loginUser?.nombre || "");
+        const regF = document.getElementById('filter_regional')?.value || ""; 
         const calF = document.getElementById('filter_calendario')?.value || ""; 
         const clasF = document.getElementById('filter_clasificacion')?.value || "";
         const lineaNodes = document.querySelectorAll('.linea-cb:checked'); 
         const lineasF = lineaNodes ? Array.from(lineaNodes).map(cb => cb.value) : [];
 
         let colegiosAsignados = (State.colegiosBD || []).filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
-        if(State.selectedRegionales.length > 0) colegiosAsignados = colegiosAsignados.filter(c => State.selectedRegionales.includes(c.regional));
-        if(State.selectedCoaches.length > 0) colegiosAsignados = colegiosAsignados.filter(c => State.selectedCoaches.includes(c.coach));
-        if(colF) colegiosAsignados = colegiosAsignados.filter(c => c.colegio === colF);
+        if(regF) colegiosAsignados = colegiosAsignados.filter(c => c.regional === regF);
+        if(coachF) colegiosAsignados = colegiosAsignados.filter(c => c.coach === coachF);
         if(calF) colegiosAsignados = colegiosAsignados.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
-        if(clasF) colegiosAsignados = colegiosAsignados.filter(c => c.clasificacion && c.clasificacion.trim() === clasF);
+        if(clasF) colegiosAsignados = colegiosAsignados.filter(c => c.clasificacion === clasF);
         if(lineasF.length > 0) colegiosAsignados = colegiosAsignados.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
 
         const encuestasActuales = State.filteredEncuestas || [];
@@ -944,7 +844,7 @@ window.App = {
             grouped[reg].push({ nombre: c.colegio, coach: c.coach, atendido: atendido });
         });
 
-        let bodyHtml = `<div class="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar text-left">`;
+        let bodyHtml = `<div class="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">`;
         
         if (Object.keys(grouped).length === 0) {
             bodyHtml += `<p class="text-sm text-gray-500 italic text-center py-8">No hay colegios asignados bajo estos filtros.</p>`;
@@ -978,6 +878,7 @@ window.App = {
                             ${icon}
                             <span class="text-xs font-bold ${textStyle} truncate" title="${c.nombre}">${c.nombre}</span>
                         </div>
+                        ${State.currentUserRole === 'admin' && !coachF ? `<span class="text-[9px] text-gray-500 ml-6 mt-0.5"><i class="fa-solid fa-user-tie opacity-50 mr-1"></i>${c.coach}</span>` : ''}
                     </div>`;
                 });
                 bodyHtml += `</div></div>`;
@@ -985,7 +886,7 @@ window.App = {
         }
         bodyHtml += `</div>`;
 
-        App.showModal(`Estado de Cobertura Escolar`, bodyHtml, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-xs transition-colors hover:bg-blue-900">Cerrar Panel</button>`);
+        App.showModal(`Estado de Cobertura`, bodyHtml, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold transition-colors hover:bg-blue-900">Cerrar Panel</button>`);
     },
 
     submitForm: async function(e) {
@@ -993,38 +894,16 @@ window.App = {
         const inputColegio = document.getElementById('q1_colegio').value;
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         if (!safeColegios.some(c => c.colegio === inputColegio)) { alert("⚠️ Por favor, selecciona un colegio válido de la lista desplegable."); return; }
-        
         const btn = document.getElementById('btnSubmitForm'); btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Guardando...';
-        
-        const colInfo = safeColegios.find(c => c.colegio === inputColegio);
-        const autoRegional = colInfo ? colInfo.regional : 'Sin Regional';
-
-        const formData = { 
-            fecha: new Date().toLocaleDateString('es-CO'), 
-            timestamp: Date.now(), 
-            ciclo: document.getElementById('q0_ciclo').value, 
-            colegio: inputColegio, 
-            regional: autoRegional,
-            asistente: document.getElementById('q3_asistente').value, 
-            perfil: document.querySelector('input[name="q2_perfil"]:checked').value, 
-            coach: document.getElementById('q4_coach').value, 
-            numTaller: document.getElementById('q4_numTaller').value, 
-            taller: document.getElementById('q5_taller').value, 
-            q6: parseInt(document.querySelector('input[name="q6"]:checked').value), 
-            q7: parseInt(document.querySelector('input[name="q7"]:checked').value), 
-            q8: parseInt(document.querySelector('input[name="q8"]:checked').value), 
-            q9: parseInt(document.querySelector('input[name="q9"]:checked').value), 
-            sugerencias: document.getElementById('q10_sugerencias').value 
-        };
-
+        const formData = { fecha: new Date().toLocaleDateString('es-CO'), timestamp: Date.now(), ciclo: document.getElementById('ciclo').value, colegio: inputColegio, asistente: document.getElementById('q2_asistente').value, perfil: document.querySelector('input[name="q3_perfil"]:checked').value, coach: document.getElementById('q4_coach').value, numTaller: document.getElementById('q5_numTaller').value, taller: document.getElementById('q5_taller').value, q6: parseInt(document.querySelector('input[name="q6"]:checked').value), q7: parseInt(document.querySelector('input[name="q7"]:checked').value), q8: parseInt(document.querySelector('input[name="q8"]:checked').value), q9: parseInt(document.querySelector('input[name="q9"]:checked').value), sugerencias: document.getElementById('q10_sugerencias').value };
         try {
-            await addDoc(collection(db, "encuestas"), formData); 
+            const docRef = await addDoc(collection(db, "encuestas"), formData); 
+            if(Array.isArray(State.encuestasData)) State.encuestasData.push({ id: docRef.id, ...formData });
             document.getElementById('encuestaForm').reset(); document.getElementById('successMsg').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
-            setTimeout(() => document.getElementById('successMsg').classList.add('hidden'), 6000);
-            
-            State.encuestasLoaded = false; 
-            if (State.currentUserRole !== null) { await fetchEncuestas(); App.handleFilterTrigger(); } 
-        } catch (error) { alert("Hubo un error guardando la encuesta. Intenta de nuevo."); } finally { btn.disabled = false; btn.innerHTML = 'Enviar Respuestas'; }
+            setTimeout(() => document.getElementById('successMsg').classList.add('hidden'), 5000);
+            try { const resumenRef = doc(db, "metricas", "resumen_global"); await updateDoc(resumenRef, { total_encuestas: increment(1) }); } catch (e) { if (e.code === 'not-found') await setDoc(doc(db, "metricas", "resumen_global"), { total_encuestas: 1 }); }
+            if (State.currentUserRole) App.handleFilterTrigger(); 
+        } catch (error) { alert("Hubo un error guardando la encuesta. Intenta de nuevo."); } finally { btn.disabled = false; btn.innerHTML = '<span>Enviar Feedback</span>'; }
     },
 
     handleColegioInput: function() {
@@ -1032,78 +911,18 @@ window.App = {
         if(!val) { list.classList.add('hidden'); return; }
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         const matches = safeColegios.filter(c => (c.colegio || '').toLowerCase().includes(val)).slice(0, 10);
-        if(matches.length > 0) { 
-            matches.forEach(m => { 
-                const li = document.createElement('div'); 
-                li.className = 'px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b flex justify-between items-center'; 
-                li.innerHTML = `<span>${m.colegio}</span> <span class="text-[10px] text-gray-400 font-bold">${m.regional}</span>`; 
-                
-                li.onclick = () => { 
-                    document.getElementById('q1_colegio').value = m.colegio; 
-                    const coachSelect = document.getElementById('q4_coach');
-                    if(coachSelect && m.coach) coachSelect.value = m.coach; 
-                    list.classList.add('hidden'); 
-                }; 
-                list.appendChild(li); 
-            }); 
-            list.classList.remove('hidden'); 
-        } else list.classList.add('hidden');
+        if(matches.length > 0) { matches.forEach(m => { const li = document.createElement('li'); li.className = 'px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b flex justify-between'; li.innerHTML = `<span>${m.colegio}</span> <span class="text-[10px] text-gray-400 font-bold">${m.regional}</span>`; li.onclick = () => { document.getElementById('q1_colegio').value = m.colegio; document.getElementById('q4_coach').value = m.coach; list.classList.add('hidden'); }; list.appendChild(li); }); list.classList.remove('hidden'); } else list.classList.add('hidden');
     },
 
-    poblarCoaches: function() { 
-        const sel = document.getElementById('q4_coach'); 
-        if(sel) { 
-            sel.innerHTML = '<option value="" disabled selected>Seleccione Coach...</option>'; 
-            const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : []; 
-            [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`); 
-        } 
-    },
-
-    openImportModal: function() { this.showModal("Sincronizar Datos Masivos", `<div class="p-2 text-center"><p class="text-xs text-gray-500 mb-4 font-medium">Puedes descargar la plantilla oficial estructurada o subir directamente un archivo .xlsx para mapear documentos nuevos o actualizar preexistentes.</p><div class="flex gap-4 pt-2"><button type="button" onclick="App.downloadEncuestaTemplate()" class="flex-1 py-3 bg-gray-100 transition-colors font-bold rounded-xl text-xs text-gray-700"><i class="fa-solid fa-file-arrow-down mr-1"></i> Plantilla Base</button><button type="button" onclick="document.getElementById('fileImportEncuestas').click(); App.hideModal();" class="flex-1 py-3 bg-[#002C5F] text-white font-bold rounded-xl text-xs"><i class="fa-solid fa-file-excel mr-1"></i> Subir Archivo</button></div></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl text-xs font-bold text-gray-600">Cerrar</button>`); },
-    downloadEncuestaTemplate: function() { const ws = XLSX.utils.json_to_sheet([{ id: "DEJAR_VACIO_NUEVO_REGISTRO", fecha: new Date().toLocaleDateString('es-CO'), ciclo: "Ambientes de Aprendizaje", regional: "Bogota Centro", colegio: "COLEGIO DE EJEMPLO", asistente: "Profesor Ejemplo", perfil: "Docente", coach: "Coach Asignado", numTaller: "Taller 1", taller: "Temática Didáctica", q6: 5, q7: 5, q8: 4, q9: 5, sugerencias: "Excelente espacio académico." }]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Encuestas"); XLSX.writeFile(wb, "Plantilla_Encuestas_Santillana.xlsx"); },
+    poblarCoaches: function() { const sel = document.getElementById('q4_coach'); if(sel) { sel.innerHTML = '<option value="">Seleccione coach...</option>'; const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : []; [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`); } },
+    openImportModal: function() { this.showModal("Importar", `<div class="flex gap-4 pt-2"><button type="button" onclick="App.downloadEncuestaTemplate()" class="flex-1 py-3 bg-gray-100 rounded-xl">Plantilla</button><button type="button" onclick="document.getElementById('fileImportEncuestas').click()" class="flex-1 py-3 bg-[#002C5F] text-white rounded-xl">Subir Excel</button></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl">Cerrar</button>`); },
+    downloadEncuestaTemplate: function() { const ws = XLSX.utils.json_to_sheet([{ id: "DEJAR_VACIO_NUEVO_REGISTRO", fecha: new Date().toLocaleDateString('es-CO'), ciclo: "Ciclo Inclusión", colegio: "COLEGIO DE EJEMPLO", asistente: "Juan", perfil: "Docente", coach: "Coach X", numTaller: "Taller 1", taller: "Tema Y", q6: 5, q7: 4, q8: 5, q9: 5, sugerencias: "Buen taller." }]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Encuestas"); XLSX.writeFile(wb, "Plantilla_Encuestas.xlsx"); },
+    clearData: async function() { if(!confirm("⚠️ PELIGRO: ¿Borrar todas las encuestas en la nube?")) return; try { const btn = document.getElementById('btn_clear_data'); btn.innerText = "Borrando..."; btn.disabled = true; const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : []; for(const enc of safeEncuestas) await deleteDoc(doc(db, "encuestas", enc.id)); State.encuestasData = []; State.filteredEncuestas = []; this.updateDashboard(); alert("Borradas."); } catch(e) { alert("Error"); } finally { document.getElementById('btn_clear_data').innerHTML = 'Borrar Todo'; document.getElementById('btn_clear_data').disabled = false; } },
     showModal: function(title, body, footer) { document.getElementById('modalHeader').innerText = title; document.getElementById('modalBody').innerHTML = body; document.getElementById('modalFooter').innerHTML = footer; document.getElementById('customModal').classList.remove('hidden'); },
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
+    switchDashSubTab: function(id) { ['subTabResultados', 'subTabRegistros', 'subTabEdicion'].forEach(t => { const el = document.getElementById(t); if(el) el.classList.add('hidden'); }); const target = document.getElementById(`subTab${id.charAt(0).toUpperCase() + id.slice(1)}`); if(target) target.classList.remove('hidden'); ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion'].forEach(b => { const btn = document.getElementById(b); if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50"; }); const activeBtn = document.getElementById(`btn-sub-${id}`); if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white"; const edContainer = document.getElementById('edicionTableContainer'); if(id === 'edicion' && edContainer) edContainer.classList.add('hidden'); },
     
-    openEditView: function(tipo) {
-        if (State.currentUserRole === null) { alert("Acceso restringido. Por favor autentíquese."); return; }
-        if (State.currentUserRole === 'coach' && tipo === 'coaches') { tipo = 'colegios'; }
-
-        State.currentEdicionView = tipo;
-        document.querySelectorAll('.subtab-btn-master').forEach(el => el.className = "subtab-btn-master px-4 py-2 text-xs font-black rounded-xl text-gray-400 hover:text-gray-600 transition-all");
-        
-        const activeSubBtn = document.getElementById('subbtn-' + tipo);
-        if (activeSubBtn) activeSubBtn.className = "subtab-btn-master px-4 py-2 text-xs font-black rounded-xl bg-gray-200 text-[#002C5F]";
-
-        document.getElementById('txt_edicion_title').innerText = tipo === 'colegios' ? 'Maestro de Instituciones Aliadas' : 'Estructura de Seguridad de Coaches';
-        document.getElementById('edicionTableContainer').classList.remove('hidden'); 
-        
-        if(tipo === 'colegios') {
-            document.getElementById('edicion_filters')?.classList.remove('hidden');
-            App.refreshEdicionFilters();
-        } else {
-            document.getElementById('edicion_filters')?.classList.add('hidden');
-        }
-
-        App.renderActiveEdicionTable();
-    },
-
-    switchDashSubTab: function(id) { 
-        ['subTabResultados', 'subTabRegistros', 'subTabEdicion'].forEach(t => { const el = document.getElementById(t); if(el) el.classList.add('hidden'); }); 
-        const target = document.getElementById(`subTab${id.charAt(0).toUpperCase() + id.slice(1)}`); if(target) target.classList.remove('hidden'); 
-        
-        ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion'].forEach(b => { const btn = document.getElementById(b); if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50"; }); 
-        const activeBtn = document.getElementById(`btn-sub-${id}`); if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white"; 
-        
-        const edContainer = document.getElementById('edicionTableContainer'); if(id !== 'edicion' && edContainer) edContainer.classList.add('hidden'); 
-        if(id === 'registros') this.renderRegistrosTable(true);
-        
-        // PUNTO 3: Ocultar tabla inicial de bases fijas al ingresar por orden on-demand
-        if(id === 'edicion') {
-            document.getElementById('edicionTableContainer')?.classList.add('hidden');
-            document.querySelectorAll('.subtab-btn-master').forEach(el => el.className = "subtab-btn-master px-4 py-2 text-xs font-black rounded-xl text-gray-400 hover:text-gray-600 transition-all");
-        }
-    },
-
+    handleEdicionFilterTrigger: function() { this.refreshEdicionFilters(); this.renderActiveEdicionTable(); },
     refreshEdicionFilters: function() {
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         let base = safeColegios.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
@@ -1112,7 +931,15 @@ window.App = {
         updateDropdown(regEl, [...new Set(base.map(c => c.regional).filter(Boolean))].sort(), 'Todas las Regionales', regEl?.value);
         updateDropdown(coachEl, [...new Set(base.map(c => c.coach).filter(Boolean))].sort(), 'Todos los Coaches', coachEl?.value);
     },
-
+    openEditView: function(view) {
+        State.currentEdicionView = view;
+        const edContainer = document.getElementById('edicionTableContainer'); const sEdicion = document.getElementById('search_edicion');
+        if(edContainer) edContainer.classList.remove('hidden'); if(sEdicion) sEdicion.value = ''; 
+        const titleEl = document.getElementById('edicionTableTitle'); const filtersEl = document.getElementById('edicion_filters');
+        if(view === 'colegios') { if(titleEl) titleEl.innerHTML = '<i class="fa-solid fa-school mr-2"></i> Colegios'; if(filtersEl) filtersEl.classList.remove('hidden'); this.handleEdicionFilterTrigger(); } 
+        else { if(titleEl) titleEl.innerHTML = '<i class="fa-solid fa-user-tie mr-2"></i> Coaches'; if(filtersEl) filtersEl.classList.add('hidden'); this.renderActiveEdicionTable(); }
+        if(edContainer) edContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
     renderActiveEdicionTable: function() {
         const head = document.getElementById('edicion_head'); const body = document.getElementById('edicion_body');
         if(!head || !body) return;
@@ -1120,76 +947,50 @@ window.App = {
         
         if(State.currentEdicionView === 'colegios') {
             const regVal = document.getElementById('edicion_filter_regional')?.value || ""; const coachVal = document.getElementById('edicion_filter_coach')?.value || "";
-            head.innerHTML = `<tr><th class="px-6 py-4 text-left">Colegio</th><th class="px-6 py-4 text-left">Regional</th><th class="px-6 py-4 text-left">Coach</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
-            
-            // PUNTO 3: Filtrado estricto adaptado para que a LUISA solo le salgan sus colegios aliados
-            let fuenteColegios = [...State.colegiosBD];
-            if (State.currentUserRole === 'coach') {
-                fuenteColegios = fuenteColegios.filter(c => c.coach.toLowerCase() === State.loginUser.nombre.toLowerCase());
-            }
-
-            fuenteColegios.forEach((c, idx) => { 
-                if ((searchVal === '' || (c.colegio||'').toLowerCase().includes(searchVal)) && (regVal === '' || c.regional === regVal) && (coachVal === '' || c.coach === coachVal)) { 
-                    const actionButtons = State.currentUserRole === 'admin' ? `
-                        <button type="button" onclick="App.openEditColegioModal(${idx})" class="text-blue-500 mx-2 text-xs"><i class="fa-solid fa-pen"></i></button>
-                        <button type="button" onclick="App.deleteColegio(${idx})" class="text-red-500 mx-2 text-xs"><i class="fa-solid fa-trash"></i></button>
-                    ` : `<span class="text-xs text-gray-400 font-bold italic"><i class="fa-solid fa-lock mr-1 opacity-60"></i>Lectura protegida</span>`;
-
-                    body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold text-gray-700 text-xs">${c.colegio}</td><td class="px-6 py-4 text-xs">${c.regional}</td><td class="px-6 py-4 text-xs">${c.coach}</td><td class="px-6 py-4 text-center whitespace-nowrap">${actionButtons}</td></tr>`; 
-                } 
-            });
+            head.innerHTML = `<tr><th class="px-6 py-4">Colegio</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
+            const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
+            safeColegios.forEach((c, idx) => { if ((searchVal === '' || (c.colegio||'').toLowerCase().includes(searchVal)) && (regVal === '' || c.regional === regVal) && (coachVal === '' || c.coach === coachVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold">${c.colegio}</td><td class="px-6 py-4">${c.regional}</td><td class="px-6 py-4">${c.coach}</td><td class="px-6 py-4 text-center"><button type="button" onclick="App.openEditColegioModal(${idx})" class="text-blue-500 mx-1"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteColegio(${idx})" class="text-red-500 mx-1"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
         } else {
-            head.innerHTML = `<tr><th class="px-6 py-4 text-left">Coach</th><th class="px-6 py-4 text-left">Email</th><th class="px-6 py-4 text-left">Regional</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
+            head.innerHTML = `<tr><th class="px-6 py-4">Coach</th><th class="px-6 py-4">Email</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
             const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
-            safeCoaches.forEach((c, idx) => { 
-                if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { 
-                    body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold text-gray-700 text-xs">${c.nombre}</td><td class="px-6 py-4 text-xs">${c.email}</td><td class="px-6 py-4 text-xs">${c.regional}</td><td class="px-6 py-4 text-center whitespace-nowrap"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-2 text-xs"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-2 text-xs"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
-                } 
-            });
+            safeCoaches.forEach((c, idx) => { if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold">${c.nombre}</td><td class="px-6 py-4">${c.email}</td><td class="px-6 py-4">${c.regional}</td><td class="px-6 py-4 text-center"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-1"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-1"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
         }
     },
-
-    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio de la base de datos maestra?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch(e) { alert("Error"); } },
-    deleteCoach: async function(idx) { if(!confirm("¿Borrar coach del sistema?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
-    
+    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteCoach: async function(idx) { if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
     openEditColegioModal: function(idx) {
         const isEdit = idx >= 0; const data = isEdit ? State.colegiosBD[idx] : { colegio: '', regional: '', coach: '', docentes: 0, calendario: 'A', lineaNegocio: 'Compartir', clasificacion: 'AA' };
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
         let regOptions = '<option value="">Seleccione Regional...</option>'; [...new Set(safeCoaches.map(c => c.regional))].sort().forEach(r => regOptions += `<option value="${r}" ${data.regional === r ? 'selected' : ''}>${r}</option>`);
-        this.showModal(isEdit ? "Editar Institución" : "Nuevo Colegio", `<div class="space-y-4 text-left"><div><label class="text-xs font-bold text-gray-500">Nombre del Colegio</label><input type="text" id="edit_col_nombre" value="${data.colegio}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold text-gray-500">Regional</label><select id="edit_col_reg" onchange="App.updateCoachOptionsEdit()" class="w-full border rounded-xl px-4 py-2 text-sm">${regOptions}</select></div><div><label class="text-xs font-bold text-gray-500">Coach Asignado</label><select id="edit_col_coach" class="w-full border rounded-xl px-4 py-2 text-sm"><option value="${data.coach || ''}">${data.coach || 'Seleccione...'}</option></select></div></div><div class="grid grid-cols-2 gap-4 border-t pt-4"><div><label class="text-[10px] font-bold text-gray-500">Meta Docentes</label><input type="number" id="edit_col_docentes" value="${data.docentes || 0}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div><label class="text-[10px] font-bold text-gray-500">Clasificación (AAA, RI, AA)</label><input type="text" id="edit_col_clasif" value="${data.clasificacion || ''}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div></div></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-sm">Cancelar</button><button type="button" onclick="App.saveEditColegio(${idx})" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-sm shadow-md">Guardar</button>`);
+        this.showModal(isEdit ? "Editar Institución" : "Nuevo Colegio", `<div class="space-y-4"><div><label class="text-xs font-bold">Nombre</label><input type="text" id="edit_col_nombre" value="${data.colegio}" class="w-full border rounded-xl px-4 py-2"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold">Regional</label><select id="edit_col_reg" onchange="App.updateCoachOptionsEdit()" class="w-full border rounded-xl px-4 py-2">${regOptions}</select></div><div><label class="text-xs font-bold">Coach</label><select id="edit_col_coach" class="w-full border rounded-xl px-4 py-2"><option value="${data.coach || ''}">${data.coach || 'Seleccione...'}</option></select></div></div><div class="grid grid-cols-2 gap-4 border-t pt-4"><div><label class="text-[10px] font-bold">Docentes</label><input type="number" id="edit_col_docentes" value="${data.docentes || 0}" class="w-full border rounded-xl px-4 py-2"></div><div><label class="text-[10px] font-bold">Clasificación</label><input type="text" id="edit_col_clasif" value="${data.clasificacion || ''}" class="w-full border rounded-xl px-4 py-2"></div></div></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl">Cancelar</button><button type="button" onclick="App.saveEditColegio(${idx})" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl">Guardar</button>`);
         if (isEdit) this.updateCoachOptionsEdit(data.coach);
     },
-
     openEditCoachModal: function(idx) {
-        const isEdit = idx >= 0; const data = isEdit ? State.coachesAuth[idx] : { nombre: '', email: '', regional: '', pass: '12345' };
-        this.showModal(isEdit ? "Editar Coach" : "Nuevo Coach", `<div class="space-y-4 text-left"><div><label class="text-xs font-bold text-gray-500">Nombre Completo</label><input type="text" id="edit_coach_nombre" value="${data.nombre}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div><label class="text-xs font-bold text-gray-500">Email Corporativo</label><input type="email" id="edit_coach_email" value="${data.email}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold text-gray-500">Regional Principal</label><input type="text" id="edit_coach_regional" value="${data.regional}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div><label class="text-xs font-bold text-gray-500">Contraseña Local</label><input type="text" id="edit_coach_pass" value="${data.pass || ''}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div></div></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-sm">Cancelar</button><button type="button" onclick="App.saveEditCoach(${idx})" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-sm shadow-md">Guardar</button>`);
+        const data = State.coachesAuth[idx];
+        this.showModal("Editar Coach", `<div class="space-y-4"><div><label class="text-xs font-bold">Nombre</label><input type="text" id="edit_coach_nombre" value="${data.nombre}" class="w-full border rounded-xl px-4 py-2"></div><div><label class="text-xs font-bold">Email</label><input type="email" id="edit_coach_email" value="${data.email}" class="w-full border rounded-xl px-4 py-2"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold">Regional</label><input type="text" id="edit_coach_regional" value="${data.regional}" class="w-full border rounded-xl px-4 py-2"></div><div><label class="text-xs font-bold">Contraseña</label><input type="text" id="edit_coach_pass" value="${data.pass || ''}" class="w-full border rounded-xl px-4 py-2"></div></div></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl">Cancelar</button><button type="button" onclick="App.saveEditCoach(${idx})" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl">Guardar</button>`);
     },
-
     updateCoachOptionsEdit: function(selectedCoach = '') {
         const reg = document.getElementById('edit_col_reg')?.value; const selCoach = document.getElementById('edit_col_coach'); if(!selCoach) return;
         selCoach.innerHTML = '<option value="">Seleccione Coach...</option>'; if (!reg) return; 
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : []; safeCoaches.filter(c => c.regional === reg).forEach(c => selCoach.innerHTML += `<option value="${c.nombre}" ${c.nombre === selectedCoach ? 'selected' : ''}>${c.nombre}</option>`);
     },
-
     saveEditColegio: async function(idx) {
-        const colData = { colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(), regional: document.getElementById('edit_col_reg').value, coach: document.getElementById('edit_col_coach').value, docentes: parseInt(document.getElementById('edit_col_docentes').value) || 0, clasificacion: document.getElementById('edit_col_clasif').value.trim().toUpperCase() };
-        if(!colData.colegio || !colData.regional || !colData.coach) { alert("Completa los campos obligatorios: Nombre, Regional y Coach."); return; }
-        try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); App.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
+        const colData = { colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(), regional: document.getElementById('edit_col_reg').value, coach: document.getElementById('edit_col_coach').value, docentes: parseInt(document.getElementById('edit_col_docentes').value) || 0, clasificacion: document.getElementById('edit_col_clasif').value.trim() };
+        if(!colData.colegio || !colData.regional || !colData.coach) { alert("Completa Nombre, Regional y Coach."); return; }
+        try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch (e) { alert("Error al guardar."); }
     },
-
     saveEditCoach: async function(idx) {
         const coachData = { nombre: document.getElementById('edit_coach_nombre').value.trim(), email: document.getElementById('edit_coach_email').value.trim().toLowerCase(), regional: document.getElementById('edit_coach_regional').value.trim(), pass: document.getElementById('edit_coach_pass').value.trim() };
-        if(!coachData.nombre || !coachData.email || !coachData.regional) { alert("Faltan datos de Coach obligatorios."); return; }
-        try { if(idx === -1) { const docRef = await addDoc(collection(db, "coaches"), coachData); State.coachesAuth.unshift({ id: docRef.id, ...coachData }); } else { const coachId = State.coachesAuth[idx].id; await setDoc(doc(db, "coaches", coachId), coachData); State.coachesAuth[idx] = { id: coachId, ...coachData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); } catch (e) { alert("Error al guardar."); }
+        if(!coachData.nombre || !coachData.email || !coachData.regional) { alert("Faltan datos."); return; }
+        try { const coachId = State.coachesAuth[idx].id; await setDoc(doc(db, "coaches", coachId), coachData); State.coachesAuth[idx] = { id: coachId, ...coachData }; localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
     },
-
     exportData: function(type) {
-        let data = type === 'colegios' ? State.colegiosBD : State.coachesAuth; 
-        if(State.currentUserRole === 'coach') data = data.filter(c => c.coach.toLowerCase() === State.loginUser.nombre.toLowerCase());
-        let sheetName = type === 'colegios' ? "Colegios_BD" : "Coaches_Auth";
+        let data = type === 'colegios' ? State.colegiosBD : State.coachesAuth; let sheetName = type === 'colegios' ? "Colegios_BD" : "Coaches_Auth";
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheetName); XLSX.writeFile(wb, `BaseDatos_${type}.xlsx`);
     }
 };
+
+function initRatings() { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const container = document.getElementById(`${q}_group`); if(container){ for(let i=1; i<=5; i++) container.innerHTML += `<label class="rating-label"><input type="radio" name="${q}" value="${i}" required><span class="text-xs mt-1">${i}</span></label>`; } }); }
 
 document.getElementById('fileImportColegios')?.addEventListener('change', (e) => {
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
@@ -1199,14 +1000,13 @@ document.getElementById('fileImportColegios')?.addEventListener('change', (e) =>
             const wb = XLSX.read(evt.target.result, {type: 'binary'}); let data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             for (const col of data) {
                 const cleanCol = { ...col }; delete cleanCol.id; 
-                if(cleanCol.colegio) cleanCol.colegio = String(cleanCol.colegio).toUpperCase().trim();
                 const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
                 const existingIdx = safeColegios.findIndex(c => (c.colegio || '').toLowerCase() === (cleanCol.colegio || '').toLowerCase());
                 if (existingIdx >= 0) { const docId = State.colegiosBD[existingIdx].id; await setDoc(doc(db, "colegios", docId), cleanCol); State.colegiosBD[existingIdx] = { id: docId, ...cleanCol }; } 
                 else { const docRef = await addDoc(collection(db, "colegios"), cleanCol); State.colegiosBD.push({ id: docRef.id, ...cleanCol }); }
             }
             localStorage.removeItem('santillana_cache_time');
-            App.hideModal(); if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable(); alert("Base actualizada."); App.poblarCoaches();
+            App.hideModal(); if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable(); alert("Base actualizada.");
         } catch(err) { App.hideModal(); alert("Error"); }
     }; reader.readAsBinaryString(file); e.target.value = null;
 });
@@ -1247,12 +1047,13 @@ document.getElementById('fileImportEncuestas')?.addEventListener('change', (e) =
                     const docRef = await addDoc(collection(db, "encuestas"), cleanRow); State.encuestasData.push({ id: docRef.id, ...cleanRow });
                 }
             }
-            App.hideModal(); State.encuestasLoaded = false; await fetchEncuestas(); App.handleFilterTrigger(); alert(`Sincronización completada.`);
+            App.hideModal(); App.handleFilterTrigger(); alert(`Sincronización completada.`);
         } catch(error) { App.hideModal(); alert("Error procesando excel."); }
     }; reader.readAsBinaryString(file); e.target.value = null; 
 });
 
 window.onload = async () => {
+    initRatings();
     await initApp(); 
 
     window.addEventListener('click', function(e) {
@@ -1268,20 +1069,5 @@ window.onload = async () => {
         if (dropMeses && btnMeses && !dropMeses.contains(e.target) && !btnMeses.contains(e.target)) {
             dropMeses.classList.add('hidden'); dropMeses.setAttribute('aria-hidden', 'true'); if(btnMeses) btnMeses.setAttribute('aria-expanded', 'false');
         }
-        
-        const dropCoachesList = document.getElementById('dropdown_coaches_list'); const btnCoaches = document.getElementById('btn_dropdown_coaches');
-        if (dropCoachesList && btnCoaches && !dropCoachesList.contains(e.target) && !btnCoaches.contains(e.target)) {
-            dropCoachesList.classList.add('hidden');
-        }
-
-        // Cierre elástico de nuevos multiselects complementarios
-        const dropReg = document.getElementById('dropdown_regionales_list'); const btnReg = document.getElementById('btn_dropdown_regionales');
-        if (dropReg && btnReg && !dropReg.contains(e.target) && !btnReg.contains(e.target)) dropReg.classList.add('hidden');
-
-        const dropCal = document.getElementById('dropdown_calendarios_list'); const btnCal = document.getElementById('btn_dropdown_calendarios');
-        if (dropCal && btnCal && !dropCal.contains(e.target) && !btnCal.contains(e.target)) dropCal.classList.add('hidden');
-
-        const dropClas = document.getElementById('dropdown_clasificaciones_list'); const btnClas = document.getElementById('btn_dropdown_clasificaciones');
-        if (dropClas && btnClas && !dropClas.contains(e.target) && !btnClas.contains(e.target)) dropClas.classList.add('hidden');
     });
 };

@@ -18,107 +18,106 @@
 
     <nav class="bg-white shadow-md sticky top-0 z-40">
         <div class="max-w-[1600px] w-[98%] mx-auto px-4">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center space-x-8">
-                    <div class="flex-shrink-0 flex items-center space-x-3 cursor-pointer" onclick="App.switchTab('formTab')">
-                        <img src="Logo-santillana.svg" alt="Santillana" class="h-8 w-auto">
-                        <div class="h-6 w-[1px] bg-gray-200 hidden sm:block"></div>
-                        <span class="text-[10px] font-bold tracking-widest text-[#002C5F] uppercase hidden sm:block leading-tight">Consultoría<br><span class="text-[#FF5A00]">Académica</span></span>
+            <div class="flex justify-between h-20">
+                <div class="flex items-center gap-8">
+                    <div class="flex-shrink-0">
+                        <img src="https://static.wixstatic.com/media/d57e78_219ec29b27f94a2387b75dc63be7ec3a~mv2.png" alt="Santillana" class="h-10 object-contain">
                     </div>
-                    <div class="hidden md:flex space-x-1 h-full pt-2">
-                        <button onclick="App.switchTab('formTab')" id="btn-formTab" class="tab-btn px-4 h-full border-b-2 border-transparent text-gray-500 hover:text-gray-700 text-sm font-semibold transition-all tab-active">Encuesta</button>
-                        <button onclick="App.switchTab('dashTab')" id="btn-dashTab" class="tab-btn px-4 h-full border-b-2 border-transparent text-gray-500 hover:text-gray-700 text-sm font-semibold transition-all hidden">Dashboard</button>
-                        <button onclick="App.switchTab('edicionTab')" id="btn-coachTab" class="tab-btn px-4 h-full border-b-2 border-transparent text-gray-500 hover:text-gray-700 text-sm font-semibold transition-all hidden">Bases del Sistema</button>
+                    <div class="hidden md:flex space-x-6 h-full">
+                        <button onclick="App.switchTab('formTab')" id="btn-formTab" class="tab-active text-gray-600 hover:text-orange-600 inline-flex items-center px-1 pt-1 text-sm font-semibold transition-colors">
+                            <i class="fa-solid fa-clipboard-list mr-2"></i> Encuesta
+                        </button>
+                        <button onclick="App.attemptLogin('admin')" id="btn-dashTab" class="text-gray-600 hover:text-orange-600 inline-flex items-center px-1 pt-1 text-sm font-semibold transition-colors">
+                            <i class="fa-solid fa-chart-line mr-2"></i> Dashboard
+                        </button>
+                        <button onclick="App.attemptLogin('coach')" id="btn-coachTab" class="text-gray-600 hover:text-orange-600 inline-flex items-center px-1 pt-1 text-sm font-semibold transition-colors">
+                            <i class="fa-solid fa-user-tie mr-2"></i> Coach
+                        </button>
                     </div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <div id="login-trigger-container">
-                        <button onclick="App.openLoginModal('coach')" class="px-5 py-2 bg-[#002C5F] text-white text-sm font-bold rounded-xl hover:bg-[#001f44] transition-all shadow-sm">Ingreso Interno</button>
+                <div id="user-controls" class="hidden items-center gap-4 text-[#002C5F]">
+                    <div class="hidden lg:flex flex-col items-end mr-2">
+                        <span id="nav-user-name" class="text-xs font-bold leading-none">Usuario</span>
+                        <span id="nav-user-role" class="text-[10px] text-gray-500 uppercase tracking-tighter">Rol</span>
                     </div>
-                    <div id="user-controls" class="hidden flex items-center space-x-3 bg-gray-50 px-4 py-1.5 rounded-2xl border border-gray-100">
-                        <div class="w-8 h-8 rounded-xl bg-[#FF5A00]/10 flex items-center justify-center text-[#FF5A00] font-black text-sm" id="user-avatar">U</div>
-                        <div class="text-left">
-                            <p class="text-xs font-black text-gray-700 leading-tight" id="nav-user-name">Usuario</p>
-                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" id="nav-user-role">Rol</p>
-                        </div>
-                        <div class="h-6 w-[1px] bg-gray-200 mx-1"></div>
-                        <button onclick="App.openChangePasswordModal()" class="text-gray-400 hover:text-gray-600 text-xs font-bold px-1" title="Cambiar Contraseña">
-                            <i class="fa-solid fa-key"></i>
-                        </button>
-                        <button onclick="App.logout()" class="text-red-500 hover:text-red-700 text-xs font-bold px-1" title="Cerrar Sesión">
-                            <i class="fa-solid fa-right-from-bracket"></i>
-                        </button>
-                    </div>
+                    <button onclick="App.openChangePasswordModal()" title="Cambiar Contraseña" class="p-2 text-gray-400 hover:text-orange-500 transition-colors">
+                        <i class="fa-solid fa-key text-lg"></i>
+                    </button>
+                    <button onclick="App.logout()" title="Cerrar Sesión" class="p-2 text-red-400 hover:text-red-600 transition-colors">
+                        <i class="fa-solid fa-power-off text-lg"></i>
+                    </button>
                 </div>
             </div>
+        </div>
+        <div class="md:hidden flex border-t bg-gray-50 overflow-x-auto no-scrollbar">
+            <button onclick="App.switchTab('formTab')" class="flex-1 py-3 px-4 text-xs font-bold text-center border-r">ENCUESTA</button>
+            <button onclick="App.attemptLogin('admin')" class="flex-1 py-3 px-4 text-xs font-bold text-center border-r">ADMIN</button>
+            <button onclick="App.attemptLogin('coach')" class="flex-1 py-3 px-4 text-xs font-bold text-center">COACH</button>
         </div>
     </nav>
 
     <main class="max-w-[1600px] w-[98%] mx-auto px-4 py-8">
         
-        <div id="formTab" class="tab-content max-w-3xl mx-auto">
-            <div id="successMsg" class="hidden mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-2xl flex items-center space-x-3 animate-in fade-in duration-300">
-                <i class="fa-solid fa-circle-check text-xl text-green-500"></i>
-                <span class="text-sm font-bold">¡Muchas gracias! Tus respuestas han sido enviadas de forma exitosa al equipo pedagógico.</span>
-            </div>
-
-            <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-                <div class="p-8 sm:p-12 bg-gradient-to-r from-[#002C5F] to-[#004085] text-white relative">
-                    <div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-                        <i class="fa-solid fa-graduation-cap text-9xl"></i>
-                    </div>
-                    <h1 class="text-3xl sm:text-4xl font-black tracking-tight mb-3">Evaluación del taller</h1>
-                    <p class="text-gray-300 text-sm max-w-xl font-medium">Agradecemos su feedback sobre las sesiones y talleres impartidos para seguir mejorando la calidad de nuestro servicio pedagógico.</p>
+        <div id="formTab" class="fade-in">
+            <div class="bg-white shadow-xl rounded-2xl overflow-hidden max-w-2xl mx-auto border-t-8 border-[#FF5A00]">
+                <div class="p-8 bg-gradient-to-b from-orange-50 to-white">
+                    <h2 class="text-3xl font-extrabold text-[#002C5F] mb-2">Feedback Intervención Coach</h2>
+                    <p class="text-gray-600 text-sm">Tu opinión nos ayuda a mejorar la calidad de nuestro acompañamiento pedagógico.</p>
                 </div>
-                
-                <form id="encuestaForm" onsubmit="App.submitForm(event)" class="p-8 sm:p-12 space-y-8">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+
+                <form id="encuestaForm" onsubmit="App.submitForm(event)" class="p-8 space-y-8">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-bold text-gray-700">Ciclo formativo en ejecución <span class="text-red-500">*</span></label>
+                        <select id="ciclo" required class="w-full rounded-xl border-gray-300 bg-gray-50 px-4 py-3 focus:ring-2 focus:ring-[#FF5A00] focus:border-transparent transition-all">
+                            <option value="">Seleccione un ciclo...</option>
+                            <option value="Ciclo Inclusión">Ciclo Inclusión</option>
+                            <option value="Ambientes de Aprendizaje">Ambientes de Aprendizaje</option>
+                            <option value="Competencias y Habilidades">Competencias y Habilidades</option>
+                            <option value="Desarrollo de Personas">Desarrollo de Personas</option>
+                            <option value="Metodologías y Evaluación">Metodologías y Evaluación</option>
+                            <option value="Reingeniería Curricular">Reingeniería Curricular</option>
+                            <option value="Comunicación en entornos escolares">Comunicación en entornos escolares</option>
+                        </select>
+                    </div>
+
+                    <div class="relative">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">1. Nombre del Colegio <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <i class="fa-solid fa-school absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="q1_colegio" required autocomplete="off" placeholder="Busca tu institución..." oninput="App.handleColegioInput()" onfocus="App.handleColegioInput()" class="w-full rounded-xl border-gray-300 bg-gray-50 pl-11 pr-4 py-3 focus:ring-2 focus:ring-[#FF5A00] transition-all">
+                        </div>
+                        <ul id="listaColegiosCustom" class="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden mt-2"></ul>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Ciclo Formativo <span class="text-red-500">*</span></label>
-                            <select id="q0_ciclo" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                                <option value="" disabled selected>Seleccione el ciclo...</option>
-                                <option value="Ambientes de Aprendizaje">Ambientes de Aprendizaje</option>
-                                <option value="Reingeniería Curricular">Reingeniería Curricular</option>
-                                <option value="Ciclo Inclusión">Ciclo Inclusión</option>
-                                <option value="Evaluación Formativa">Evaluación Formativa</option>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">2. Nombre del asistente <span class="text-red-500">*</span></label>
+                            <input type="text" id="q2_asistente" required placeholder="Tu nombre" class="w-full rounded-xl border-gray-300 bg-gray-50 px-4 py-3 focus:ring-2 focus:ring-[#FF5A00]">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">3. Perfil <span class="text-red-500">*</span></label>
+                            <div class="flex gap-4 h-[50px] items-center">
+                                <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer border rounded-xl px-4 py-2 hover:bg-gray-50 transition-colors">
+                                    <input type="radio" name="q3_perfil" value="Directivo" required class="accent-orange-600"> <span class="text-sm font-medium">Directivo</span>
+                                </label>
+                                <label class="flex-1 flex items-center justify-center gap-2 cursor-pointer border rounded-xl px-4 py-2 hover:bg-gray-50 transition-colors">
+                                    <input type="radio" name="q3_perfil" value="Docente" required class="accent-orange-600"> <span class="text-sm font-medium">Docente</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">4. Nombre del Coach <span class="text-red-500">*</span></label>
+                            <select id="q4_coach" required class="w-full rounded-xl border-gray-300 bg-gray-50 px-4 py-3 focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Seleccione coach...</option>
                             </select>
                         </div>
-                        <div class="relative">
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Institución / Colegio <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400"><i class="fa-solid fa-school"></i></span>
-                                <input type="text" id="q1_colegio" oninput="App.handleColegioInput()" placeholder="Escriba el nombre de su colegio..." required autocomplete="off" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                            </div>
-                            <div id="listaColegiosCustom" class="hidden absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-50 divide-y divide-gray-50"></div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                         <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Perfil del Participante <span class="text-red-500">*</span></label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <label class="border border-gray-200 rounded-xl p-3 flex items-center justify-center space-x-2 cursor-pointer bg-gray-50 hover:bg-orange-50/50 transition-all text-sm font-bold text-gray-600">
-                                    <input type="radio" name="q2_perfil" value="Docente" required class="accent-[#FF5A00] w-4 h-4"><span>Docente</span>
-                                </label>
-                                <label class="border border-gray-200 rounded-xl p-3 flex items-center justify-center space-x-2 cursor-pointer bg-gray-50 hover:bg-orange-50/50 transition-all text-sm font-bold text-gray-600">
-                                    <input type="radio" name="q2_perfil" value="Directivo" required class="accent-[#FF5A00] w-4 h-4"><span>Directivo</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Nombre del Participante <span class="text-gray-400">(Opcional)</span></label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400"><i class="fa-solid fa-user"></i></span>
-                                <input type="text" id="q3_asistente" placeholder="Su nombre y apellido..." class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-                        <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Número de Taller / Sesión <span class="text-red-500">*</span></label>
-                            <select id="q4_numTaller" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                                <option value="" disabled selected>Seleccione el número...</option>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">5. Número de Taller <span class="text-red-500">*</span></label>
+                            <select id="q5_numTaller" required class="w-full rounded-xl border-gray-300 bg-gray-50 px-4 py-3 focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Seleccione taller...</option>
                                 <option value="Taller 1">Taller 1</option>
                                 <option value="Taller 2">Taller 2</option>
                                 <option value="Taller 3">Taller 3</option>
@@ -127,317 +126,201 @@
                                 <option value="Taller 6">Taller 6</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Nombre del Taller / Temática <span class="text-red-500">*</span></label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400"><i class="fa-solid fa-book-bookmark"></i></span>
-                                <input type="text" id="q5_taller" placeholder="Ej: Estrategias de evaluación..." required class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#FF5A00] transition-all">
-                            </div>
-                        </div>
                     </div>
 
-                    <div class="pt-2">
-                        <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Coach Orientador Encargado <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400"><i class="fa-solid fa-user-tie"></i></span>
-                            <select id="q4_coach" required class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:ring-2 focus:ring-[#FF5A00] transition-all"></select>
-                        </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">6. Nombre del Taller <span class="text-red-500">*</span></label>
+                        <input type="text" id="q5_taller" required placeholder="¿Qué tema se trató hoy?" class="w-full rounded-xl border-gray-300 bg-gray-50 px-4 py-3 focus:ring-2 focus:ring-[#FF5A00]">
                     </div>
 
-                    <div class="border-t border-gray-100 my-8 pt-6">
-                        <h3 class="text-base font-black text-[#002C5F] mb-6 flex items-center"><i class="fa-solid fa-star-half-stroke mr-2 text-[#FF5A00]"></i> Matriz de Criterios Evaluativos</h3>
-                        <p class="text-xs text-gray-400 font-bold mb-6 bg-blue-50/50 p-3 rounded-xl border border-blue-100/50 leading-relaxed">Por favor, califique los siguientes ítems considerando una escala de <span class="text-[#002C5F] font-black">1 a 5</span>, donde <span class="font-black text-red-500">1 es Totalmente Insatisfecho</span> y <span class="font-black text-green-600">5 es Totalmente Satisfecho</span>.</p>
-                        
-                        <div class="space-y-6">
-                            <div class="p-5 rounded-2xl border border-gray-100 bg-gray-50/30">
-                                <p class="text-sm font-bold text-gray-700 mb-4 leading-snug"><span class="text-gray-300 font-black mr-1 text-xs">01.</span> ¿El taller cumplió con los objetivos planteados y el contenido fue de utilidad para su práctica pedagógica?</p>
-                                <div class="rating-group" data-question="q6"></div>
-                            </div>
-                            <div class="p-5 rounded-2xl border border-gray-100 bg-gray-50/30">
-                                <p class="text-sm font-bold text-gray-700 mb-4 leading-snug"><span class="text-gray-300 font-black mr-1 text-xs">02.</span> ¿El coach demostró dominio temático, claridad en las explicaciones y resolvió adecuadamente las dudas?</p>
-                                <div class="rating-group" data-question="q7"></div>
-                            </div>
-                            <div class="p-5 rounded-2xl border border-gray-100 bg-gray-50/30">
-                                <p class="text-sm font-bold text-gray-700 mb-4 leading-snug"><span class="text-gray-300 font-black mr-1 text-xs">03.</span> ¿Las metodologías, dinámicas y actividades implementadas favorecieron su participación activa?</p>
-                                <div class="rating-group" data-question="q8"></div>
-                            </div>
-                            <div class="p-5 rounded-2xl border border-gray-100 bg-gray-50/30">
-                                <p class="text-sm font-bold text-gray-700 mb-4 leading-snug"><span class="text-gray-300 font-black mr-1 text-xs">04.</span> ¿La organización del tiempo, los materiales didácticos y los recursos utilizados fueron adecuados?</p>
-                                <div class="rating-group" data-question="q9"></div>
-                            </div>
-                        </div>
+                    <div class="bg-gray-50 p-6 rounded-2xl space-y-6 border border-gray-100">
+                        <h3 class="text-sm font-bold text-orange-600 uppercase tracking-widest">Valoración (1 Deficiente - 5 Excelente)</h3>
+                        <div class="space-y-3"><label class="block text-sm font-semibold text-gray-700">7. Conocimiento y preparación del coach <span class="text-red-500">*</span></label><div class="rating-group" id="q6_group"></div></div>
+                        <div class="space-y-3"><label class="block text-sm font-semibold text-gray-700">8. Utilidad y aplicabilidad del taller <span class="text-red-500">*</span></label><div class="rating-group" id="q7_group"></div></div>
+                        <div class="space-y-3"><label class="block text-sm font-semibold text-gray-700">9. Dinamismo y participación fomentada <span class="text-red-500">*</span></label><div class="rating-group" id="q8_group"></div></div>
+                        <div class="space-y-3"><label class="block text-sm font-semibold text-gray-700">10. Calidad de los recursos utilizados <span class="text-red-500">*</span></label><div class="rating-group" id="q9_group"></div></div>
                     </div>
 
-                    <div class="border-t border-gray-100 pt-6">
-                        <label class="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Sugerencias / Comentarios Adicionales</label>
-                        <textarea id="q10_sugerencias" rows="4" placeholder="Escriba aquí sus comentarios, aspectos a destacar o recommendations de mejora..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-[#FF5A00] transition-all resize-none"></textarea>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">11. Sugerencias o comentarios <span class="text-red-500">*</span></label>
+                        <textarea id="q10_sugerencias" required rows="4" placeholder="Escribe aquí tus sugerencias..." class="w-full rounded-xl border-gray-300 bg-gray-50 px-4 py-3 focus:ring-2 focus:ring-[#FF5A00]"></textarea>
                     </div>
 
-                    <button type="submit" id="btnSubmitForm" class="w-full py-4 bg-[#FF5A00] text-white font-black text-base rounded-2xl hover:bg-[#e04f00] transition-all shadow-md tracking-wide">Enviar Respuestas</button>
+                    <button type="submit" id="btnSubmitForm" class="w-full bg-[#FF5A00] hover:bg-[#e04f00] text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-orange-200 flex justify-center items-center gap-2">
+                        <span>Enviar Feedback</span>
+                    </button>
+                    
+                    <div id="successMsg" class="hidden animate-bounce p-4 bg-green-100 border border-green-200 text-green-700 rounded-xl text-center font-bold">
+                        <i class="fa-solid fa-check-circle mr-2"></i> ¡Enviado con éxito!
+                    </div>
                 </form>
             </div>
         </div>
 
-        <div id="dashTab" class="tab-content hidden space-y-8">
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center space-x-2 overflow-x-auto py-1" id="adminSubNav">
-                    <button onclick="App.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white">Vista General</button>
-                    <button onclick="App.switchDashSubTab('registros')" id="btn-sub-registros" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Resultados e Historial</button>
-                    <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Bases del Sistema</button>
-                </div>
-                <div id="coachWelcomeBar" class="hidden text-left">
-                    <h2 class="text-sm font-black text-[#002C5F]">Panel de Gestión Docente</h2>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="App.exportToExcel()" class="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all flex items-center shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i> Exportar Lote</button>
-                    <button onclick="App.openImportModal()" id="btn_import_admin_encuestas" class="px-4 py-2 bg-[#002C5F] text-white text-xs font-bold rounded-xl hover:bg-[#001f44] transition-all flex items-center shadow-sm col-admin-only hidden"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Importar Respuestas</button>
+        <div id="dashTab" class="hidden space-y-8 fade-in">
+            
+            <div id="coachWelcomeBar" class="hidden bg-[#002C5F] text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center shadow-lg">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-user"></i></div>
+                    <div><p class="text-xs uppercase tracking-widest text-orange-300 font-bold">Panel del Coach</p><h2 class="text-2xl font-bold" id="display_coach_name">Cargando...</h2></div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <div class="relative">
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Regional (Multi)</label>
-                    <button type="button" id="btn_dropdown_regionales" onclick="App.toggleMultiSelectDropdown('dropdown_regionales_list', event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
-                        <span id="lbl_dropdown_regionales" class="truncate">Todas Regionales</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
-                    </button>
-                    <div id="dropdown_regionales_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
-                </div>
-                
-                <div id="container_filter_coach" class="relative">
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Coach Académico (Multi)</label>
-                    <button type="button" id="btn_dropdown_coaches" onclick="App.toggleMultiCoachDropdown(event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
-                        <span id="lbl_dropdown_coaches" class="truncate">Todos los Coaches</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
-                    </button>
-                    <div id="dropdown_coaches_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Colegio</label>
-                    <select id="filter_colegio" onchange="App.handleFilterTrigger()" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00] transition-all"></select>
-                </div>
-                <div id="container_filter_taller">
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Taller</label>
-                    <select id="filter_taller" onchange="App.handleFilterTrigger()" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00] transition-all">
-                        <option value="">Todos los Talleres</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Línea de Negocio</label>
-                    <button type="button" id="btn_dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas', 'btn_dropdown_lineas')" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
-                        <span id="text_filter_lineas">Todas</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
-                    </button>
-                    <div id="dropdown_lineas" class="hidden absolute bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 w-64 space-y-2"></div>
-                </div>
-
-                <div class="relative">
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Calendario (Multi)</label>
-                    <button type="button" id="btn_dropdown_calendarios" onclick="App.toggleMultiSelectDropdown('dropdown_calendarios_list', event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
-                        <span id="lbl_dropdown_calendarios" class="truncate">Todos Calendarios</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
-                    </button>
-                    <div id="dropdown_calendarios_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
-                </div>
-
-                <div class="relative">
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Clasificación (Multi)</label>
-                    <button type="button" id="btn_dropdown_clasificaciones" onclick="App.toggleMultiSelectDropdown('dropdown_clasificaciones_list', event)" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
-                        <span id="lbl_dropdown_clasificaciones" class="truncate">Todas Clasificaciones</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
-                    </button>
-                    <div id="dropdown_clasificaciones_list" class="hidden absolute left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 space-y-2 max-h-60 overflow-y-auto"></div>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Mes de Ejecución</label>
-                    <button type="button" id="btn_dropdown_meses" onclick="App.toggleDropdown('dropdown_meses', 'btn_dropdown_meses')" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 text-left flex justify-between items-center focus:ring-1 focus:ring-[#FF5A00]">
-                        <span id="text_filter_meses">Todos los meses</span> <i class="fa-solid fa-chevron-down opacity-50 text-[10px]"></i>
-                    </button>
-                    <div id="dropdown_meses" class="hidden absolute bg-white border border-gray-200 rounded-xl mt-1 shadow-xl z-50 p-3 w-64 space-y-2 max-h-60 overflow-y-auto"></div>
-                </div>
+            <div id="adminSubNav" class="hidden flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 max-w-fit">
+                <button onclick="App.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white">Panel de Resultados</button>
+                <button onclick="App.switchDashSubTab('registros')" id="btn-sub-registros" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Registros y Feedback</button>
+                <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Gestión de datos</button>
             </div>
 
-            <div id="subTabResultados" class="subtab-content space-y-8">
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Alcance Total</p>
-                        <h3 class="text-3xl font-black text-[#002C5F] inline-block" id="dash_docentes">-</h3>
-                        <span class="text-gray-300 font-bold mx-1 text-xl">/</span>
-                        <span class="text-xs text-gray-400 font-bold" id="dash_meta_docentes">-</span>
-                        <p class="text-[10px] text-gray-400 font-medium mt-1">Docentes participantes</p>
-                    </div>
-                    <div onclick="App.showAvanceExplanation()" class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden cursor-pointer hover:bg-gray-50/50 transition-colors">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Avance del Ciclo <i class="fa-solid fa-circle-info text-[9px] opacity-40"></i></p>
-                        <h3 class="text-3xl font-black text-[#002C5F]" id="dash_avance_porcentaje">-%</h3>
-                        <div class="w-full bg-gray-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
-                            <div id="bar_kpi_avance" class="bg-[#FF5A00] h-full transition-all duration-500" style="width: 0%"></div>
-                        </div>
-                        <p class="text-[9px] text-gray-400 font-bold mt-1.5"><span id="dash_asistencias_reales">-</span> de <span id="dash_asistencias_meta">-</span> sesiones</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Directivos Atendidos</p>
-                        <h3 class="text-3xl font-black text-[#002C5F]" id="dash_directivos">-</h3>
-                        <p class="text-xs text-gray-400 font-bold mt-1">Líderes pedagógicos</p>
-                    </div>
-                    <div onclick="App.mostrarEstadoCobertura()" class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden cursor-pointer hover:bg-gray-50/50 transition-colors">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Cobertura <i class="fa-solid fa-expand text-[9px] opacity-40"></i></p>
-                        <h3 class="text-3xl font-black text-[#002C5F]" id="dash_cobertura_colegios">-</h3>
-                        <p class="text-xs text-gray-400 font-bold mt-1">De <span id="dash_total_colegios">-</span> instituciones asignadas</p>
-                    </div>
+            <div id="subTabResultados" class="space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6 bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                    <div class="px-2 py-1 flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Regional</label><select id="filter_regional" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5"><option value="">Todas</option></select></div>
+                    <div id="container_filter_coach" class="px-2 py-1 flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Coach</label><select id="filter_coach" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5"><option value="">Todos los Coaches</option></select></div>
+                    <div class="px-2 py-1 flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Colegio</label><select id="filter_colegio" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5"><option value="">Todos los Colegios</option></select></div>
+                    <div id="container_filter_taller" class="px-2 py-1 opacity-50 transition-opacity flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Taller</label><select id="filter_taller" disabled onchange="App.updateDashboard()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-orange-500 pb-0.5 cursor-not-allowed"><option value="">Primero elija colegio</option><option value="Taller 1">Taller 1</option><option value="Taller 2">Taller 2</option><option value="Taller 3">Taller 3</option><option value="Taller 4">Taller 4</option><option value="Taller 5">Taller 5</option><option value="Taller 6">Taller 6</option></select></div>
+                    <div class="px-2 py-1 relative flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Línea de Negocio</label><div class="relative"><button type="button" id="btn_dropdown_lineas" aria-expanded="false" aria-controls="dropdown_lineas" onclick="App.toggleDropdown('dropdown_lineas', 'btn_dropdown_lineas')" class="w-full text-left text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity"><span id="text_filter_lineas" class="truncate pr-2">Todas</span><i class="fa-solid fa-chevron-down text-[10px]"></i></button><div id="dropdown_lineas" aria-hidden="true" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto p-2"></div></div></div>
+                    <div class="px-2 py-1 flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Calendario</label><select id="filter_calendario" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]"><option value="">Todos</option><option value="A">A</option><option value="B">B</option></select></div>
+                    <div class="px-2 py-1 flex flex-col justify-center"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Clasificación</label><select id="filter_clasificacion" onchange="App.handleFilterTrigger()" class="w-full text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F]"><option value="">Todas</option></select></div>
+                    <div class="px-2 py-1 relative flex flex-col justify-center lg:col-span-3"><label class="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-0.5">Meses de Ejecución</label><div class="relative"><button type="button" id="btn_dropdown_meses" aria-expanded="false" aria-controls="dropdown_meses" onclick="App.toggleDropdown('dropdown_meses', 'btn_dropdown_meses')" class="w-full text-left text-xs font-bold bg-transparent focus:outline-none border-b border-[#002C5F] pb-0.5 text-[#002C5F] flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity"><span id="text_filter_meses" class="truncate pr-2">Todos los meses</span><i class="fa-solid fa-calendar-days text-[10px]"></i></button><div id="dropdown_meses" aria-hidden="true" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto p-2 grid grid-cols-2 gap-1"></div></div></div>
                 </div>
 
-                <div id="dynamic_dashboard_grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-6">
-                    <div onclick="App.showExcelenciaExplanation()" class="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center relative min-h-[340px] cursor-pointer hover:bg-gray-50/30 transition-all">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6 absolute top-6 left-6">Índice de Excelencia <i class="fa-solid fa-circle-info text-[9px] opacity-30"></i></p>
-                        <div class="relative w-44 h-44 flex items-center justify-center">
-                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="40" stroke="#f3f4f6" stroke-width="8" fill="transparent"/>
-                                <circle id="csat_path" cx="50" cy="50" r="40" stroke="#FF5A00" stroke-width="8" fill="transparent" stroke-dasharray="0, 100" stroke-dashoffset="0" stroke-linecap="round" class="transition-all duration-1000"/>
-                            </svg>
-                            <div class="absolute text-center">
-                                <span class="text-4xl font-black tracking-tight text-[#002C5F]" id="csat_text">-%</span>
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-0.5">CSAT global</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-sm lg:col-span-2 flex flex-col justify-between min-h-[340px]">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Promedio por Dimensión Analizada</p>
-                        <div class="space-y-4 flex-1 flex flex-col justify-center">
-                            <div>
-                                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>Utilidad e Impacto del Contenido</span><span id="avg_q6" class="font-black text-[#002C5F]">-</span></div>
-                                <div class="w-full bg-gray-50 h-3 border border-gray-100 rounded-full overflow-hidden"><div id="bar_q6" class="bg-[#002C5F] h-full transition-all duration-500" style="width: 0%"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>Dominio Temático y Claridad del Coach</span><span id="avg_q7" class="font-black text-[#002C5F]">-</span></div>
-                                <div class="w-full bg-gray-50 h-3 border border-gray-100 rounded-full overflow-hidden"><div id="bar_q7" class="bg-[#002C5F] h-full transition-all duration-500" style="width: 0%"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>Metodología y Participación Activa</span><span id="avg_q8" class="font-black text-[#002C5F]">-</span></div>
-                                <div class="w-full bg-gray-50 h-3 border border-gray-100 rounded-full overflow-hidden"><div id="bar_q8" class="bg-[#002C5F] h-full transition-all duration-500" style="width: 0%"></div></div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1"><span>Organización, Materiales y Tiempos</span><span id="avg_q9" class="font-black text-[#002C5F]">-</span></div>
-                                <div class="w-full bg-gray-50 h-3 border border-gray-100 rounded-full overflow-hidden"><div id="bar_q9" class="bg-[#002C5F] h-full transition-all duration-500" style="width: 0%"></div></div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-600 flex flex-col justify-between"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Alcance (Docentes)</div><div class="text-4xl font-black text-gray-800"><span id="dash_docentes">0</span><span class="text-gray-300 text-xl font-normal mx-1">/</span><span id="dash_meta_docentes" class="text-2xl text-gray-500">0</span></div></div>
+                    <div onclick="App.showAvanceExplanation()" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-green-500 flex flex-col justify-between cursor-pointer hover:bg-green-50 transition-colors group relative overflow-hidden"><div class="absolute right-4 top-4 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-circle-info"></i></div><div class="text-xs font-bold text-gray-400 uppercase mb-1">Avance del Ciclo Anual</div><div class="flex items-end gap-2 mt-auto"><div class="text-4xl font-black text-gray-800" id="dash_avance_porcentaje">0%</div><div class="text-sm font-bold text-gray-400 mb-1">(<span id="dash_asistencias_reales">0</span> / <span id="dash_asistencias_meta">0</span>)</div></div></div>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-purple-600 flex flex-col justify-between"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Directivos Atendidos</div><div class="text-4xl font-black text-gray-800" id="dash_directivos">0</div></div>
+                    <div onclick="App.mostrarEstadoCobertura()" class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-[#002C5F] flex flex-col justify-between cursor-pointer hover:bg-blue-50 transition-colors group relative overflow-hidden"><div class="text-xs font-bold text-gray-400 uppercase mb-1">Colegios Atendidos</div><div class="text-4xl font-black text-gray-800"><span id="dash_cobertura_colegios">0</span><span class="text-gray-300 text-xl font-normal mx-1">/</span><span id="dash_total_colegios" class="text-2xl text-gray-500">0</span></div><div class="text-[10px] text-[#002C5F] mt-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity">Ver listado y estado <i class="fa-solid fa-arrow-right ml-1"></i></div></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Clasificación de Instituciones (Top e Inferiores)</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                            <div id="block_rank_coach">
-                                <h4 class="text-xs font-black text-green-600 uppercase tracking-wider mb-3 flex items-center"><i class="fa-solid fa-arrow-trend-up mr-1.5"></i> Rendimiento Coaches</h4>
-                                <div id="ranking_list_coach" class="space-y-2"></div>
-                            </div>
-                            <div>
-                                <h4 class="text-xs font-black text-[#002C5F] uppercase tracking-wider mb-3 flex items-center"><i class="fa-solid fa-map mr-1.5"></i> Regionales</h4>
-                                <div id="ranking_list_regional" class="space-y-2"></div>
-                            </div>
-                        </div>
-                    </div>
+                    <div onclick="App.showExcelenciaExplanation()" class="bg-white rounded-2xl shadow-sm p-6 flex flex-col items-center justify-center border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors group relative overflow-hidden"><h3 class="text-sm font-black text-gray-500 uppercase tracking-widest mb-4">Índice de Excelencia</h3><div class="relative w-full flex justify-center"><svg viewBox="0 0 36 36" class="circular-chart text-[#FF5A00]"><path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /><path id="csat_path" class="circle" stroke="#FF5A00" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /><text x="18" y="20.35" class="percentage" id="csat_text">0%</text></svg></div></div>
+                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col justify-center"><h3 class="text-sm font-black text-gray-500 uppercase tracking-widest mb-6 text-center">Promedio por Dimensión</h3><div class="space-y-6 px-4"><div><div class="flex justify-between text-xs font-bold mb-2 text-gray-600"><span>Conocimiento</span><span id="avg_q6" class="text-orange-600">0.0</span></div><div class="w-full bg-gray-100 rounded-full h-2"><div id="bar_q6" class="bg-[#FF5A00] h-2 rounded-full transition-all duration-1000" style="width: 0%"></div></div></div><div><div class="flex justify-between text-xs font-bold mb-2 text-gray-600"><span>Utilidad</span><span id="avg_q7" class="text-blue-600">0.0</span></div><div class="w-full bg-gray-100 rounded-full h-2"><div id="bar_q7" class="bg-[#002C5F] h-2 rounded-full transition-all duration-1000" style="width: 0%"></div></div></div><div><div class="flex justify-between text-xs font-bold mb-2 text-gray-600"><span>Dinamismo</span><span id="avg_q8" class="text-orange-600">0.0</span></div><div class="w-full bg-gray-100 rounded-full h-2"><div id="bar_q8" class="bg-[#FF5A00] h-2 rounded-full transition-all duration-1000" style="width: 0%"></div></div></div><div><div class="flex justify-between text-xs font-bold mb-2 text-gray-600"><span>Recursos</span><span id="avg_q9" class="text-blue-600">0.0</span></div><div class="w-full bg-gray-100 rounded-full h-2"><div id="bar_q9" class="bg-[#002C5F] h-2 rounded-full transition-all duration-1000" style="width: 0%"></div></div></div></div></div>
+                </div>
 
-                    <div class="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex justify-between items-center">
-                            <span>Alertas Operativas Críticas (Detractores)</span>
-                            <span id="detractores_badge" class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-black text-xs">0</span>
-                        </p>
-                        <p class="text-[11px] text-gray-400 font-medium mb-4">Respuestas individuales con promedios inferiores o iguales a 2.0</p>
-                        <div class="overflow-y-auto flex-1 max-h-56 pr-2 space-y-2" id="detractores_list"></div>
-                    </div>
+                <div id="dynamic_dashboard_grid" class="grid grid-cols-1 gap-6 mb-6 mt-6">
+                    <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest mb-4"><i class="fa-solid fa-user-tie mr-1"></i> Ranking Coach</h3><div id="ranking_list_coach" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
+                    <div id="block_rank_regional" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#FF5A00] uppercase tracking-widest mb-4"><i class="fa-solid fa-map-location-dot mr-1"></i> Ranking Regional Total</h3><div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
+                    <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col"><div class="flex justify-between items-start mb-4"><div><h3 class="text-sm font-black text-red-700 uppercase tracking-widest"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Alertas (Detractores)</h3></div><span id="detractores_badge" class="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-black shadow-sm">0</span></div><div id="detractores_list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 flex-1 custom-scrollbar"><div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div></div></div>
+                </div>
+
+                <div id="coach_registros_box" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-6 mb-8">
+                    <button onclick="App.toggleCoachRegistros()" class="w-full px-6 py-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors"><h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest"><i class="fa-solid fa-table-list mr-2"></i> Ver mis Registros Individuales</h3><i id="icon_coach_registros" class="fa-solid fa-chevron-down text-gray-500 transition-transform duration-300"></i></button>
+                    <div id="content_coach_registros" class="hidden p-6 border-t border-gray-100 bg-gray-50/50"></div>
                 </div>
             </div>
 
-            <div id="subTabRegistros" class="subtab-content hidden space-y-4">
-                <div id="coach_registros_box" class="hidden text-left py-2">
-                    <button onclick="App.toggleCoachRegistros()" class="text-xs font-black text-[#002C5F] bg-gray-100 px-4 py-2 rounded-xl flex items-center gap-2">
-                        <i class="fa-solid fa-list-check"></i> Desplegar Historial de Registros <i class="fa-solid fa-chevron-down transition-transform" id="icon_coach_registros"></i>
-                    </button>
+            <div id="subTabRegistros" class="hidden space-y-6">
+                <div class="flex justify-between items-center flex-wrap gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-[#002C5F]">Registros y Feedback Directo</h2>
+                        <p class="text-gray-500 text-sm">Detalle individual de cada evaluación recibida.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="App.openImportModal()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-2 rounded-xl font-bold transition-colors"><i class="fa-solid fa-upload mr-1"></i> Importar</button>
+                        <button onclick="App.exportToExcel()" class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-4 py-2 rounded-xl font-bold transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Exportar</button>
+                        <button onclick="App.clearData()" id="btn_clear_data" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded-xl font-bold transition-colors"><i class="fa-solid fa-trash mr-1"></i> Borrar Todo</button>
+                    </div>
                 </div>
 
-                <div id="registros_core_container" class="space-y-4">
-                    <div class="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center justify-between">
-                        <div class="flex flex-wrap gap-4 items-center">
-                            <div id="container_reg_filter_regional">
-                                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Reg.</label>
-                                <select id="reg_filter_regional" onchange="App.renderRegistrosTable(true)" class="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00]"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Colegio</label>
-                                <select id="reg_filter_colegio" onchange="App.renderRegistrosTable(true)" class="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00] max-w-xs"></select>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Taller</label>
-                                <select id="reg_filter_taller" onchange="App.renderRegistrosTable(true)" class="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00]">
-                                    <option value="">Todos</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Perfil</label>
-                                <select id="reg_filter_perfil" onchange="App.renderRegistrosTable(true)" class="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00]">
-                                    <option value="">Todos</option><option value="Docente">Docente</option><option value="Directivo">Directivo</option>
-                                </select>
-                            </div>
-                            <div id="container_reg_filter_coach">
-                                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Coach</label>
-                                <select id="reg_filter_coach" onchange="App.renderRegistrosTable(true)" class="p-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:ring-1 focus:ring-[#FF5A00]"></select>
-                            </div>
+                <div id="registros_core_container" class="space-y-6 relative">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Fecha</label><input type="date" id="reg_filter_fecha" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"></div>
+                        <div id="container_reg_filter_regional"><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Regional</label><select id="reg_filter_regional" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todas</option></select></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Colegio</label><select id="reg_filter_colegio" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos los Colegios</option></select></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Taller</label><select id="reg_filter_taller" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos</option></select></div>
+                        <div id="container_reg_filter_coach"><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Coach</label><select id="reg_filter_coach" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos los Coaches</option></select></div>
+                        <div><label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Perfil</label><select id="reg_filter_perfil" onchange="App.renderRegistrosTable()" class="w-full border border-gray-200 bg-gray-50 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all"><option value="">Todos</option><option value="Docente">Docente</option><option value="Directivo">Directivo</option></select></div>
+                    </div>
+
+                    <div id="bulk_action_bar" class="hidden bg-[#002C5F] text-white p-4 rounded-2xl shadow-lg flex justify-between items-center sticky top-24 z-30 animate-in slide-in-from-top-4">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/30 text-white font-black" id="bulk_count">0</span>
+                            <span class="text-sm font-bold tracking-wide">Registros Seleccionados</span>
                         </div>
-                        <div id="bulk_action_bar" class="hidden flex items-center space-x-2 bg-orange-50/50 border border-orange-100 px-4 py-2 rounded-xl animate-in fade-in duration-200">
-                            <span class="text-xs font-bold text-gray-600"><span id="bulk_count" class="font-black text-[#FF5A00]">0</span> seleccionados</span>
-                            <div class="h-4 w-[1px] bg-gray-200 mx-2"></div>
-                            <button onclick="App.openBulkEditModal()" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-all flex items-center"><i class="fa-solid fa-pen mr-1 text-gray-400"></i> Edición</button>
-                            <button onclick="App.bulkDelete()" class="px-3 py-1.5 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all flex items-center"><i class="fa-solid fa-trash mr-1 text-red-400"></i> Eliminar</button>
+                        <div class="flex gap-2">
+                            <button onclick="App.openBulkEditModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold transition-colors shadow-sm"><i class="fa-solid fa-pen-to-square mr-2"></i>Editar</button>
+                            <button onclick="App.bulkDelete()" class="px-4 py-2 bg-red-500 hover:bg-red-400 rounded-lg text-xs font-bold transition-colors shadow-sm"><i class="fa-solid fa-trash-can mr-2"></i>Eliminar</button>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm text-left table-fixed">
-                                <thead id="tabla_registros_head" class="text-[10px] text-gray-400 uppercase tracking-widest bg-gray-50/70 border-b"></thead>
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                        <div class="overflow-x-auto custom-scrollbar" id="table_scroll_container">
+                            <table class="w-full text-sm text-left relative">
+                                <thead id="tabla_registros_head" class="text-[10px] text-gray-400 uppercase bg-gray-50 tracking-widest border-b sticky top-0 z-10 shadow-sm">
+                                    </thead>
                                 <tbody id="tabla_registros" class="divide-y divide-gray-100"></tbody>
                             </table>
+                            
+                            <template id="row-template">
+                                <tr class="hover:bg-orange-50 transition-colors border-b border-gray-100">
+                                    <td class="px-6 py-4 text-center t-checkbox-col col-admin-only"><input type="checkbox" class="row-checkbox cursor-pointer w-4 h-4 accent-[#FF5A00] rounded"></td>
+                                    <td class="px-6 py-4 text-xs whitespace-nowrap text-gray-500 t-fecha"></td>
+                                    <td class="px-6 py-4"><div class="font-bold text-xs text-[#002C5F] t-colegio"></div><div class="text-[9px] text-gray-400 mt-0.5 t-regional"></div></td>
+                                    <td class="px-6 py-4 text-[10px] text-gray-600 font-medium t-taller"></td>
+                                    <td class="px-6 py-4 text-xs font-bold text-gray-700 t-asistente col-admin-only"></td>
+                                    <td class="px-6 py-4"><span class="px-2 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-blue-100 t-perfil"></span></td>
+                                    <td class="px-6 py-4 text-xs whitespace-nowrap font-medium text-gray-700 t-coach"></td>
+                                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded font-black text-xs border shadow-sm flex items-center justify-center gap-1 w-14 mx-auto t-promedio"></span></td>
+                                    <td class="px-6 py-4 text-xs text-gray-600 italic break-words t-sugerencias"></td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap t-acciones col-admin-only">
+                                        <button class="text-blue-500 hover:text-blue-700 mx-1 btn-edit" title="Editar individual"><i class="fa-solid fa-pen"></i></button>
+                                        <button class="text-red-500 hover:text-red-700 mx-1 btn-delete" title="Eliminar individual"><i class="fa-solid fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
                         </div>
-                        <div id="pagination_container" class="hidden p-4 bg-gray-50/50 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <p class="text-xs text-gray-400 font-bold"><span id="count_restantes">Disponibles</span> para seguir paginando desde el servidor.</p>
-                            <button onclick="App.loadMoreRegistros()" class="px-5 py-2 bg-[#FF5A00] text-white text-xs font-bold rounded-xl hover:bg-[#e04f00] transition-all flex items-center shadow-sm">Cargar más registros <i class="fa-solid fa-chevron-down ml-2"></i></button>
+                        <div id="pagination_container" class="hidden p-4 bg-gray-50 border-t border-gray-100 text-center">
+                            <button onclick="App.loadMoreRegistros()" class="px-6 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-xs font-bold hover:bg-gray-100 transition-colors shadow-sm">
+                                <i class="fa-solid fa-chevron-down mr-2"></i> Cargar más registros (<span id="count_restantes">0</span> restantes)
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div id="edicionTab" class="tab-content hidden space-y-8">
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center space-x-2">
-                    <button onclick="App.openEditView('colegios')" id="subbtn-colegios" class="subtab-btn-master px-4 py-2 text-xs font-black rounded-xl bg-gray-100 text-gray-600 transition-all">Base Maestra Colegios</button>
-                    <button onclick="App.openEditView('coaches')" id="subbtn-coaches" class="subtab-btn-master px-4 py-2 text-xs font-black rounded-xl text-gray-400 hover:text-gray-600 transition-all admin-only">Base Autenticación Coaches</button>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button onclick="App.exportData(State.currentEdicionView)" class="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-xl hover:bg-green-700 transition-all flex items-center shadow-sm"><i class="fa-solid fa-file-excel mr-2"></i> Descargar Estructura</button>
-                    <button onclick="document.getElementById(State.currentEdicionView === 'colegios' ? 'fileImportColegios' : 'fileImportCoaches').click()" class="px-4 py-2 bg-[#FF5A00] text-white text-xs font-bold rounded-xl hover:bg-[#e04f00] transition-all flex items-center shadow-sm admin-only"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> Sincronizar Excel</button>
-                    <button onclick="App.openEditColegioModal(-1)" class="px-4 py-2 bg-[#002C5F] text-white text-xs font-bold rounded-xl hover:bg-[#001f44] transition-all flex items-center shadow-sm admin-only"><i class="fa-solid fa-plus mr-2"></i> Crear Nuevo</button>
-                </div>
-            </div>
-
-            <div id="edicionTableContainer" class="hidden bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-300">
-                <div class="p-6 border-b flex items-center justify-between flex-wrap gap-4 bg-gray-50/30">
-                    <div class="text-left">
-                        <h3 class="text-base font-black text-[#002C5F]" id="txt_edicion_title">Bases</h3>
-                        <p class="text-xs text-gray-400 font-bold mt-0.5" id="txt_edicion_subtitle">Gestión y sincronización directa con Firestore</p>
-                    </div>
-                    <div class="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-                        <div id="edicion_filters" class="hidden flex gap-2">
-                            <select id="edicion_filter_regional" onchange="App.renderActiveEdicionTable()" class="p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600"></select>
-                            <select id="edicion_filter_coach" onchange="App.renderActiveEdicionTable()" class="p-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-600"></select>
+            <div id="subTabEdicion" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 bg-orange-100 text-[#FF5A00] rounded-2xl flex items-center justify-center text-2xl shadow-inner"><i class="fa-solid fa-school"></i></div>
+                            <div><h3 class="text-lg font-black text-[#002C5F] leading-tight uppercase">Base de Colegios</h3><p class="text-xs text-gray-400">Metas y clasificación anual</p></div>
                         </div>
-                        <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" placeholder="Filtrar por texto..." class="pl-4 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-[#FF5A00]">
+                        <div class="mt-auto grid grid-cols-2 gap-2">
+                            <button onclick="App.openEditView('colegios')" class="py-2.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition-colors border border-blue-200"><i class="fa-solid fa-pen mr-2"></i> Editar</button>
+                            <button onclick="document.getElementById('fileImportColegios').click()" class="py-2.5 px-3 bg-gray-50 rounded-xl text-xs font-bold transition-colors border border-gray-200"><i class="fa-solid fa-upload mr-2"></i> Importar</button>
+                            <button onclick="App.exportData('colegios')" class="py-2.5 px-3 bg-gray-50 rounded-xl text-xs font-bold transition-colors border border-gray-200"><i class="fa-solid fa-file-excel mr-2"></i> Exportar</button>
+                            <button onclick="App.openEditColegioModal(-1)" class="py-2.5 px-3 bg-[#FF5A00] text-white hover:bg-orange-600 rounded-xl text-xs font-bold transition-colors shadow-md shadow-orange-200"><i class="fa-solid fa-plus mr-2"></i> Nuevo</button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 bg-blue-100 text-[#002C5F] rounded-2xl flex items-center justify-center text-2xl shadow-inner"><i class="fa-solid fa-user-tie"></i></div>
+                            <div><h3 class="text-lg font-black text-[#002C5F] leading-tight uppercase">Base de Coaches</h3><p class="text-xs text-gray-400">Personal y credenciales</p></div>
+                        </div>
+                        <div class="mt-auto grid grid-cols-2 gap-2">
+                            <button onclick="App.openEditView('coaches')" class="py-2.5 px-3 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold border border-blue-200"><i class="fa-solid fa-pen mr-2"></i> Editar</button>
+                            <button onclick="document.getElementById('fileImportCoaches').click()" class="py-2.5 px-3 bg-gray-50 rounded-xl text-xs font-bold border border-gray-200"><i class="fa-solid fa-upload mr-2"></i> Importar</button>
+                            <button onclick="App.exportData('coaches')" class="py-2.5 px-3 bg-gray-50 rounded-xl text-xs font-bold col-span-2 border border-gray-200"><i class="fa-solid fa-file-excel mr-2"></i> Exportar Coaches</button>
+                        </div>
                     </div>
                 </div>
-                <div class="overflow-x-auto max-h-[500px]">
-                    <table class="w-full text-sm text-left">
-                        <thead id="edicion_head" class="text-[10px] text-gray-400 uppercase tracking-widest sticky top-0 bg-gray-50 z-10 border-b"></thead>
-                        <tbody id="edicion_body" class="divide-y divide-gray-100"></tbody>
-                    </table>
+
+                <div id="edicionTableContainer" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden fade-in">
+                    <div class="flex justify-between items-center p-5 border-b bg-gray-50">
+                        <h3 id="edicionTableTitle" class="text-lg font-black text-[#002C5F]"></h3>
+                        <button onclick="document.getElementById('edicionTableContainer').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-red-100 hover:text-red-600 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="p-4 border-b bg-white flex flex-col gap-4">
+                        <div class="relative w-full">
+                            <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="search_edicion" oninput="App.renderActiveEdicionTable()" placeholder="Buscar..." class="w-full pl-11 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#FF5A00] transition-all">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto max-h-[500px]">
+                        <table class="w-full text-sm text-left">
+                            <thead id="edicion_head" class="text-[10px] text-gray-400 uppercase tracking-widest sticky top-0 bg-gray-50 z-10 border-b"></thead>
+                            <tbody id="edicion_body" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -446,49 +329,12 @@
     <div id="customModal" class="hidden fixed inset-0 bg-[#002C5F]/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-300">
             <div id="modalHeader" class="px-8 py-6 bg-gray-50 border-b text-xl font-black text-[#002C5F]"></div>
-            <div id="modalBody" class="px-8 py-8 max-h-[65vh] overflow-y-auto space-y-5"></div>
-            <div id="modalFooter" class="px-8 py-5 bg-gray-50 border-t flex justify-end space-x-3"></div>
+            <div id="modalBody" class="px-8 py-6 text-gray-600 max-h-[70vh] overflow-y-auto leading-relaxed"></div>
+            <div id="modalFooter" class="px-8 py-6 bg-gray-50 border-t flex justify-end gap-4"></div>
         </div>
     </div>
 
-    <template id="row-template">
-        <tr class="hover:bg-gray-50/60 transition-colors">
-            <td class="px-6 py-4 text-center w-10 col-admin-only"><input type="checkbox" class="row-checkbox cursor-pointer w-4 h-4 accent-[#FF5A00] rounded"></td>
-            <td class="px-6 py-4 font-bold text-gray-500 whitespace-nowrap t-fecha"></td>
-            <td class="px-6 py-4 font-black text-gray-800 t-colegio"></td>
-            <td class="px-6 py-4 text-xs font-bold text-gray-600 leading-tight">
-                <span class="t-taller block font-black text-gray-700"></span>
-                <span class="t-regional block text-[10px] text-gray-400 mt-0.5"></span>
-            </td>
-            <td class="px-6 py-4 font-bold text-gray-600 col-admin-only t-asistente"></td>
-            <td class="px-6 py-4 text-xs font-bold text-gray-500 t-perfil"></td>
-            <td class="px-6 py-4 text-xs font-bold text-gray-700 t-coach"></td>
-            <td class="px-6 py-4 text-center"><span class="t-promedio text-xs font-black px-2.5 py-1 rounded-lg"></span></td>
-            <td class="px-6 py-4 text-xs font-bold text-gray-500 max-w-[300px] truncate t-sugerencias" title=""></td>
-            <td class="px-6 py-4 text-center whitespace-nowrap col-admin-only">
-                <button class="btn-edit text-blue-500 hover:text-blue-700 font-bold text-xs px-2 py-1 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors mr-1"><i class="fa-solid fa-pen-to-square"></i></button>
-                <button class="btn-delete text-red-500 hover:text-red-700 font-bold text-xs px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        </tr>
-    </template>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            document.querySelectorAll('.rating-group').forEach(group => {
-                const qName = group.getAttribute('data-question');
-                let html = '';
-                for (let i = 1; i <= 5; i++) {
-                    html += `
-                        <label class="rating-label">
-                            <input type="radio" name="${qName}" value="${i}" required class="mb-1.5">
-                            <span class="text-xs font-black text-gray-600">${i}</span>
-                        </label>
-                    `;
-                }
-                group.innerHTML = html;
-            });
-        });
-    </script>
     <script type="module" src="app.js"></script>
+
 </body>
 </html>
