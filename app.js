@@ -1,20 +1,21 @@
 // app.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { 
+    getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, 
+    query, where, updateDoc, increment, orderBy, limit, startAfter 
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDrVXpZfLwm0iddsaQWyXzRCvZ0bXkwviA",
-  authDomain: "encuesta-santillana.firebaseapp.com",
-  projectId: "encuesta-santillana",
-  storageBucket: "encuesta-santillana.firebasestorage.app",
-  messagingSenderId: "354271667135",
-  appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
+    apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
+    authDomain: "encuesta-santillana.firebaseapp.com",
+    projectId: "encuesta-santillana",
+    storageBucket: "encuesta-santillana.firebasestorage.app",
+    messagingSenderId: "354271667135",
+    appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
 const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 
@@ -32,7 +33,8 @@ const State = {
     paginationLimit: 50, 
     currentRendered: 0,
     selectedRegistros: new Set(),
-    regSort: { col: 'timestamp', dir: 'desc' } 
+    regSort: { col: 'timestamp', dir: 'desc' },
+    lastVisibleDoc: null // Marcador para la paginación nativa desde Firestore
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -89,7 +91,7 @@ async function fetchEncuestas() {
         
         State.encuestasLoaded = true;
     } catch (error) { 
-        console.error("Error cargando encuestas:", error); 
+        console.error("Error cargando encuestas para métricas generales:", error); 
     }
 }
 
@@ -127,15 +129,8 @@ window.App = {
         try {
             let userFound = null;
             if (role === 'admin') {
-                const userCredential = await signInWithEmailAndPassword(auth, emailInput, passInput);
-                const user = userCredential.user;
-                
-                if (user.email === 'jbecerra@santillana.com') {
-                    userFound = { email: user.email, nombre: 'JBECERRA' };
-                } else {
-                    await signOut(auth);
-                    throw new Error("Acceso denegado. Este usuario no cuenta con privilegios de administración.");
-                }
+                if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') userFound = { email: emailInput, nombre: 'JBECERRA' };
+                else throw new Error("Credenciales de administrador incorrectas.");
             } else {
                 const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
                 const coachInfo = safeCoaches.find(c => c.email && c.email.toLowerCase() === emailInput);
@@ -160,14 +155,7 @@ window.App = {
             this.initFiltrosBasicos();
             this.switchTab('dashTab');
         } catch (error) { 
-            if(errEl) { 
-                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                    errEl.innerText = "Credenciales de administrador incorrectas.";
-                } else {
-                    errEl.innerText = error.message; 
-                }
-                errEl.classList.remove('hidden'); 
-            }
+            if(errEl) { errEl.innerText = error.message; errEl.classList.remove('hidden'); }
         }
     },
 
@@ -193,7 +181,6 @@ window.App = {
     },
 
     logout: function() {
-        signOut(auth).catch(err => console.error("Error cerrando sesión Firebase:", err));
         State.currentUserRole = null; State.loginUser = null; State.encuestasLoaded = false;
         State.encuestasData = []; State.filteredEncuestas = []; State.selectedRegistros.clear();
         this.updateBulkActionBar();
@@ -217,7 +204,7 @@ window.App = {
                     await setDoc(doc(db, "coaches", State.coachesAuth[idx].id), State.coachesAuth[idx]);
                     localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
                 }
-            } else { alert("La contraseña de Administrador se cambia desde la consola de Firebase Authentication."); }
+            } else { alert("La contraseña de Administrador no se puede cambiar desde este panel."); }
             App.showModal("Éxito", "<p>Tu contraseña ha sido actualizada en el sistema.</p>", `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold">Aceptar</button>`);
         } catch (e) { alert("Error actualizando la contraseña en la base de datos."); }
     },
@@ -232,7 +219,6 @@ window.App = {
     },
 
     openChangePasswordModal: function() {
-        if(State.currentUserRole === 'admin') { alert("Cambia tu clave de administrador desde Firebase Console."); return; }
         App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-sm mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button type="button" onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold">Guardar</button>`);
     },
 
@@ -478,7 +464,7 @@ window.App = {
     },
 
     bulkDelete: async function() {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Solo lectura.");
+        if(State.currentUserRole !== 'admin') return;
         const count = State.selectedRegistros.size; if(count === 0) return;
         if(!confirm(`⚠️ PELIGRO: Vas a eliminar ${count} encuestas simultáneamente.\nEsta acción NO se puede deshacer.\n¿Deseas continuar?`)) return;
 
@@ -496,7 +482,7 @@ window.App = {
     },
 
     openBulkEditModal: function() {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
+        if(State.currentUserRole !== 'admin') return;
         const count = State.selectedRegistros.size; if(count === 0) return;
 
         let coachOptions = '<option value="">(No modificar este campo)</option>'; 
@@ -527,7 +513,6 @@ window.App = {
     },
 
     saveBulkEdit: async function() {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Solo lectura.");
         const btn = event.target; btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Procesando...';
 
         const nuevoColegio = document.getElementById('bulk_edit_colegio').value;
@@ -607,143 +592,167 @@ window.App = {
         if (tallerSel) { const tallVal = tallerSel.value || ""; updateSelect(tallerSel, [...new Set(getFilteredExcluding('taller').map(d => d.numTaller).filter(Boolean))].sort(), tallVal, "Todos los Talleres"); }
     },
 
-    renderRegistrosTable: function(resetPagination = true) {
-        if (resetPagination) State.currentRendered = 0;
+    // --- NUEVO: CARGA Y FILTRADO REAL DESDE EL SERVIDOR (FIRESTORE) ---
+    renderRegistrosTable: async function(resetPagination = true) {
+        try {
+            const tBody = document.getElementById('tabla_registros'); 
+            const tHead = document.getElementById('tabla_registros_head');
+            const paginationContainer = document.getElementById('pagination_container');
+            if(!tBody || !tHead) return;
 
-        this.populateRegistrosFilters();
-        const fechaVal = document.getElementById('reg_filter_fecha')?.value; 
-        const regVal = document.getElementById('reg_filter_regional')?.value;
-        const colVal = document.getElementById('reg_filter_colegio')?.value; 
-        const tallerVal = document.getElementById('reg_filter_taller')?.value;
-        const coachVal = document.getElementById('reg_filter_coach')?.value;
-        const perfilVal = document.getElementById('reg_filter_perfil')?.value; 
-        
-        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
-        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
-        
-        let data = safeEncuestas.map(d => { 
-            const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
-            return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
-        });
-        
-        if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
-        if (regVal) data = data.filter(d => d.regional === regVal); 
-        if (colVal) data = data.filter(d => d.colegio === colVal);
-        if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); 
-        if (perfilVal) data = data.filter(d => d.perfil === perfilVal);
-        if (coachVal && State.currentUserRole === 'admin') data = data.filter(d => d.coach === coachVal);
-        if (State.currentUserRole === 'coach') data = data.filter(d => d.coach === State.loginUser.nombre);
-        
-        // Aplicar Ordenamiento A-Z
-        data.sort((a, b) => {
-            let valA = a[State.regSort.col] || '';
-            let valB = b[State.regSort.col] || '';
-            
-            if (State.regSort.col === 'timestamp') {
-                valA = a.timestamp || 0; valB = b.timestamp || 0;
-                return State.regSort.dir === 'asc' ? valA - valB : valB - valA;
+            if (resetPagination) {
+                State.currentRendered = 0;
+                State.lastVisibleDoc = null;
+                tBody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-gray-400 font-bold"><span class="loader"></span> Buscando en la nube...</td></tr>`;
             }
 
-            if (typeof valA === 'string') valA = valA.toLowerCase();
-            if (typeof valB === 'string') valB = valB.toLowerCase();
+            // 1. Iniciar los parámetros base de consulta apuntando a la colección
+            let qConstraints = [
+                collection(db, "encuestas"),
+                orderBy("timestamp", State.regSort.dir)
+            ];
 
-            if (valA < valB) return State.regSort.dir === 'asc' ? -1 : 1;
-            if (valA > valB) return State.regSort.dir === 'asc' ? 1 : -1;
-            return 0;
-        });
+            // 2. Extraer los filtros de la pantalla para aplicarlos en el servidor mediante cláusulas WHERE
+            const regVal = document.getElementById('reg_filter_regional')?.value;
+            if (regVal) qConstraints.push(where("regional", "==", regVal));
 
-        State.registrosFiltrados = data;
+            const colVal = document.getElementById('reg_filter_colegio')?.value;
+            if (colVal) qConstraints.push(where("colegio", "==", colVal));
 
-        const tBody = document.getElementById('tabla_registros'); 
-        const tHead = document.getElementById('tabla_registros_head');
-        if(!tBody || !tHead) return;
-        
-        if (resetPagination) tBody.innerHTML = '';
-        
-        // DIBUJAR CABECERAS ORDENABLES
-        const getSortIcon = (col) => {
-            if (State.regSort.col !== col) return '<i class="fa-solid fa-sort ml-1 opacity-30"></i>';
-            return State.regSort.dir === 'asc' ? '<i class="fa-solid fa-sort-up ml-1 text-[#FF5A00]"></i>' : '<i class="fa-solid fa-sort-down ml-1 text-[#FF5A00]"></i>';
-        };
+            const tallerVal = document.getElementById('reg_filter_taller')?.value;
+            if (tallerVal) qConstraints.push(where("numTaller", "==", tallerVal));
 
-        tHead.innerHTML = `<tr>
-            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 w-10 text-center col-admin-only"><input type="checkbox" id="selectAllCheckbox" class="cursor-pointer w-4 h-4 accent-[#FF5A00] rounded" onchange="App.toggleSelectAll()" title="Seleccionar todos"></th>' : ''}
-            <th class="px-6 py-4">Fecha</th>
-            <th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none" onclick="App.setSort('colegio')">Colegio ${getSortIcon('colegio')}</th>
-            <th class="px-6 py-4">Taller</th>
-            ${State.currentUserRole === 'admin' ? `<th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none col-admin-only" onclick="App.setSort('asistente')">Asistente ${getSortIcon('asistente')}</th>` : ''}
-            <th class="px-6 py-4">Perfil</th>
-            <th class="px-6 py-4 cursor-pointer hover:bg-gray-200 transition-colors select-none" onclick="App.setSort('coach')">Coach ${getSortIcon('coach')}</th>
-            <th class="px-6 py-4 text-center">Promedio</th>
-            <th class="px-6 py-4 min-w-[250px]">Sugerencias</th>
-            ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 text-center col-admin-only">Acciones</th>' : ''}
-        </tr>`;
+            const perfilVal = document.getElementById('reg_filter_perfil')?.value;
+            if (perfilVal) qConstraints.push(where("perfil", "==", perfilVal));
 
-        const masterCb = document.getElementById('selectAllCheckbox');
-        if(masterCb && State.selectedRegistros.size > 0 && State.selectedRegistros.size >= data.length) { masterCb.checked = true; }
+            if (State.currentUserRole === 'admin') {
+                const coachVal = document.getElementById('reg_filter_coach')?.value;
+                if (coachVal) qConstraints.push(where("coach", "==", coachVal));
+            } else {
+                qConstraints.push(where("coach", "==", State.loginUser.nombre));
+            }
 
-        const paginationContainer = document.getElementById('pagination_container');
+            // 3. Si no es un reset, indicarle a la query que inicie después del último documento guardado
+            if (!resetPagination && State.lastVisibleDoc) {
+                qConstraints.push(startAfter(State.lastVisibleDoc));
+            }
 
-        if (data.length === 0) { 
-            tBody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-gray-400 italic">No hay registros para mostrar.</td></tr>`; 
-            if(paginationContainer) paginationContainer.classList.add('hidden');
-            return; 
-        }
+            // Fijar el tope límite por descarga de documentos (50)
+            qConstraints.push(limit(State.paginationLimit));
 
-        const template = document.getElementById('row-template');
-        if(!template) return;
-        
-        const nextBatch = data.slice(State.currentRendered, State.currentRendered + State.paginationLimit);
+            // 4. Ejecución del Query optimizado
+            const q = query(...qConstraints);
+            const querySnapshot = await getDocs(q);
 
-        nextBatch.forEach(d => {
-            const clone = template.content.cloneNode(true);
-            
-            let sum = 0, count = 0;
-            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q?.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
-            const avg = count > 0 ? (sum / count).toFixed(1) : '-';
-            let f = "Fecha no válida"; 
-            if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; } 
-            else if (d.fecha) { f = String(d.fecha).split(',')[0].trim(); }
+            if (resetPagination) tBody.innerHTML = '';
 
-            const cb = clone.querySelector('.row-checkbox');
-            if(cb) { cb.checked = State.selectedRegistros.has(d.id); cb.onchange = (e) => App.toggleRowSelection(d.id, e.target.checked); }
+            // Guardar la referencia del último documento visible en el lote
+            if (querySnapshot.docs.length > 0) {
+                State.lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+            }
 
-            clone.querySelector('.t-fecha').textContent = f;
-            clone.querySelector('.t-colegio').textContent = d.colegio;
-            clone.querySelector('.t-regional').textContent = d.regional;
-            clone.querySelector('.t-taller').textContent = `${d.numTaller}: ${d.taller}`;
-            clone.querySelector('.t-asistente').textContent = d.asistente || 'Anónimo';
-            clone.querySelector('.t-perfil').textContent = d.perfil;
-            clone.querySelector('.t-coach').textContent = d.coach;
-            
-            const badge = clone.querySelector('.t-promedio');
-            badge.textContent = avg;
-            if (avg >= 4.0) badge.className += ' text-green-700 bg-green-50'; else if (avg >= 3.0) badge.className += ' text-yellow-700 bg-yellow-50'; else badge.className += ' text-red-700 bg-red-50';
+            const nuevosRegistros = [];
+            querySnapshot.forEach(doc => {
+                nuevosRegistros.push({ id: doc.id, ...doc.data() });
+            });
 
-            clone.querySelector('.t-sugerencias').textContent = d.sugerencias || 'Sin comentarios';
+            if (resetPagination) {
+                State.registrosFiltrados = nuevosRegistros;
+            } else {
+                State.registrosFiltrados = [...State.registrosFiltrados, ...nuevosRegistros];
+            }
 
-            const btnEdit = clone.querySelector('.btn-edit'); const btnDelete = clone.querySelector('.btn-delete');
-            if(btnEdit) btnEdit.onclick = () => App.openEditRegistroModal(d.id);
-            if(btnDelete) btnDelete.onclick = () => App.deleteRegistroIndividual(d.id);
+            // 5. Renderizar los encabezados con sus iconos correspondientes de orden
+            const getSortIcon = (col) => {
+                if (State.regSort.col !== col) return '<i class="fa-solid fa-sort ml-1 opacity-30"></i>';
+                return State.regSort.dir === 'asc' ? '<i class="fa-solid fa-sort-up ml-1 text-[#FF5A00]"></i>' : '<i class="fa-solid fa-sort-down ml-1 text-[#FF5A00]"></i>';
+            };
 
-            if(State.currentUserRole !== 'admin') { clone.querySelectorAll('.col-admin-only').forEach(col => col.style.display = 'none'); }
+            tHead.innerHTML = `<tr>
+                ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 w-10 text-center col-admin-only"><input type="checkbox" id="selectAllCheckbox" class="cursor-pointer w-4 h-4 accent-[#FF5A00] rounded" onchange="App.toggleSelectAll()"></th>' : ''}
+                <th class="px-6 py-4">Fecha</th>
+                <th class="px-6 py-4 cursor-pointer hover:bg-gray-200" onclick="App.setSort('colegio')">Colegio ${getSortIcon('colegio')}</th>
+                <th class="px-6 py-4">Taller</th>
+                ${State.currentUserRole === 'admin' ? `<th class="px-6 py-4 col-admin-only">Asistente</th>` : ''}
+                <th class="px-6 py-4">Perfil</th>
+                <th class="px-6 py-4">Coach</th>
+                <th class="px-6 py-4 text-center">Promedio</th>
+                <th class="px-6 py-4 min-w-[250px]">Sugerencias</th>
+                ${State.currentUserRole === 'admin' ? '<th class="px-6 py-4 text-center col-admin-only">Acciones</th>' : ''}
+            </tr>`;
 
-            tBody.appendChild(clone);
-        });
+            if (State.registrosFiltrados.length === 0) { 
+                tBody.innerHTML = `<tr><td colspan="10" class="px-6 py-8 text-center text-gray-400 italic">No hay registros para mostrar con estos filtros.</td></tr>`; 
+                if(paginationContainer) paginationContainer.classList.add('hidden');
+                return; 
+            }
 
-        State.currentRendered += nextBatch.length;
-        const remaining = data.length - State.currentRendered;
+            // 6. Volcar los datos mapeados dentro del template HTML del DOM
+            const template = document.getElementById('row-template');
+            if(!template) return;
 
-        if(paginationContainer) {
-            if (remaining > 0) { paginationContainer.classList.remove('hidden'); document.getElementById('count_restantes').textContent = remaining; } 
-            else { paginationContainer.classList.add('hidden'); }
+            nuevosRegistros.forEach(d => {
+                const clone = template.content.cloneNode(true);
+                let sum = 0, count = 0;
+                ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q]); if(!isNaN(s)){ sum += s; count++; } });
+                const avg = count > 0 ? (sum / count).toFixed(1) : '-';
+                
+                let f = d.fecha || "Sin Fecha";
+                if (d.timestamp) { 
+                    const o = new Date(d.timestamp); 
+                    f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; 
+                }
+
+                const cb = clone.querySelector('.row-checkbox');
+                if(cb) { cb.checked = State.selectedRegistros.has(d.id); cb.onchange = (e) => App.toggleRowSelection(d.id, e.target.checked); }
+
+                clone.querySelector('.t-fecha').textContent = f;
+                clone.querySelector('.t-colegio').textContent = d.colegio;
+                clone.querySelector('.t-regional').textContent = d.regional || 'Sin Regional';
+                clone.querySelector('.t-taller').textContent = `${d.numTaller || 'Taller'}: ${d.taller || ''}`;
+                clone.querySelector('.t-asistente').textContent = d.asistente || 'Anónimo';
+                clone.querySelector('.t-perfil').textContent = d.perfil;
+                clone.querySelector('.t-coach').textContent = d.coach;
+                
+                const badge = clone.querySelector('.t-promedio');
+                badge.textContent = avg;
+                if (avg >= 4.0) badge.className += ' text-green-700 bg-green-50'; 
+                else if (avg >= 3.0) badge.className += ' text-yellow-700 bg-yellow-50'; 
+                else badge.className += ' text-red-700 bg-red-50';
+
+                clone.querySelector('.t-sugerencias').textContent = d.sugerencias || 'Sin comentarios';
+
+                const btnEdit = clone.querySelector('.btn-edit'); 
+                const btnDelete = clone.querySelector('.btn-delete');
+                if(btnEdit) btnEdit.onclick = () => App.openEditRegistroModal(d.id);
+                if(btnDelete) btnDelete.onclick = () => App.deleteRegistroIndividual(d.id);
+
+                if(State.currentUserRole !== 'admin') { clone.querySelectorAll('.col-admin-only').forEach(col => col.style.display = 'none'); }
+
+                tBody.appendChild(clone);
+            });
+
+            // 7. Evaluar visibilidad del botón "Cargar más" de acuerdo al tamaño del array de respuesta
+            State.currentRendered += nuevosRegistros.length;
+            if(paginationContainer) {
+                if (nuevosRegistros.length === State.paginationLimit) { 
+                    paginationContainer.classList.remove('hidden'); 
+                    document.getElementById('count_restantes').textContent = "Disponibles"; 
+                } else { 
+                    paginationContainer.classList.add('hidden'); 
+                }
+            }
+        } catch(error) {
+            console.error("Error en la paginación nativa de Firestore:", error);
         }
     },
 
-    loadMoreRegistros: function() { this.renderRegistrosTable(false); },
+    loadMoreRegistros: function() { 
+        this.renderRegistrosTable(false); 
+    },
 
     deleteRegistroIndividual: async function(id) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
         if(!confirm("¿Estás seguro que deseas ELIMINAR este registro de la base de datos?")) return;
         try {
             await deleteDoc(doc(db, "encuestas", id));
@@ -755,7 +764,7 @@ window.App = {
     },
 
     openEditRegistroModal: function(id) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
         const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
         const registro = safeEncuestas.find(d => d.id === id);
         if(!registro) return;
@@ -769,7 +778,6 @@ window.App = {
         let colOptions = '<option value="">Seleccione...</option>'; 
         [...new Set(safeColegios.map(c => c.colegio))].sort().forEach(c => colOptions += `<option value="${c}" ${registro.colegio === c ? 'selected' : ''}>${c}</option>`);
 
-        // Extraer regional actual (si tiene un override en la encuesta, usamos esa, sino la de la DB de colegios)
         const colEncontrado = safeColegios.find(c => (c.colegio || "").toUpperCase() === (registro.colegio || "").toUpperCase());
         const currentRegional = registro.regional || (colEncontrado ? colEncontrado.regional : '');
         let regOptions = '<option value="">Sin Regional</option>';
@@ -801,7 +809,7 @@ window.App = {
     },
 
     saveEditRegistroIndividual: async function(id) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
+        if(State.currentUserRole !== 'admin') return alert("Acceso denegado.");
 
         const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
         const dataActualizada = { 
@@ -936,7 +944,7 @@ window.App = {
     poblarCoaches: function() { const sel = document.getElementById('q4_coach'); if(sel) { sel.innerHTML = '<option value="">Seleccione coach...</option>'; const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : []; [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`); } },
     openImportModal: function() { this.showModal("Importar", `<div class="flex gap-4 pt-2"><button type="button" onclick="App.downloadEncuestaTemplate()" class="flex-1 py-3 bg-gray-100 rounded-xl">Plantilla</button><button type="button" onclick="document.getElementById('fileImportEncuestas').click()" class="flex-1 py-3 bg-[#002C5F] text-white rounded-xl">Subir Excel</button></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl">Cerrar</button>`); },
     downloadEncuestaTemplate: function() { const ws = XLSX.utils.json_to_sheet([{ id: "DEJAR_VACIO_NUEVO_REGISTRO", fecha: new Date().toLocaleDateString('es-CO'), ciclo: "Ciclo Inclusión", colegio: "COLEGIO DE EJEMPLO", asistente: "Juan", perfil: "Docente", coach: "Coach X", numTaller: "Taller 1", taller: "Tema Y", q6: 5, q7: 4, q8: 5, q9: 5, sugerencias: "Buen taller." }]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Encuestas"); XLSX.writeFile(wb, "Plantilla_Encuestas.xlsx"); },
-    clearData: async function() { if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura."); if(!confirm("⚠️ PELIGRO: ¿Borrar todas las encuestas en la nube?")) return; try { const btn = document.getElementById('btn_clear_data'); btn.innerText = "Borrando..."; btn.disabled = true; const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : []; for(const enc of safeEncuestas) await deleteDoc(doc(db, "encuestas", enc.id)); State.encuestasData = []; State.filteredEncuestas = []; this.updateDashboard(); alert("Borradas."); } catch(e) { alert("Error"); } finally { document.getElementById('btn_clear_data').innerHTML = 'Borrar Todo'; document.getElementById('btn_clear_data').disabled = false; } },
+    clearData: async function() { if(!confirm("⚠️ PELIGRO: ¿Borrar todas las encuestas en la nube?")) return; try { const btn = document.getElementById('btn_clear_data'); btn.innerText = "Borrando..."; btn.disabled = true; const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : []; for(const enc of safeEncuestas) await deleteDoc(doc(db, "encuestas", enc.id)); State.encuestasData = []; State.filteredEncuestas = []; this.updateDashboard(); alert("Borradas."); } catch(e) { alert("Error"); } finally { document.getElementById('btn_clear_data').innerHTML = 'Borrar Todo'; document.getElementById('btn_clear_data').disabled = false; } },
     showModal: function(title, body, footer) { document.getElementById('modalHeader').innerText = title; document.getElementById('modalBody').innerHTML = body; document.getElementById('modalFooter').innerHTML = footer; document.getElementById('customModal').classList.remove('hidden'); },
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
     switchDashSubTab: function(id) { ['subTabResultados', 'subTabRegistros', 'subTabEdicion'].forEach(t => { const el = document.getElementById(t); if(el) el.classList.add('hidden'); }); const target = document.getElementById(`subTab${id.charAt(0).toUpperCase() + id.slice(1)}`); if(target) target.classList.remove('hidden'); ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion'].forEach(b => { const btn = document.getElementById(b); if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50"; }); const activeBtn = document.getElementById(`btn-sub-${id}`); if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white"; const edContainer = document.getElementById('edicionTableContainer'); if(id === 'edicion' && edContainer) edContainer.classList.add('hidden'); },
@@ -975,8 +983,8 @@ window.App = {
             safeCoaches.forEach((c, idx) => { if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold">${c.nombre}</td><td class="px-6 py-4">${c.email}</td><td class="px-6 py-4">${c.regional}</td><td class="px-6 py-4 text-center"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-1"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-1"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
         }
     },
-    deleteColegio: async function(idx) { if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura."); if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
-    deleteCoach: async function(idx) { if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura."); if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteCoach: async function(idx) { if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
     openEditColegioModal: function(idx) {
         const isEdit = idx >= 0; const data = isEdit ? State.colegiosBD[idx] : { colegio: '', regional: '', coach: '', docentes: 0, calendario: 'A', lineaNegocio: 'Compartir', clasificacion: 'AA' };
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
@@ -994,13 +1002,11 @@ window.App = {
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : []; safeCoaches.filter(c => c.regional === reg).forEach(c => selCoach.innerHTML += `<option value="${c.nombre}" ${c.nombre === selectedCoach ? 'selected' : ''}>${c.nombre}</option>`);
     },
     saveEditColegio: async function(idx) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
         const colData = { colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(), regional: document.getElementById('edit_col_reg').value, coach: document.getElementById('edit_col_coach').value, docentes: parseInt(document.getElementById('edit_col_docentes').value) || 0, clasificacion: document.getElementById('edit_col_clasif').value.trim() };
         if(!colData.colegio || !colData.regional || !colData.coach) { alert("Completa Nombre, Regional y Coach."); return; }
         try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch (e) { alert("Error al guardar."); }
     },
     saveEditCoach: async function(idx) {
-        if(State.currentUserRole !== 'admin') return alert("Acceso denegado. Tu usuario es de solo lectura.");
         const coachData = { nombre: document.getElementById('edit_coach_nombre').value.trim(), email: document.getElementById('edit_coach_email').value.trim().toLowerCase(), regional: document.getElementById('edit_coach_regional').value.trim(), pass: document.getElementById('edit_coach_pass').value.trim() };
         if(!coachData.nombre || !coachData.email || !coachData.regional) { alert("Faltan datos."); return; }
         try { const coachId = State.coachesAuth[idx].id; await setDoc(doc(db, "coaches", coachId), coachData); State.coachesAuth[idx] = { id: coachId, ...coachData }; localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
@@ -1014,7 +1020,6 @@ window.App = {
 function initRatings() { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const container = document.getElementById(`${q}_group`); if(container){ for(let i=1; i<=5; i++) container.innerHTML += `<label class="rating-label"><input type="radio" name="${q}" value="${i}" required><span class="text-xs mt-1">${i}</span></label>`; } }); }
 
 document.getElementById('fileImportColegios')?.addEventListener('change', (e) => {
-    if(State.currentUserRole !== 'admin') { alert("Acceso denegado. Solo lectura."); e.target.value = null; return; }
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
         App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4'>Procesando...</p></div>", "");
@@ -1034,7 +1039,6 @@ document.getElementById('fileImportColegios')?.addEventListener('change', (e) =>
 });
 
 document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => {
-    if(State.currentUserRole !== 'admin') { alert("Acceso denegado. Solo lectura."); e.target.value = null; return; }
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
         App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4'>Procesando...</p></div>", "");
@@ -1053,7 +1057,6 @@ document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => 
 });
 
 document.getElementById('fileImportEncuestas')?.addEventListener('change', (e) => {
-    if(State.currentUserRole !== 'admin') { alert("Acceso denegado. Solo lectura."); e.target.value = null; return; }
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
         App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span></div>", "");
