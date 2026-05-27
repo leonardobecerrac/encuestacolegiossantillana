@@ -4,12 +4,12 @@ import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, quer
 import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
-    authDomain: "encuesta-santillana.firebaseapp.com",
-    projectId: "encuesta-santillana",
-    storageBucket: "encuesta-santillana.firebasestorage.app",
-    messagingSenderId: "354271667135",
-    appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
+    apiKey: "AIzaSyDrVXpZfLwm0iddsaQWyXzRCvZ0bXkwviA",
+  authDomain: "encuesta-santillana.firebaseapp.com",
+  projectId: "encuesta-santillana",
+  storageBucket: "encuesta-santillana.firebasestorage.app",
+  messagingSenderId: "354271667135",
+  appId: "1:354271667135:web:9edb98cb6c5f868a7e370a"
 };
 
 const app = initializeApp(firebaseConfig);
