@@ -25,8 +25,9 @@ const State = {
     encuestasData: [], 
     filteredEncuestas: [], 
     registrosFiltrados: [],
+    selectedCoaches: [], // Array para la multiselección de coaches del dashboard
     encuestasLoaded: false, 
-    currentUserRole: null, 
+    currentUserRole: 'guest', 
     loginUser: null, 
     currentView: 'formTab', 
     currentEdicionView: 'colegios',
@@ -34,7 +35,7 @@ const State = {
     currentRendered: 0,
     selectedRegistros: new Set(),
     regSort: { col: 'timestamp', dir: 'desc' },
-    lastVisibleDoc: null // Marcador para la paginación nativa desde Firestore
+    lastVisibleDoc: null
 };
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -50,7 +51,7 @@ async function initApp() {
         if (cachedCol && cachedCoach && isCacheValid) {
             State.colegiosBD = JSON.parse(cachedCol) || [];
             State.coachesAuth = JSON.parse(cachedCoach) || [];
-            App.poblarCoachesFormulario();
+            App.poblarCoaches();
             return; 
         }
 
@@ -66,7 +67,7 @@ async function initApp() {
         localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
         localStorage.setItem('santillana_cache_time', Date.now().toString());
         
-        App.poblarCoachesFormulario();
+        App.poblarCoaches();
 
     } catch (error) {
         console.error("Error inicializando bases de datos:", error);
@@ -106,67 +107,87 @@ window.App = {
         else if(tabId === 'edicionTab') { const b = document.getElementById('btn-coachTab'); if(b) b.classList.add('tab-active'); }
         
         if(tabId === 'dashTab') App.updateDashboard();
+        if(tabId === 'edicionTab') App.openEditView(State.currentEdicionView);
     },
 
-    attemptLogin: function(role) {
-        if (State.currentUserRole === role) { this.switchTab('dashTab'); return; }
-        const title = role === 'admin' ? "Coordinación Santillana" : "Acceso de Consulta Interna";
+    // MEJORA PUNTO 3: SEPARACIÓN COMPLETA DE LOGIN POR PESTAÑAS DENTRO DEL MODAL
+    openLoginModal: function(defaultRole = 'coach') {
+        const title = "Ingreso al Sistema de Consultoría";
         this.showModal(title, `
             <div class="space-y-4">
-                <input type="email" id="loginEmail" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="Correo corporativo">
-                <input type="password" id="loginPwd" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="Contraseña">
-                <p id="loginError" class="text-red-500 text-xs hidden font-bold"></p>
-                <div class="text-right">
-                    <button type="button" onclick="App.toggleLoginRole('${role}')" id="btnToggleRole" class="text-xs text-[#002C5F] font-black underline">Ingresar como ${role === 'coach' ? 'Administrador' : 'Coach'}</button>
+                <div class="flex border-b border-gray-200 mb-4">
+                    <button id="modal-tab-coach" onclick="App.switchModalLoginRole('coach')" class="flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 ${defaultRole === 'coach' ? 'border-[#FF5A00] text-[#002C5F]' : 'border-transparent text-gray-400'}">Portal Coach</button>
+                    <button id="modal-tab-admin" onclick="App.switchModalLoginRole('admin')" class="flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 ${defaultRole === 'admin' ? 'border-[#FF5A00] text-[#002C5F]' : 'border-transparent text-gray-400'}">Coordinación</button>
                 </div>
+                <input type="hidden" id="loginTargetRole" value="${defaultRole}">
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Correo Corporativo</label>
+                    <input type="email" id="loginEmail" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="usuario@santillana.com">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Contraseña</label>
+                    <input type="password" id="loginPwd" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="••••••••">
+                </div>
+                <p id="loginError" class="text-red-500 text-xs hidden font-bold"></p>
             </div>
-        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-100 rounded-xl font-bold text-sm">Cancelar</button>
-            <button type="button" onclick="App.verifyLogin('${role}')" id="btnVerifySubmit" class="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold text-sm">Entrar</button>`);
+        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-100 rounded-xl font-bold text-xs">Cancelar</button>
+            <button type="button" onclick="App.verifyLogin()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-xs shadow-sm">Iniciar Sesión</button>`);
     },
 
-    toggleLoginRole: function(currentRole) {
-        this.hideModal();
-        const nextRole = currentRole === 'coach' ? 'admin' : 'coach';
-        this.attemptLogin(nextRole);
+    switchModalLoginRole: function(role) {
+        const inputRole = document.getElementById('loginTargetRole');
+        const tabCoach = document.getElementById('modal-tab-coach');
+        const tabAdmin = document.getElementById('modal-tab-admin');
+        if(!inputRole) return;
+
+        inputRole.value = role;
+        if(role === 'coach') {
+            tabCoach.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-[#FF5A00] text-[#002C5F]";
+            tabAdmin.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-gray-400";
+        } else {
+            tabCoach.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-transparent text-gray-400";
+            tabAdmin.className = "flex-1 py-2 text-center text-xs font-black uppercase tracking-wider border-b-2 border-[#FF5A00] text-[#002C5F]";
+        }
     },
 
-    verifyLogin: async function(role) {
+    verifyLogin: async function() {
+        const role = document.getElementById('loginTargetRole').value;
         const emailInput = document.getElementById('loginEmail').value.trim().toLowerCase();
         const passInput = document.getElementById('loginPwd').value;
         const errEl = document.getElementById('loginError');
 
         try {
             let userFound = null;
-            if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') {
-                userFound = { email: emailInput, nombre: 'JBECERRA' };
-                State.currentUserRole = 'admin';
+            if (role === 'admin') {
+                if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') userFound = { email: emailInput, nombre: 'JBECERRA' };
+                else throw new Error("Credenciales de administrador incorrectas.");
             } else {
                 const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
                 const coachInfo = safeCoaches.find(c => c.email && c.email.toLowerCase() === emailInput);
-                if (!coachInfo) throw new Error("Correo no registrado o credenciales incorrectas.");
+                if (!coachInfo) throw new Error("Correo no registrado como coach.");
                 const validPass = coachInfo.pass || '12345'; 
                 if (validPass !== passInput) throw new Error("Contraseña incorrecta.");
                 userFound = coachInfo;
-                State.currentUserRole = 'coach';
             }
 
+            State.currentUserRole = role; 
             State.loginUser = userFound; 
             State.encuestasLoaded = false; 
             this.hideModal();
             
             const userControls = document.getElementById('user-controls');
             if(userControls) { userControls.classList.remove('hidden'); userControls.classList.add('flex'); }
-            const triggerLogin = document.getElementById('login-trigger-container');
-            if(triggerLogin) triggerLogin.classList.add('hidden');
+            const loginTrigger = document.getElementById('login-trigger-container');
+            if(loginTrigger) loginTrigger.classList.add('hidden');
 
             const navName = document.getElementById('nav-user-name'); if(navName) navName.innerText = State.loginUser.nombre;
-            const navRole = document.getElementById('nav-user-role'); if(navRole) navRole.innerText = State.currentUserRole === 'admin' ? 'Administrador' : 'Coach';
+            const navRole = document.getElementById('nav-user-role'); if(navRole) navRole.innerText = role === 'admin' ? 'Administrador' : 'Coach';
             
-            // Habilitar pestañas protegidas en el Navbar
+            // Habilitar pestañas protegidas en el Navbar según el rol
             document.getElementById('btn-dashTab')?.classList.remove('hidden');
-            if(State.currentUserRole === 'admin') document.getElementById('btn-coachTab')?.classList.remove('hidden');
+            if(role === 'admin') document.getElementById('btn-coachTab')?.classList.remove('hidden');
 
-            this.configureDashboardUI(State.currentUserRole);
+            this.configureDashboardUI(role);
             await fetchEncuestas();
             this.initFiltrosBasicos();
             this.switchTab('dashTab');
@@ -197,12 +218,12 @@ window.App = {
     },
 
     logout: function() {
-        State.currentUserRole = null; State.loginUser = null; State.encuestasLoaded = false;
+        State.currentUserRole = 'guest'; State.loginUser = null; State.encuestasLoaded = false;
         State.encuestasData = []; State.filteredEncuestas = []; State.selectedRegistros.clear();
         this.updateBulkActionBar();
-
+        
         const uc = document.getElementById('user-controls'); if(uc) { uc.classList.add('hidden'); uc.classList.remove('flex'); }
-        const triggerLogin = document.getElementById('login-trigger-container'); if(triggerLogin) triggerLogin.classList.remove('hidden');
+        const loginTrigger = document.getElementById('login-trigger-container'); if(loginTrigger) loginTrigger.classList.remove('hidden');
 
         document.getElementById('btn-dashTab')?.classList.add('hidden');
         document.getElementById('btn-coachTab')?.classList.add('hidden');
@@ -226,7 +247,7 @@ window.App = {
                     localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
                 }
             } else { alert("La contraseña de Administrador no se puede cambiar desde este panel."); }
-            App.showModal("Éxito", "<p class='text-sm text-gray-600 font-bold'>Tu contraseña ha sido actualizada en el sistema.</p>", `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-sm">Aceptar</button>`);
+            App.showModal("Éxito", "<p class='text-xs font-bold text-gray-500'>Tu contraseña ha sido actualizada en el sistema.</p>", `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-xs">Aceptar</button>`);
         } catch (e) { alert("Error actualizando la contraseña en la base de datos."); }
     },
 
@@ -240,7 +261,7 @@ window.App = {
     },
 
     openChangePasswordModal: function() {
-        App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3 text-sm" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3 text-sm" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-xs mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-sm">Cancelar</button><button type="button" onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-sm">Guardar</button>`);
+        App.showModal("Cambiar Contraseña", `<div class="space-y-4"><input type="password" id="new_pass" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="Nueva contraseña"><input type="password" id="new_pass_confirm" class="w-full border rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-[#FF5A00]" placeholder="Confirmar nueva contraseña"></div><p id="pass_error" class="text-red-500 text-xs mt-2 hidden font-bold">Las contraseñas no coinciden o están vacías.</p>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-xs">Cancelar</button><button type="button" onclick="App.saveNewPassword()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-xs">Guardar</button>`);
     },
 
     toggleDropdown: function(id, btnId) { 
@@ -275,18 +296,17 @@ window.App = {
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         let base = safeColegios.filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
         
-        const regEl = document.getElementById('filter_regional'); const coachEl = document.getElementById('filter_coach');
+        const regEl = document.getElementById('filter_regional');
         const colEl = document.getElementById('filter_colegio'); const calEl = document.getElementById('filter_calendario');
         const clasEl = document.getElementById('filter_clasificacion'); const lineasCbs = document.querySelectorAll('.linea-cb:checked');
         
-        const regVal = regEl?.value || ""; const coachVal = State.currentUserRole === 'admin' ? (coachEl?.value || "") : (State.loginUser?.nombre || "");
+        const regVal = regEl?.value || "";
         const colVal = colEl?.value || ""; const calVal = calEl?.value || ""; const clasVal = clasEl?.value || "";
         const lineasVal = lineasCbs ? Array.from(lineasCbs).map(cb => cb.value) : [];
 
         const getFilteredExcluding = (exclude) => {
             return base.filter(c => {
                 if (exclude !== 'regional' && regVal && c.regional !== regVal) return false;
-                if (exclude !== 'coach' && coachVal && c.coach !== coachVal) return false;
                 if (exclude !== 'colegio' && colVal && c.colegio !== colVal) return false;
                 if (exclude !== 'calendario' && calVal && (c.calendario ? c.calendario.trim().toUpperCase() : '') !== calVal) return false;
                 if (exclude !== 'clasificacion' && clasVal && c.clasificacion !== clasVal) return false;
@@ -300,7 +320,6 @@ window.App = {
         };
 
         updateSelect(regEl, [...new Set(getFilteredExcluding('regional').map(c => c.regional).filter(Boolean))].sort(), "Todas Regionales", regVal);
-        if (State.currentUserRole === 'admin') updateSelect(coachEl, [...new Set(getFilteredExcluding('coach').map(c => c.coach))].sort(), "Todos los Coaches", coachVal);
         updateSelect(colEl, [...new Set(getFilteredExcluding('colegio').map(c => c.colegio))].sort(), "Todos los Colegios", colVal);
         updateSelect(calEl, [...new Set(getFilteredExcluding('calendario').map(c => c.calendario ? c.calendario.trim().toUpperCase() : '').filter(Boolean))].sort(), "Todos los Calendarios", calVal);
         updateSelect(clasEl, [...new Set(getFilteredExcluding('clasificacion').map(c => c.clasificacion ? c.clasificacion.trim() : '').filter(Boolean))].sort(), "Todas las Clasificaciones", clasVal);
@@ -323,6 +342,60 @@ window.App = {
             if (colEl.value !== "") { tSel.disabled = false; tSel.classList.remove('cursor-not-allowed'); document.getElementById('container_filter_taller')?.classList.remove('opacity-50'); tSel.options[0].text = "Todos los Talleres"; } 
             else { tSel.value = ""; tSel.disabled = true; tSel.classList.add('cursor-not-allowed'); document.getElementById('container_filter_taller')?.classList.add('opacity-50'); tSel.options[0].text = "Primero elija colegio"; }
         }
+        
+        App.renderFiltroMultiCoachesList(); // MEJORA PUNTO 5: Inicializador del multi-select checkboxes
+    },
+
+    // MEJORA PUNTO 5: RENDERIZADOR DINÁMICO DEL COMPONENTE MULTI-SELECT CON CHECKBOXES PARA EL DASHBOARD
+    renderFiltroMultiCoachesList: function() {
+        const container = document.getElementById('dropdown_coaches_list');
+        if(!container) return;
+
+        let coachesDisponibles = [...State.coachesAuth].sort((a,b) => a.nombre.localeCompare(b.nombre));
+        
+        // Restricción si el rol es un Coach
+        if (State.currentUserRole === 'coach') {
+            coachesDisponibles = coachesDisponibles.filter(c => c.nombre.toLowerCase() === State.loginUser.nombre.toLowerCase());
+            State.selectedCoaches = [State.loginUser.nombre];
+            document.getElementById('multiSelectCoachContainer')?.classList.add('pointer-events-none', 'opacity-80');
+        } else {
+            document.getElementById('multiSelectCoachContainer')?.classList.remove('pointer-events-none', 'opacity-80');
+        }
+
+        container.innerHTML = coachesDisponibles.map(c => {
+            const isChecked = State.selectedCoaches.includes(c.nombre) ? 'checked' : '';
+            return `
+                <label class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-slate-50 text-xs font-semibold cursor-pointer transition-colors">
+                    <input type="checkbox" value="${c.nombre}" ${isChecked} onchange="App.handleMultiCoachCheckboxChange()" class="chk-coach-filter rounded text-[#FF5A00] focus:ring-0 w-4 h-4">
+                    <span class="text-gray-700">${c.nombre}</span>
+                </label>
+            `;
+        }).join('');
+
+        App.actualizarLabelMultiCoaches();
+    },
+
+    handleMultiCoachCheckboxChange: function() {
+        const checkboxes = document.querySelectorAll('.chk-coach-filter');
+        const seleccionados = [];
+        checkboxes.forEach(chk => { if (chk.checked) seleccionados.push(chk.value); });
+        State.selectedCoaches = seleccionados;
+        App.actualizarLabelMultiCoaches();
+        App.updateDashboard(); // Recalcula todo sumando los coaches elegidos
+    },
+
+    actualizarLabelMultiCoaches: function() {
+        const lbl = document.getElementById('lbl_dropdown_coaches');
+        if (!lbl) return;
+        if (State.selectedCoaches.length === 0) { lbl.innerText = "Ningún Coach Seleccionado"; } 
+        else if (State.selectedCoaches.length === State.coachesAuth.length) { lbl.innerText = "Todos los Coaches"; } 
+        else if (State.selectedCoaches.length === 1) { lbl.innerText = State.selectedCoaches[0]; } 
+        else { lbl.innerText = `${State.selectedCoaches.length} Coaches seleccionados`; }
+    },
+
+    toggleMultiCoachDropdown: function(e) {
+        e.stopPropagation();
+        document.getElementById('dropdown_coaches_list').classList.toggle('hidden');
     },
 
     updateDashboard: function() {
@@ -331,7 +404,6 @@ window.App = {
             const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
 
             const regF = document.getElementById('filter_regional')?.value || ""; 
-            const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : (State.loginUser?.nombre || "");
             const colF = document.getElementById('filter_colegio')?.value || ""; 
             const tallerF = document.getElementById('filter_taller')?.value || "";
             const calF = document.getElementById('filter_calendario')?.value || ""; 
@@ -376,8 +448,20 @@ window.App = {
                 return true;
             });
 
-            let data = [...dataGlobal]; if (coachF) data = data.filter(d => d.coach === coachF);
-            let masterFilter = [...masterFilterGlobal]; if (coachF) masterFilter = masterFilter.filter(c => c.coach === coachF);
+            // MEJORA PUNTO 5: Filtrado cruzado que soporta la multiselección por arreglo
+            let data = [...dataGlobal]; 
+            if (State.selectedCoaches.length > 0) {
+                data = data.filter(d => State.selectedCoaches.some(name => d.coach && d.coach.toLowerCase() === name.toLowerCase()));
+            } else {
+                data = [];
+            }
+
+            let masterFilter = [...masterFilterGlobal]; 
+            if (State.selectedCoaches.length > 0) {
+                masterFilter = masterFilter.filter(c => State.selectedCoaches.some(name => c.coach && c.coach.toLowerCase() === name.toLowerCase()));
+            } else {
+                masterFilter = [];
+            }
             
             State.filteredEncuestas = data; 
 
@@ -413,7 +497,7 @@ window.App = {
             data.forEach(d => { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const score = parseFloat(d[q] || d[q?.toUpperCase()]); if (!isNaN(score)) { totalRespuestas++; if(score >= 4) excelentes++; } }); });
             const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
             
-            // Sincronización de IDs correctos del SVG de index.html
+            // Sincronización de IDs correctos con el SVG
             const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
             if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
 
@@ -426,7 +510,7 @@ window.App = {
                     if(count > 0){ if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; rankMap[d[keyProp]].sum += (sum / count); rankMap[d[keyProp]].count++; }
                 });
                 const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
-                if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos de clasificación.</div>';
+                if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos de ránkings.</div>';
                 let html = '';
                 arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
                 return html;
@@ -443,7 +527,7 @@ window.App = {
             const dList = document.getElementById('detractores_list');
             
             if (dList) {
-                if (detractores.length === 0) { dList.innerHTML = '<div class="text-center text-green-600 py-6 text-sm font-bold">¡Sin alertas críticas de detractores!</div>'; } 
+                if (detractores.length === 0) { dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold text-sm">¡Sin alertas críticas en el periodo!</div>'; } 
                 else {
                     let detractoresHTML = '';
                     detractores.forEach(d => {
@@ -466,7 +550,7 @@ window.App = {
         } catch (err) { console.error("Error dibujando el dashboard:", err); }
     },
 
-    // --- ACCIONES MASIVAS ---
+    // --- ACCIONES MASIVAS GLOBALES ---
     toggleSelectAll: function() {
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
         const isChecked = selectAllCheckbox ? selectAllCheckbox.checked : false;
@@ -575,6 +659,45 @@ window.App = {
             State.regSort.dir = 'asc';
         }
         this.renderRegistrosTable(true);
+    },
+
+    populateRegistrosFilters: function() {
+        const regSel = document.getElementById('reg_filter_regional'); 
+        const colSel = document.getElementById('reg_filter_colegio'); 
+        const coachSel = document.getElementById('reg_filter_coach'); 
+        const tallerSel = document.getElementById('reg_filter_taller');
+        if (!colSel) return;
+
+        const regVal = regSel.value || ""; const colVal = colSel.value || "";
+        const coachVal = State.currentUserRole === 'admin' ? (coachSel?.value || "") : (State.loginUser?.nombre || "");
+
+        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
+        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
+        
+        const datosEnriquecidos = safeEncuestas.map(d => { 
+            const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
+            return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
+        });
+
+        const getFilteredExcluding = (exclude) => {
+            return datosEnriquecidos.filter(d => {
+                if (exclude !== 'regional' && regVal && d.regional !== regVal) return false;
+                if (exclude !== 'coach' && coachVal && d.coach !== coachVal) return false;
+                if (exclude !== 'colegio' && colVal && d.colegio !== colVal) return false;
+                return true;
+            });
+        };
+
+        const updateSelect = (el, validData, currVal, text) => { 
+            if(el) { el.innerHTML = `<option value="">${text}</option>`; validData.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`); if (validData.includes(currVal)) el.value = currVal; else el.value = ""; } 
+        };
+
+        updateSelect(regSel, [...new Set(getFilteredExcluding('regional').map(d => d.regional).filter(Boolean))].sort(), regVal, "Todas Regionales");
+        updateSelect(colSel, [...new Set(getFilteredExcluding('colegio').map(d => d.colegio).filter(Boolean))].sort(), colVal, "Todos los Colegios");
+        if (State.currentUserRole === 'admin') { updateSelect(coachSel, [...new Set(getFilteredExcluding('coach').map(d => d.coach).filter(Boolean))].sort(), coachVal, "Todos los Coaches"); } 
+        else if(coachSel) { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
+        
+        if (tallerSel) { const tallVal = tallerSel.value || ""; updateSelect(tallerSel, [...new Set(getFilteredExcluding('taller').map(d => d.numTaller).filter(Boolean))].sort(), tallVal, "Todos los Talleres"); }
     },
 
     // --- CARGA Y FILTRADO REAL DESDE EL SERVIDOR (FIRESTORE) ---
@@ -761,7 +884,7 @@ window.App = {
         [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => regOptions += `<option value="${r}" ${currentRegional === r ? 'selected' : ''}>${r}</option>`);
 
         this.showModal("Editar Registro", `
-            <div class="space-y-4">
+            <div class="space-y-4 text-left">
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="text-xs font-bold text-gray-500">Colegio</label><select id="edit_reg_colegio" class="w-full border rounded-xl px-3 py-2 text-sm">${colOptions}</select></div>
                     <div><label class="text-xs font-bold text-gray-500">Coach Asignado</label><select id="edit_reg_coach" class="w-full border rounded-xl px-3 py-2 text-sm">${coachOptions}</select></div>
@@ -782,7 +905,7 @@ window.App = {
                     <div><label class="text-[10px] font-bold text-gray-500">Q9</label><input type="number" id="edit_reg_q9" value="${registro.q9 || ''}" max="5" min="1" class="w-full border rounded-lg px-2 py-1 text-sm text-center"></div>
                 </div>
             </div>
-        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold">Cancelar</button><button type="button" onclick="App.saveEditRegistroIndividual('${id}')" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold shadow-md">Guardar Cambios</button>`);
+        `, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-sm">Cancelar</button><button type="button" onclick="App.saveEditRegistroIndividual('${id}')" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold shadow-md text-sm">Guardar Cambios</button>`);
     },
 
     saveEditRegistroIndividual: async function(id) {
@@ -809,45 +932,6 @@ window.App = {
         } catch (error) { alert("Error al guardar."); console.error(error); btn.disabled = false; btn.innerText = "Guardar Cambios"; }
     },
 
-    populateRegistrosFilters: function() {
-        const regSel = document.getElementById('reg_filter_regional'); 
-        const colSel = document.getElementById('reg_filter_colegio'); 
-        const coachSel = document.getElementById('reg_filter_coach'); 
-        const tallerSel = document.getElementById('reg_filter_taller');
-        if (!colSel) return;
-
-        const regVal = regSel.value || ""; const colVal = colSel.value || "";
-        const coachVal = State.currentUserRole === 'admin' ? (coachSel?.value || "") : (State.loginUser?.nombre || "");
-
-        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
-        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
-        
-        const datosEnriquecidos = safeEncuestas.map(d => { 
-            const col = safeColegios.find(c => (c.colegio || "").toUpperCase() === (d.colegio || "").toUpperCase()); 
-            return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
-        });
-
-        const getFilteredExcluding = (exclude) => {
-            return datosEnriquecidos.filter(d => {
-                if (exclude !== 'regional' && regVal && d.regional !== regVal) return false;
-                if (exclude !== 'coach' && coachVal && d.coach !== coachVal) return false;
-                if (exclude !== 'colegio' && colVal && d.colegio !== colVal) return false;
-                return true;
-            });
-        };
-
-        const updateSelect = (el, validData, currVal, text) => { 
-            if(el) { el.innerHTML = `<option value="">${text}</option>`; validData.forEach(v => el.innerHTML += `<option value="${v}">${v}</option>`); if (validData.includes(currVal)) el.value = currVal; else el.value = ""; } 
-        };
-
-        updateSelect(regSel, [...new Set(getFilteredExcluding('regional').map(d => d.regional).filter(Boolean))].sort(), regVal, "Todas Regionales");
-        updateSelect(colSel, [...new Set(getFilteredExcluding('colegio').map(d => d.colegio).filter(Boolean))].sort(), colVal, "Todos los Colegios");
-        if (State.currentUserRole === 'admin') { updateSelect(coachSel, [...new Set(getFilteredExcluding('coach').map(d => d.coach).filter(Boolean))].sort(), coachVal, "Todos los Coaches"); } 
-        else if(coachSel) { coachSel.innerHTML = `<option value="${State.loginUser.nombre}">${State.loginUser.nombre}</option>`; coachSel.disabled = true; }
-        
-        if (tallerSel) { const tallVal = tallerSel.value || ""; updateSelect(tallerSel, [...new Set(getFilteredExcluding('taller').map(d => d.numTaller).filter(Boolean))].sort(), tallVal, "Todos los Talleres"); }
-    },
-
     exportToExcel: function() {
         const list = State.registrosFiltrados && State.registrosFiltrados.length > 0 ? State.registrosFiltrados : State.filteredEncuestas;
         if (!list || list.length === 0) { alert("No hay datos para exportar."); return; }
@@ -858,11 +942,10 @@ window.App = {
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reporte"); XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
     },
 
-    showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm text-gray-600 font-medium"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento.</p><div class="bg-green-50 p-4 rounded-xl text-green-800 font-bold border border-green-100">Colegios AAA: Meta de 6 talleres<br>Colegios Ri: Meta de 4 talleres<br>Colegios AA: Meta de 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold text-sm">Entendido</button>'); },
-    showExcelenciaExplanation: function() { App.showModal('Sobre el Índice de Excelencia', `<div class="space-y-4 text-sm text-gray-600 font-medium"><p>Representa el porcentaje total de calificaciones sobresalientes (notas 4.0 y 5.0) asignadas por los participantes en todas las dimensiones de la encuesta.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-sm">Entendido</button>'); },
+    showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm font-medium text-gray-600"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento académico.</p><div class="bg-green-50 p-4 rounded-xl text-green-800 font-bold border border-green-100">Colegios AAA: Meta de 6 talleres<br>Colegios Ri: Meta de 4 talleres<br>Colegios AA: Meta de 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl text-xs font-bold">Entendido</button>'); },
+    showExcelenciaExplanation: function() { App.showModal('Sobre el Índice de Excelencia', `<div class="space-y-4 text-sm font-medium text-gray-600"><p>Representa el porcentaje total de calificaciones sobresalientes (notas de 4.0 y 5.0) asignadas por los profesores en las dimensiones evaluadas.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl text-xs font-bold">Entendido</button>'); },
     
     mostrarEstadoCobertura: function() {
-        const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : (State.loginUser?.nombre || "");
         const regF = document.getElementById('filter_regional')?.value || ""; 
         const calF = document.getElementById('filter_calendario')?.value || ""; 
         const clasF = document.getElementById('filter_clasificacion')?.value || "";
@@ -871,7 +954,7 @@ window.App = {
 
         let colegiosAsignados = (State.colegiosBD || []).filter(c => c.colegio !== "[NUEVO COACH SIN COLEGIO]");
         if(regF) colegiosAsignados = colegiosAsignados.filter(c => c.regional === regF);
-        if(coachF) colegiosAsignados = colegiosAsignados.filter(c => c.coach === coachF);
+        if(State.selectedCoaches.length > 0) colegiosAsignados = colegiosAsignados.filter(c => State.selectedCoaches.includes(c.coach));
         if(calF) colegiosAsignados = colegiosAsignados.filter(c => c.calendario && c.calendario.trim().toUpperCase() === calF);
         if(clasF) colegiosAsignados = colegiosAsignados.filter(c => c.clasificacion === clasF);
         if(lineasF.length > 0) colegiosAsignados = colegiosAsignados.filter(c => c.lineaNegocio && lineasF.includes(c.lineaNegocio.trim()));
@@ -898,7 +981,7 @@ window.App = {
                 const pct = Math.round((atendidosCount / totalCount) * 100) || 0;
                 
                 bodyHtml += `
-                <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 text-left">
                     <div class="flex justify-between items-center mb-3 border-b border-gray-200 pb-2">
                         <h4 class="font-black text-[#FF5A00] uppercase text-xs tracking-widest"><i class="fa-solid fa-map-location-dot mr-1"></i> ${reg}</h4>
                         <span class="text-xs font-bold ${pct === 100 ? 'text-green-600 bg-green-100' : 'text-gray-500 bg-white'} px-2 py-1 rounded shadow-sm">${atendidosCount} de ${totalCount} (${pct}%)</span>
@@ -921,7 +1004,7 @@ window.App = {
                             ${icon}
                             <span class="text-xs font-bold ${textStyle} truncate" title="${c.nombre}">${c.nombre}</span>
                         </div>
-                        ${State.currentUserRole === 'admin' && !coachF ? `<span class="text-[9px] text-gray-500 ml-6 mt-0.5"><i class="fa-solid fa-user-tie opacity-50 mr-1"></i>${c.coach}</span>` : ''}
+                        ${State.currentUserRole === 'admin' ? `<span class="text-[9px] text-gray-500 ml-6 mt-0.5"><i class="fa-solid fa-user-tie opacity-50 mr-1"></i>${c.coach}</span>` : ''}
                     </div>`;
                 });
                 bodyHtml += `</div></div>`;
@@ -929,7 +1012,7 @@ window.App = {
         }
         bodyHtml += `</div>`;
 
-        App.showModal(`Estado de Cobertura`, bodyHtml, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold transition-colors hover:bg-blue-900">Cerrar Panel</button>`);
+        App.showModal(`Estado de Cobertura`, bodyHtml, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold text-xs transition-colors hover:bg-blue-900">Cerrar Panel</button>`);
     },
 
     submitForm: async function(e) {
@@ -946,13 +1029,13 @@ window.App = {
         const formData = { 
             fecha: new Date().toLocaleDateString('es-CO'), 
             timestamp: Date.now(), 
-            ciclo: document.getElementById('ciclo').value, 
+            ciclo: document.getElementById('q0_ciclo').value, 
             colegio: inputColegio, 
             regional: autoRegional,
-            asistente: document.getElementById('q2_asistente').value, 
-            perfil: document.querySelector('input[name="q3_perfil"]:checked').value, 
+            asistente: document.getElementById('q3_asistente').value, 
+            perfil: document.querySelector('input[name="q2_perfil"]:checked').value, 
             coach: document.getElementById('q4_coach').value, 
-            numTaller: document.getElementById('q5_numTaller').value, 
+            numTaller: document.getElementById('q4_numTaller').value, 
             taller: document.getElementById('q5_taller').value, 
             q6: parseInt(document.querySelector('input[name="q6"]:checked').value), 
             q7: parseInt(document.querySelector('input[name="q7"]:checked').value), 
@@ -968,7 +1051,7 @@ window.App = {
             setTimeout(() => document.getElementById('successMsg').classList.add('hidden'), 6000);
             
             State.encuestasLoaded = false; 
-            if (State.currentUserRole) { await fetchEncuestas(); App.handleFilterTrigger(); } 
+            if (State.currentUserRole !== 'guest') { await fetchEncuestas(); App.handleFilterTrigger(); } 
         } catch (error) { alert("Hubo un error guardando la encuesta. Intenta de nuevo."); } finally { btn.disabled = false; btn.innerHTML = 'Enviar Respuestas'; }
     },
 
@@ -982,9 +1065,12 @@ window.App = {
                 const li = document.createElement('div'); 
                 li.className = 'px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b flex justify-between items-center'; 
                 li.innerHTML = `<span>${m.colegio}</span> <span class="text-[10px] text-gray-400 font-bold">${m.regional}</span>`; 
+                
+                // MEJORA PUNTO 2: Autocompleta el coach del colegio pero deja el selector abierto
                 li.onclick = () => { 
                     document.getElementById('q1_colegio').value = m.colegio; 
-                    document.getElementById('q4_coach').value = m.coach || ''; 
+                    const coachSelect = document.getElementById('q4_coach');
+                    if(coachSelect && m.coach) coachSelect.value = m.coach; 
                     list.classList.add('hidden'); 
                 }; 
                 list.appendChild(li); 
@@ -993,10 +1079,10 @@ window.App = {
         } else list.classList.add('hidden');
     },
 
-    poblarCoachesFormulario: function() { 
+    poblarCoaches: function() { 
         const sel = document.getElementById('q4_coach'); 
         if(sel) { 
-            sel.innerHTML = '<option value="">Asignación automática por JS</option>'; 
+            sel.innerHTML = '<option value="" disabled selected>Seleccione Coach...</option>'; 
             const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : []; 
             [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`); 
         } 
@@ -1007,6 +1093,32 @@ window.App = {
     showModal: function(title, body, footer) { document.getElementById('modalHeader').innerText = title; document.getElementById('modalBody').innerHTML = body; document.getElementById('modalFooter').innerHTML = footer; document.getElementById('customModal').classList.remove('hidden'); },
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
     
+    // MEJORA PUNTO 1 Y 3: CARGADORES CONDICIONALES EN TIEMPO REAL SEGÚN EL ROL DE ACCESO
+    openEditView: function(tipo) {
+        if (State.currentUserRole === 'guest') { alert("Acceso restringido. Por favor autentíquese."); return; }
+        
+        // Bloqueo de seguridad: Si un coach intenta entrar a la vista de coaches, lo redirige forzosamente
+        if (State.currentUserRole === 'coach' && tipo === 'coaches') { tipo = 'colegios'; }
+
+        State.currentEdicionView = tipo;
+        document.querySelectorAll('.subtab-btn-master').forEach(el => el.classList.remove('bg-gray-100', 'text-gray-600'));
+        
+        const activeSubBtn = document.getElementById('subbtn-' + tipo);
+        if (activeSubBtn) activeSubBtn.className = "px-4 py-2 text-xs font-black rounded-xl bg-gray-200 text-[#002C5F]";
+
+        document.getElementById('txt_edicion_title').innerText = tipo === 'colegios' ? 'Maestro de Instituciones Aliadas' : 'Estructura de Seguridad de Coaches';
+        document.getElementById('edicionTableContainer').classList.remove('hidden');
+        
+        if(tipo === 'colegios') {
+            document.getElementById('edicion_filters')?.classList.remove('hidden');
+            App.refreshEdicionFilters();
+        } else {
+            document.getElementById('edicion_filters')?.classList.add('hidden');
+        }
+
+        App.renderActiveEdicionTable();
+    },
+
     switchDashSubTab: function(id) { 
         ['subTabResultados', 'subTabRegistros', 'subTabEdicion'].forEach(t => { const el = document.getElementById(t); if(el) el.classList.add('hidden'); }); 
         const target = document.getElementById(`subTab${id.charAt(0).toUpperCase() + id.slice(1)}`); if(target) target.classList.remove('hidden'); 
@@ -1016,15 +1128,7 @@ window.App = {
         
         const edContainer = document.getElementById('edicionTableContainer'); if(id !== 'edicion' && edContainer) edContainer.classList.add('hidden'); 
         if(id === 'registros') this.renderRegistrosTable(true);
-    },
-    
-    openEditView: function(view) {
-        State.currentEdicionView = view;
-        const edContainer = document.getElementById('edicionTableContainer'); const sEdicion = document.getElementById('search_edicion');
-        if(edContainer) edContainer.classList.remove('hidden'); if(sEdicion) sEdicion.value = ''; 
-        const titleEl = document.getElementById('edicionTableTitle'); const filtersEl = document.getElementById('edicion_filters');
-        if(view === 'colegios') { if(titleEl) titleEl.innerHTML = '<i class="fa-solid fa-school mr-2"></i> Base Colegios'; if(filtersEl) filtersEl.classList.remove('hidden'); this.refreshEdicionFilters(); this.renderActiveEdicionTable(); } 
-        else { if(titleEl) titleEl.innerHTML = '<i class="fa-solid fa-user-tie mr-2"></i> Base Coaches'; if(filtersEl) filtersEl.classList.add('hidden'); this.renderActiveEdicionTable(); }
+        if(id === 'edicion') this.openEditView(State.currentEdicionView);
     },
 
     refreshEdicionFilters: function() {
@@ -1043,21 +1147,43 @@ window.App = {
         
         if(State.currentEdicionView === 'colegios') {
             const regVal = document.getElementById('edicion_filter_regional')?.value || ""; const coachVal = document.getElementById('edicion_filter_coach')?.value || "";
-            head.innerHTML = `<tr><th class="px-6 py-4">Colegio</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4">Coach</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
-            const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
-            safeColegios.forEach((c, idx) => { if ((searchVal === '' || (c.colegio||'').toLowerCase().includes(searchVal)) && (regVal === '' || c.regional === regVal) && (coachVal === '' || c.coach === coachVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold text-gray-700 text-xs">${c.colegio}</td><td class="px-6 py-4 text-xs">${c.regional}</td><td class="px-6 py-4 text-xs">${c.coach}</td><td class="px-6 py-4 text-center whitespace-nowrap"><button type="button" onclick="App.openEditColegioModal(${idx})" class="text-blue-500 mx-2 text-xs"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteColegio(${idx})" class="text-red-500 mx-2 text-xs"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
+            head.innerHTML = `<tr><th class="px-6 py-4 text-left">Colegio</th><th class="px-6 py-4 text-left">Regional</th><th class="px-6 py-4 text-left">Coach</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
+            
+            // REGLA DE FILTRADO CONDICIONAL DE COLEGIO POR COACH LOGUEADO (Punto 1 y 3)
+            let fuenteColegios = [...State.colegiosBD];
+            if (State.currentUserRole === 'coach') {
+                fuenteColegios = fuenteColegios.filter(c => c.coach.toLowerCase() === State.loginUser.nombre.toLowerCase());
+            }
+
+            fuenteColegios.forEach((c, idx) => { 
+                if ((searchVal === '' || (c.colegio||'').toLowerCase().includes(searchVal)) && (regVal === '' || c.regional === regVal) && (coachVal === '' || c.coach === coachVal)) { 
+                    
+                    // Ocultar botones de edición si el rol es consultor/coach
+                    const actionButtons = State.currentUserRole === 'admin' ? `
+                        <button type="button" onclick="App.openEditColegioModal(${idx})" class="text-blue-500 mx-2 text-xs"><i class="fa-solid fa-pen"></i></button>
+                        <button type="button" onclick="App.deleteColegio(${idx})" class="text-red-500 mx-2 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    ` : `<span class="text-xs text-gray-400 italic">Lectura protegida</span>`;
+
+                    body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold text-gray-700 text-xs">${c.colegio}</td><td class="px-6 py-4 text-xs">${c.regional}</td><td class="px-6 py-4 text-xs">${c.coach}</td><td class="px-6 py-4 text-center whitespace-nowrap">${actionButtons}</td></tr>`; 
+                } 
+            });
         } else {
-            head.innerHTML = `<tr><th class="px-6 py-4">Coach</th><th class="px-6 py-4">Email</th><th class="px-6 py-4">Regional</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
+            // Solo administradores llegan aquí por validación previa de seguridad
+            head.innerHTML = `<tr><th class="px-6 py-4 text-left">Coach</th><th class="px-6 py-4 text-left">Email</th><th class="px-6 py-4 text-left">Regional</th><th class="px-6 py-4 text-center">Acciones</th></tr>`; body.innerHTML = '';
             const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
-            safeCoaches.forEach((c, idx) => { if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold text-gray-700 text-xs">${c.nombre}</td><td class="px-6 py-4 text-xs">${c.email}</td><td class="px-6 py-4 text-xs">${c.regional}</td><td class="px-6 py-4 text-center whitespace-nowrap"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-2 text-xs"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-2 text-xs"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
+            safeCoaches.forEach((c, idx) => { 
+                if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { 
+                    body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold text-gray-700 text-xs">${c.nombre}</td><td class="px-6 py-4 text-xs">${c.email}</td><td class="px-6 py-4 text-xs">${c.regional}</td><td class="px-6 py-4 text-center whitespace-nowrap"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-2 text-xs"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-2 text-xs"><i class="fa-solid fa-trash"></i></button></td></tr>`; 
+                } 
+            });
         }
     },
 
-    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio de la base de datos?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch(e) { alert("Error"); } },
+    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio de la base de datos maestra?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch(e) { alert("Error"); } },
     deleteCoach: async function(idx) { if(!confirm("¿Borrar coach del sistema?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
     
     openEditColegioModal: function(idx) {
-        const isEdit = idx >= 0; const data = isEdit ? State.colegiosBD[idx] : { colegio: '', regional: '', coach: '', docentes: 0, clasificacion: 'AA' };
+        const isEdit = idx >= 0; const data = isEdit ? State.colegiosBD[idx] : { colegio: '', regional: '', coach: '', docentes: 0, calendario: 'A', lineaNegocio: 'Compartir', clasificacion: 'AA' };
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
         let regOptions = '<option value="">Seleccione Regional...</option>'; [...new Set(safeCoaches.map(c => c.regional))].sort().forEach(r => regOptions += `<option value="${r}" ${data.regional === r ? 'selected' : ''}>${r}</option>`);
         this.showModal(isEdit ? "Editar Institución" : "Nuevo Colegio", `<div class="space-y-4 text-left"><div><label class="text-xs font-bold text-gray-500">Nombre del Colegio</label><input type="text" id="edit_col_nombre" value="${data.colegio}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div class="grid grid-cols-2 gap-4"><div><label class="text-xs font-bold text-gray-500">Regional</label><select id="edit_col_reg" onchange="App.updateCoachOptionsEdit()" class="w-full border rounded-xl px-4 py-2 text-sm">${regOptions}</select></div><div><label class="text-xs font-bold text-gray-500">Coach Asignado</label><select id="edit_col_coach" class="w-full border rounded-xl px-4 py-2 text-sm"><option value="${data.coach || ''}">${data.coach || 'Seleccione...'}</option></select></div></div><div class="grid grid-cols-2 gap-4 border-t pt-4"><div><label class="text-[10px] font-bold text-gray-500">Meta Docentes</label><input type="number" id="edit_col_docentes" value="${data.docentes || 0}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div><div><label class="text-[10px] font-bold text-gray-500">Clasificación (AAA, RI, AA)</label><input type="text" id="edit_col_clasif" value="${data.clasificacion || ''}" class="w-full border rounded-xl px-4 py-2 text-sm focus:ring-1 focus:ring-[#FF5A00]"></div></div></div>`, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl font-bold text-sm">Cancelar</button><button type="button" onclick="App.saveEditColegio(${idx})" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-sm shadow-md">Guardar</button>`);
@@ -1078,7 +1204,7 @@ window.App = {
     saveEditColegio: async function(idx) {
         const colData = { colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(), regional: document.getElementById('edit_col_reg').value, coach: document.getElementById('edit_col_coach').value, docentes: parseInt(document.getElementById('edit_col_docentes').value) || 0, clasificacion: document.getElementById('edit_col_clasif').value.trim().toUpperCase() };
         if(!colData.colegio || !colData.regional || !colData.coach) { alert("Completa los campos obligatorios: Nombre, Regional y Coach."); return; }
-        try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); App.poblarCoachesFormulario(); } catch (e) { alert("Error al guardar."); }
+        try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); App.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
     },
 
     saveEditCoach: async function(idx) {
@@ -1093,11 +1219,12 @@ window.App = {
     }
 };
 
-// Eventos de carga para sincronización de archivos de Excel de bases fijas
+function initRatings() { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const container = document.getElementById(`${q}_group`); if(container){ for(let i=1; i<=5; i++) container.innerHTML += `<label class="rating-label"><input type="radio" name="${q}" value="${i}" required><span class="text-xs mt-1">${i}</span></label>`; } }); }
+
 document.getElementById('fileImportColegios')?.addEventListener('change', (e) => {
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
-        App.showModal("Sincronizando Colegios...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4 text-xs font-bold text-gray-500'>Mapeando documentos en Firestore...</p></div>", "");
+        App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4'>Procesando...</p></div>", "");
         try {
             const wb = XLSX.read(evt.target.result, {type: 'binary'}); let data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             for (const col of data) {
@@ -1109,15 +1236,15 @@ document.getElementById('fileImportColegios')?.addEventListener('change', (e) =>
                 else { const docRef = await addDoc(collection(db, "colegios"), cleanCol); State.colegiosBD.push({ id: docRef.id, ...cleanCol }); }
             }
             localStorage.removeItem('santillana_cache_time');
-            App.hideModal(); if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable(); alert("Base de colegios actualizada con éxito."); App.poblarCoachesFormulario();
-        } catch(err) { App.hideModal(); alert("Error procesando Excel de colegios."); }
+            App.hideModal(); if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable(); alert("Base actualizada."); App.poblarCoaches();
+        } catch(err) { App.hideModal(); alert("Error"); }
     }; reader.readAsBinaryString(file); e.target.value = null;
 });
 
 document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => {
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
-        App.showModal("Sincronizando Coaches...", "<div class='text-center py-4'><span class='loader'></span></div>", "");
+        App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span><p class='mt-4'>Procesando...</p></div>", "");
         try {
             const wb = XLSX.read(evt.target.result, {type: 'binary'}); const importedCoaches = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             for (const newCoach of importedCoaches) {
@@ -1127,15 +1254,15 @@ document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => 
                 else { const cleanCoach = {...newCoach}; if(!cleanCoach.pass) cleanCoach.pass = '12345'; delete cleanCoach.id; const docRef = await addDoc(collection(db, "coaches"), cleanCoach); State.coachesAuth.push({ id: docRef.id, ...cleanCoach }); }
             }
             localStorage.removeItem('santillana_cache_time');
-            App.hideModal(); if(State.currentEdicionView === 'coaches') App.renderActiveEdicionTable(); alert("Coaches actualizados correctamente.");
-        } catch(err) { App.hideModal(); alert("Error mapeando coaches."); }
+            App.hideModal(); if(State.currentEdicionView === 'coaches') App.renderActiveEdicionTable(); alert("Coaches actualizados.");
+        } catch(err) { App.hideModal(); alert("Error"); }
     }; reader.readAsBinaryString(file); e.target.value = null;
 });
 
 document.getElementById('fileImportEncuestas')?.addEventListener('change', (e) => {
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = async (evt) => {
-        App.showModal("Importando Encuestas...", "<div class='text-center py-4'><span class='loader'></span></div>", "");
+        App.showModal("Sincronizando...", "<div class='text-center py-4'><span class='loader'></span></div>", "");
         try {
             const wb = XLSX.read(evt.target.result, {type: 'binary'}); const importedData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
             for(const row of importedData) {
@@ -1150,12 +1277,13 @@ document.getElementById('fileImportEncuestas')?.addEventListener('change', (e) =
                     const docRef = await addDoc(collection(db, "encuestas"), cleanRow); State.encuestasData.push({ id: docRef.id, ...cleanRow });
                 }
             }
-            App.hideModal(); State.encuestasLoaded = false; await fetchEncuestas(); App.handleFilterTrigger(); alert(`Sincronización masiva de encuestas completada.`);
-        } catch(error) { App.hideModal(); alert("Error procesando excel de encuestas."); }
+            App.hideModal(); State.encuestasLoaded = false; await fetchEncuestas(); App.handleFilterTrigger(); alert(`Sincronización completada.`);
+        } catch(error) { App.hideModal(); alert("Error procesando excel."); }
     }; reader.readAsBinaryString(file); e.target.value = null; 
 });
 
 window.onload = async () => {
+    initRatings();
     await initApp(); 
 
     window.addEventListener('click', function(e) {
@@ -1170,6 +1298,11 @@ window.onload = async () => {
         const dropMeses = document.getElementById('dropdown_meses'); const btnMeses = document.getElementById('btn_dropdown_meses');
         if (dropMeses && btnMeses && !dropMeses.contains(e.target) && !btnMeses.contains(e.target)) {
             dropMeses.classList.add('hidden'); dropMeses.setAttribute('aria-hidden', 'true'); if(btnMeses) btnMeses.setAttribute('aria-expanded', 'false');
+        }
+        
+        const dropCoachesList = document.getElementById('dropdown_coaches_list'); const btnCoaches = document.getElementById('btn_dropdown_coaches');
+        if (dropCoachesList && btnCoaches && !dropCoachesList.contains(e.target) && !btnCoaches.contains(e.target)) {
+            dropCoachesList.classList.add('hidden');
         }
     });
 };
