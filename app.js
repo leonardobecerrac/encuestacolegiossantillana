@@ -1,6 +1,7 @@
 // app.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
@@ -13,6 +14,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const BusinessRules = { metasCiclo: { 'AAA': 6, 'RI': 4, 'AA': 3 } };
 
@@ -35,15 +37,85 @@ const State = {
 
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+// Lee un campo qN respetando valores 0 (un 0 explícito no debe tratarse como "ausente").
+// Revisa primero la clave en minúsculas y, solo si esa propiedad no existe, intenta la versión en mayúsculas.
+function getQVal(d, q) {
+    const lower = d[q];
+    if (lower !== undefined && lower !== null && lower !== '') return parseFloat(lower);
+    const upper = d[q?.toUpperCase()];
+    if (upper !== undefined && upper !== null && upper !== '') return parseFloat(upper);
+    return NaN;
+}
+
+// Formatea un valor de fecha (timestamp, string DD/MM/YYYY, ISO o serial Excel) a "DD/MM/YYYY" para mostrar.
+function formatFechaDisplay(d) {
+    if (d.timestamp) return new Date(d.timestamp).toLocaleDateString('es-CO');
+    if (d.fecha) {
+        const dateObj = parseFechaToDate(d.fecha);
+        if (dateObj) return `${dateObj.getDate().toString().padStart(2,'0')}/${(dateObj.getMonth()+1).toString().padStart(2,'0')}/${dateObj.getFullYear()}`;
+        return String(d.fecha).split(',')[0].trim();
+    }
+    return 'Sin fecha';
+}
+// Devuelve null si no se puede interpretar de forma fiable, en vez de devolver una fecha incorrecta (ej. 1970).
+function parseFechaToDate(fechaVal) {
+    if (fechaVal === null || fechaVal === undefined || fechaVal === '') return null;
+
+    // Número serial de Excel (días desde 1899-12-30)
+    if (typeof fechaVal === 'number' || /^\d+(\.\d+)?$/.test(String(fechaVal).trim())) {
+        const serial = Number(fechaVal);
+        if (serial > 0) {
+            const epoch = new Date(Date.UTC(1899, 11, 30));
+            const d = new Date(epoch.getTime() + serial * 86400000);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+
+    const fechaStr = String(fechaVal).split(',')[0].trim();
+
+    // Formato DD/MM/YYYY o D/M/YYYY
+    const parts = fechaStr.split('/');
+    if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+            const d = new Date(year, month - 1, day);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+
+    // Formato ISO (YYYY-MM-DD, etc.)
+    if (/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) {
+        const d = new Date(fechaStr);
+        if (!isNaN(d.getTime())) return d;
+        return null;
+    }
+
+    // Formato no reconocido: no asumir milisegundos desde 1970 (evita fechas falsas tipo 1970).
+    return null;
+}
+
 async function initApp() {
     try {
         const cachedCol = localStorage.getItem('santillana_colegios');
         const cachedCoach = localStorage.getItem('santillana_coaches');
-        const cacheTime = localStorage.getItem('santillana_cache_time');
-        
-        const isCacheValid = cacheTime && (Date.now() - parseInt(cacheTime) < 86400000);
+        const cachedVersion = localStorage.getItem('santillana_cache_version');
 
-        if (cachedCol && cachedCoach && isCacheValid) {
+        let remoteVersion = null;
+        try {
+            const metaSnap = await getDocs(collection(db, "meta"));
+            metaSnap.forEach(d => { if (d.id === 'cacheVersion') remoteVersion = String(d.data().updatedAt || ''); });
+        } catch (e) {
+            // Si falla la consulta de versión (ej. sin conexión), usamos lo que haya en caché si existe.
+            console.warn("No se pudo verificar versión remota de caché:", e);
+        }
+
+        const isCacheValid = cachedCol && cachedCoach && cachedVersion && (remoteVersion === null || remoteVersion === cachedVersion);
+
+        if (isCacheValid) {
             State.colegiosBD = JSON.parse(cachedCol) || [];
             State.coachesAuth = JSON.parse(cachedCoach) || [];
             App.poblarCoaches();
@@ -60,12 +132,27 @@ async function initApp() {
 
         localStorage.setItem('santillana_colegios', JSON.stringify(State.colegiosBD));
         localStorage.setItem('santillana_coaches', JSON.stringify(State.coachesAuth));
-        localStorage.setItem('santillana_cache_time', Date.now().toString());
+        if (remoteVersion !== null) localStorage.setItem('santillana_cache_version', remoteVersion);
+        else localStorage.removeItem('santillana_cache_version');
         
         App.poblarCoaches();
 
     } catch (error) {
         console.error("Error inicializando bases de datos:", error);
+    }
+}
+
+// Marca la caché de colegios/coaches como obsoleta para TODOS los clientes,
+// escribiendo una nueva versión en Firestore (meta/cacheVersion).
+async function invalidateRemoteCache() {
+    try {
+        const newVersion = Date.now().toString();
+        await setDoc(doc(db, "meta", "cacheVersion"), { updatedAt: newVersion });
+        localStorage.setItem('santillana_cache_version', newVersion);
+    } catch (e) {
+        console.error("No se pudo invalidar la caché remota:", e);
+        // Como respaldo, al menos invalidamos la caché local de este navegador.
+        localStorage.removeItem('santillana_cache_version');
     }
 }
 
@@ -125,8 +212,12 @@ window.App = {
         try {
             let userFound = null;
             if (role === 'admin') {
-                if (emailInput === 'jbecerra@santillana.com' && passInput === 'admin123') userFound = { email: emailInput, nombre: 'JBECERRA' };
-                else throw new Error("Credenciales de administrador incorrectas.");
+                try {
+                    const cred = await signInWithEmailAndPassword(auth, emailInput, passInput);
+                    userFound = { email: cred.user.email, nombre: 'JBECERRA' };
+                } catch (authErr) {
+                    throw new Error("Credenciales de administrador incorrectas.");
+                }
             } else {
                 const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
                 const coachInfo = safeCoaches.find(c => c.email && c.email.toLowerCase() === emailInput);
@@ -171,12 +262,15 @@ window.App = {
         
         const coreTable = document.getElementById('registros_core_container');
         if(coreTable) {
-            if(isAdmin) document.getElementById('subTabRegistros_content')?.appendChild(coreTable);
+            if(isAdmin) document.getElementById('subTabRegistros')?.appendChild(coreTable);
             else document.getElementById('content_coach_registros')?.appendChild(coreTable);
         }
     },
 
     logout: function() {
+        if (State.currentUserRole === 'admin') {
+            signOut(auth).catch(err => console.error("Error al cerrar sesión de Firebase Auth:", err));
+        }
         State.currentUserRole = null; State.loginUser = null; State.encuestasLoaded = false;
         State.encuestasData = []; State.filteredEncuestas = []; State.selectedRegistros.clear();
         this.updateBulkActionBar();
@@ -301,6 +395,8 @@ window.App = {
     },
 
     updateDashboard: function() {
+        const errBanner = document.getElementById('dash_error_banner');
+        if (errBanner) errBanner.classList.add('hidden');
         try {
             const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
             const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
@@ -340,12 +436,7 @@ window.App = {
                 if (mesesF.length > 0) {
                     let dateObj = null;
                     if (d.timestamp) { dateObj = new Date(d.timestamp); } 
-                    else if (d.fecha) { 
-                        const fechaStr = String(d.fecha);
-                        const parts = fechaStr.split(',')[0].trim().split('/'); 
-                        if(parts.length === 3) dateObj = new Date(parts[2], parts[1]-1, parts[0]); 
-                        else dateObj = new Date(fechaStr); 
-                    }
+                    else if (d.fecha) { dateObj = parseFechaToDate(d.fecha); }
                     if (dateObj && !isNaN(dateObj.getTime()) && !mesesF.includes(dateObj.getMonth())) return false;
                 }
                 return true;
@@ -381,11 +472,11 @@ window.App = {
             if(document.getElementById('dash_cobertura_colegios')) document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size; 
             if(document.getElementById('dash_total_colegios')) document.getElementById('dash_total_colegios').innerText = masterFilter.length;
 
-            const calc = (key) => { let sum = 0, count = 0; data.forEach(d => { const val = parseFloat(d[key] || d[key?.toUpperCase()]); if (!isNaN(val)) { sum += val; count++; } }); return count === 0 ? "0.0" : (sum / count).toFixed(1); };
+            const calc = (key) => { let sum = 0, count = 0; data.forEach(d => { const val = getQVal(d, key); if (!isNaN(val)) { sum += val; count++; } }); return count === 0 ? "0.0" : (sum / count).toFixed(1); };
             ['q6', 'q7', 'q8', 'q9'].forEach(q => { const val = calc(q); const avgEl = document.getElementById(`avg_${q}`); const barEl = document.getElementById(`bar_${q}`); if(avgEl) avgEl.innerText = val; if(barEl) barEl.style.width = (val / 5 * 100) + '%'; });
 
             let totalRespuestas = 0; let excelentes = 0;
-            data.forEach(d => { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const score = parseFloat(d[q] || d[q?.toUpperCase()]); if (!isNaN(score)) { totalRespuestas++; if(score >= 4) excelentes++; } }); });
+            data.forEach(d => { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const score = getQVal(d, q); if (!isNaN(score)) { totalRespuestas++; if(score >= 4) excelentes++; } }); });
             const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
             const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
             if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
@@ -395,7 +486,7 @@ window.App = {
                 dataset.forEach(d => { 
                     if(!d[keyProp]) return; 
                     let sum = 0, count = 0;
-                    ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q?.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
+                    ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = getQVal(d, q); if(!isNaN(s)){ sum += s; count++; } });
                     if(count > 0){ if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; rankMap[d[keyProp]].sum += (sum / count); rankMap[d[keyProp]].count++; }
                 });
                 const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
@@ -406,9 +497,22 @@ window.App = {
             };
 
             const rankCoachEl = document.getElementById('ranking_list_coach');
-            if (State.currentUserRole === 'admin' && rankCoachEl) rankCoachEl.innerHTML = buildRanking('coach', data);
+            const rankCoachSubtitle = document.getElementById('rank_coach_subtitle');
+            if (State.currentUserRole === 'admin' && rankCoachEl) {
+                if (coachF) {
+                    // Con un coach específico seleccionado, el ranking de coaches no aporta información nueva.
+                    rankCoachEl.innerHTML = '<div class="text-center text-xs text-gray-400 italic py-4">Selecciona "Todos" en el filtro de coach para ver el ranking comparativo.</div>';
+                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'No disponible: hay un coach específico seleccionado en los filtros.';
+                } else {
+                    rankCoachEl.innerHTML = buildRanking('coach', data);
+                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Promedio q6-q9 por coach, según filtros aplicados (regional, colegio, mes, etc.).';
+                }
+            }
             const rankRegEl = document.getElementById('ranking_list_regional');
+            const rankRegSubtitle = document.getElementById('rank_regional_subtitle');
             if(rankRegEl) rankRegEl.innerHTML = buildRanking('regional', dataGlobal);
+            if(rankRegSubtitle) rankRegSubtitle.textContent = coachF ? 'Promedio por regional, sin filtrar por coach (resto de filtros sí aplican).' : 'Promedio por regional, según filtros aplicados.';
+
 
             const detractores = data.filter(d => { const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s)); return scores.some(s => s <= 2); });
             const detBadge = document.getElementById('detractores_badge');
@@ -422,7 +526,7 @@ window.App = {
                     detractores.forEach(d => {
                         const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
                         const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
-                        const f = d.timestamp ? new Date(d.timestamp).toLocaleDateString('es-CO') : (d.fecha ? String(d.fecha).split(',')[0] : 'Sin fecha');
+                        const f = formatFechaDisplay(d);
                         if (State.currentUserRole === 'admin') {
                             detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors"><div class="flex items-start gap-3"><span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0">${minScore}</span><div class="flex-1 min-w-0"><p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p><div class="flex flex-col mt-1 gap-1"><p class="text-[10px] text-red-700 truncate"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> ${d.asistente || 'Anónimo'}</p><p class="text-[10px] font-bold text-gray-700 truncate"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p></div></div></div><div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">"${d.sugerencias || 'Sin comentarios registrados.'}"</div></div>`;
                         } else {
@@ -433,7 +537,13 @@ window.App = {
                 }
             }
             this.renderRegistrosTable(true);
-        } catch (err) { console.error("Error dibujando el dashboard:", err); }
+        } catch (err) {
+            console.error("Error dibujando el dashboard:", err);
+            const errBanner = document.getElementById('dash_error_banner');
+            const errDetail = document.getElementById('dash_error_detail');
+            if (errDetail) errDetail.textContent = `(${err?.message || 'error desconocido'})`;
+            if (errBanner) errBanner.classList.remove('hidden');
+        }
     },
 
     // --- ACCIONES MASIVAS ---
@@ -607,7 +717,17 @@ window.App = {
             return { ...d, regional: d.regional || (col ? col.regional : 'Sin Regional') }; 
         });
         
-        if (fechaVal) { const p = fechaVal.split('-'); const sd = `${parseInt(p[2])}/${parseInt(p[1])}/${p[0]}`; data = data.filter(d => { let f = ""; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${o.getMonth() + 1}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim(); return f === sd || f === `${p[2]}/${p[1]}/${p[0]}`; }); }
+        if (fechaVal) {
+            const p = fechaVal.split('-'); // YYYY-MM-DD del input type=date
+            const selYear = parseInt(p[0]), selMonth = parseInt(p[1]) - 1, selDay = parseInt(p[2]);
+            data = data.filter(d => {
+                let dateObj = null;
+                if (d.timestamp) { dateObj = new Date(d.timestamp); }
+                else if (d.fecha) { dateObj = parseFechaToDate(d.fecha); }
+                if (!dateObj || isNaN(dateObj.getTime())) return false;
+                return dateObj.getFullYear() === selYear && dateObj.getMonth() === selMonth && dateObj.getDate() === selDay;
+            });
+        }
         if (regVal) data = data.filter(d => d.regional === regVal); 
         if (colVal) data = data.filter(d => d.colegio === colVal);
         if (tallerVal) data = data.filter(d => d.numTaller === tallerVal); 
@@ -680,11 +800,9 @@ window.App = {
             const clone = template.content.cloneNode(true);
             
             let sum = 0, count = 0;
-            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = parseFloat(d[q] || d[q?.toUpperCase()]); if(!isNaN(s)){ sum += s; count++; } });
+            ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = getQVal(d, q); if(!isNaN(s)){ sum += s; count++; } });
             const avg = count > 0 ? (sum / count).toFixed(1) : '-';
-            let f = "Fecha no válida"; 
-            if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate().toString().padStart(2, '0')}/${(o.getMonth() + 1).toString().padStart(2, '0')}/${o.getFullYear()}`; } 
-            else if (d.fecha) { f = String(d.fecha).split(',')[0].trim(); }
+            let f = formatFechaDisplay(d);
 
             const cb = clone.querySelector('.row-checkbox');
             if(cb) { cb.checked = State.selectedRegistros.has(d.id); cb.onchange = (e) => App.toggleRowSelection(d.id, e.target.checked); }
@@ -809,7 +927,7 @@ window.App = {
         const list = State.registrosFiltrados && State.registrosFiltrados.length > 0 ? State.registrosFiltrados : State.filteredEncuestas;
         if (!list || list.length === 0) { alert("No hay datos para exportar."); return; }
         const data = list.map(d => {
-            let f = "Sin Fecha"; if (d.timestamp) { const o = new Date(d.timestamp); f = `${o.getDate()}/${(o.getMonth() + 1)}/${o.getFullYear()}`; } else if (d.fecha) f = String(d.fecha).split(',')[0].trim();
+            let f = formatFechaDisplay(d);
             return { id: d.id, fecha: f, ciclo: d.ciclo, regional: d.regional || 'Sin Regional', colegio: d.colegio, asistente: d.asistente, perfil: d.perfil, coach: d.coach, numTaller: d.numTaller, taller: d.taller, q6: d.q6, q7: d.q7, q8: d.q8, q9: d.q9, sugerencias: d.sugerencias };
         });
         const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reporte"); XLSX.writeFile(wb, "Reporte_Encuestas_Santillana.xlsx");
@@ -956,8 +1074,8 @@ window.App = {
             safeCoaches.forEach((c, idx) => { if (searchVal === '' || (c.nombre||'').toLowerCase().includes(searchVal) || (c.email||'').toLowerCase().includes(searchVal)) { body.innerHTML += `<tr class="hover:bg-gray-50 border-b"><td class="px-6 py-4 font-bold">${c.nombre}</td><td class="px-6 py-4">${c.email}</td><td class="px-6 py-4">${c.regional}</td><td class="px-6 py-4 text-center"><button type="button" onclick="App.openEditCoachModal(${idx})" class="text-blue-500 mx-1"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="App.deleteCoach(${idx})" class="text-red-500 mx-1"><i class="fa-solid fa-trash"></i></button></td></tr>`; } });
         }
     },
-    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
-    deleteCoach: async function(idx) { if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); localStorage.removeItem('santillana_cache_time'); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteColegio: async function(idx) { if(!confirm("¿Borrar colegio?")) return; try { await deleteDoc(doc(db, "colegios", State.colegiosBD[idx].id)); State.colegiosBD.splice(idx, 1); await invalidateRemoteCache(); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
+    deleteCoach: async function(idx) { if(!confirm("¿Borrar coach?")) return; try { await deleteDoc(doc(db, "coaches", State.coachesAuth[idx].id)); State.coachesAuth.splice(idx, 1); await invalidateRemoteCache(); this.renderActiveEdicionTable(); } catch(e) { alert("Error"); } },
     openEditColegioModal: function(idx) {
         const isEdit = idx >= 0; const data = isEdit ? State.colegiosBD[idx] : { colegio: '', regional: '', coach: '', docentes: 0, calendario: 'A', lineaNegocio: 'Compartir', clasificacion: 'AA' };
         const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
@@ -977,12 +1095,12 @@ window.App = {
     saveEditColegio: async function(idx) {
         const colData = { colegio: document.getElementById('edit_col_nombre').value.trim().toUpperCase(), regional: document.getElementById('edit_col_reg').value, coach: document.getElementById('edit_col_coach').value, docentes: parseInt(document.getElementById('edit_col_docentes').value) || 0, clasificacion: document.getElementById('edit_col_clasif').value.trim() };
         if(!colData.colegio || !colData.regional || !colData.coach) { alert("Completa Nombre, Regional y Coach."); return; }
-        try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch (e) { alert("Error al guardar."); }
+        try { if(idx === -1) { const docRef = await addDoc(collection(db, "colegios"), colData); State.colegiosBD.unshift({ id: docRef.id, ...colData }); } else { const colId = State.colegiosBD[idx].id; await setDoc(doc(db, "colegios", colId), colData); State.colegiosBD[idx] = { id: colId, ...colData }; } await invalidateRemoteCache(); this.hideModal(); this.renderActiveEdicionTable(); this.handleFilterTrigger(); } catch (e) { alert("Error al guardar."); }
     },
     saveEditCoach: async function(idx) {
         const coachData = { nombre: document.getElementById('edit_coach_nombre').value.trim(), email: document.getElementById('edit_coach_email').value.trim().toLowerCase(), regional: document.getElementById('edit_coach_regional').value.trim(), pass: document.getElementById('edit_coach_pass').value.trim() };
         if(!coachData.nombre || !coachData.email || !coachData.regional) { alert("Faltan datos."); return; }
-        try { const coachId = State.coachesAuth[idx].id; await setDoc(doc(db, "coaches", coachId), coachData); State.coachesAuth[idx] = { id: coachId, ...coachData }; localStorage.removeItem('santillana_cache_time'); this.hideModal(); this.renderActiveEdicionTable(); this.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
+        try { const coachId = State.coachesAuth[idx].id; await setDoc(doc(db, "coaches", coachId), coachData); State.coachesAuth[idx] = { id: coachId, ...coachData }; await invalidateRemoteCache(); this.hideModal(); this.renderActiveEdicionTable(); this.poblarCoaches(); } catch (e) { alert("Error al guardar."); }
     },
     exportData: function(type) {
         let data = type === 'colegios' ? State.colegiosBD : State.coachesAuth; let sheetName = type === 'colegios' ? "Colegios_BD" : "Coaches_Auth";
@@ -1005,7 +1123,7 @@ document.getElementById('fileImportColegios')?.addEventListener('change', (e) =>
                 if (existingIdx >= 0) { const docId = State.colegiosBD[existingIdx].id; await setDoc(doc(db, "colegios", docId), cleanCol); State.colegiosBD[existingIdx] = { id: docId, ...cleanCol }; } 
                 else { const docRef = await addDoc(collection(db, "colegios"), cleanCol); State.colegiosBD.push({ id: docRef.id, ...cleanCol }); }
             }
-            localStorage.removeItem('santillana_cache_time');
+            await invalidateRemoteCache();
             App.hideModal(); if(State.currentEdicionView === 'colegios') App.renderActiveEdicionTable(); alert("Base actualizada.");
         } catch(err) { App.hideModal(); alert("Error"); }
     }; reader.readAsBinaryString(file); e.target.value = null;
@@ -1023,7 +1141,7 @@ document.getElementById('fileImportCoaches')?.addEventListener('change', (e) => 
                 if (coachExistenteIdx >= 0) { const docId = State.coachesAuth[coachExistenteIdx].id; const passActual = State.coachesAuth[coachExistenteIdx].pass; const updatedData = { ...newCoach, pass: passActual }; delete updatedData.id; await setDoc(doc(db, "coaches", docId), updatedData); State.coachesAuth[coachExistenteIdx] = { id: docId, ...updatedData }; } 
                 else { const cleanCoach = {...newCoach}; if(!cleanCoach.pass) cleanCoach.pass = '12345'; delete cleanCoach.id; const docRef = await addDoc(collection(db, "coaches"), cleanCoach); State.coachesAuth.push({ id: docRef.id, ...cleanCoach }); }
             }
-            localStorage.removeItem('santillana_cache_time');
+            await invalidateRemoteCache();
             App.hideModal(); if(State.currentEdicionView === 'coaches') App.renderActiveEdicionTable(); alert("Coaches actualizados.");
         } catch(err) { App.hideModal(); alert("Error"); }
     }; reader.readAsBinaryString(file); e.target.value = null;

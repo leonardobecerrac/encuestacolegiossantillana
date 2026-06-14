@@ -158,6 +158,11 @@
         </div>
 
         <div id="dashTab" class="hidden space-y-8 fade-in">
+
+            <div id="dash_error_banner" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex items-center justify-between gap-3">
+                <span><i class="fa-solid fa-triangle-exclamation mr-2"></i> Ocurrió un error al actualizar el dashboard. Los datos mostrados pueden estar desactualizados. <span id="dash_error_detail" class="opacity-70"></span></span>
+                <button onclick="App.updateDashboard()" class="text-xs font-bold bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg transition-colors shrink-0">Reintentar</button>
+            </div>
             
             <div id="coachWelcomeBar" class="hidden bg-[#002C5F] text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center shadow-lg">
                 <div class="flex items-center gap-4">
@@ -197,8 +202,8 @@
                 </div>
 
                 <div id="dynamic_dashboard_grid" class="grid grid-cols-1 gap-6 mb-6 mt-6">
-                    <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest mb-4"><i class="fa-solid fa-user-tie mr-1"></i> Ranking Coach</h3><div id="ranking_list_coach" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
-                    <div id="block_rank_regional" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#FF5A00] uppercase tracking-widest mb-4"><i class="fa-solid fa-map-location-dot mr-1"></i> Ranking Regional Total</h3><div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
+                    <div id="block_rank_coach" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#002C5F] uppercase tracking-widest mb-1"><i class="fa-solid fa-user-tie mr-1"></i> Ranking Coach</h3><p id="rank_coach_subtitle" class="text-[10px] text-gray-400 mb-4"></p><div id="ranking_list_coach" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
+                    <div id="block_rank_regional" class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col lg:col-span-1"><h3 class="text-sm font-black text-[#FF5A00] uppercase tracking-widest mb-1"><i class="fa-solid fa-map-location-dot mr-1"></i> Ranking Regional</h3><p id="rank_regional_subtitle" class="text-[10px] text-gray-400 mb-4"></p><div id="ranking_list_regional" class="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div></div>
                     <div id="block_alertas" class="bg-white rounded-2xl shadow-sm p-6 border-l-4 border-red-500 lg:col-span-1 flex flex-col"><div class="flex justify-between items-start mb-4"><div><h3 class="text-sm font-black text-red-700 uppercase tracking-widest"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Alertas (Detractores)</h3></div><span id="detractores_badge" class="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-black shadow-sm">0</span></div><div id="detractores_list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 flex-1 custom-scrollbar"><div class="flex items-center justify-center h-full text-gray-400 italic text-sm">Esperando datos...</div></div></div>
                 </div>
 
