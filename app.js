@@ -494,22 +494,44 @@ window.App = {
             if(document.getElementById('dash_cobertura_colegios')) document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size; 
             if(document.getElementById('dash_total_colegios')) document.getElementById('dash_total_colegios').innerText = masterFilter.length;
 
-            // --- Punto 4: Asistencia promedio por colegio (encuestados / docentes asignados) ---
-            {
+            // --- Asistencia promedio por regional (gráfica de barras) ---
+            // Por regional: promedio de (docentes encuestados por colegio) / promedio de (docentes asignados por colegio),
+            // considerando solo colegios atendidos (con al menos 1 encuesta) dentro de los filtros aplicados.
+            const asistenciaChartEl = document.getElementById('chart_regional_asistencia');
+            if (asistenciaChartEl) {
                 const encuestasPorColegio = {};
                 data.forEach(d => { const key = (d.colegio || "").trim().toUpperCase(); encuestasPorColegio[key] = (encuestasPorColegio[key] || 0) + 1; });
-                let sumPct = 0, countColegios = 0;
+
+                const porRegional = {};
                 masterFilter.forEach(c => {
                     const key = (c.colegio || "").trim().toUpperCase();
                     const encuestados = encuestasPorColegio[key] || 0;
                     if (encuestados === 0) return; // solo colegios atendidos
                     const docentesAsignados = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
-                    if (docentesAsignados <= 0) return;
-                    sumPct += Math.min(encuestados / docentesAsignados, 1) * 100;
-                    countColegios++;
+                    const reg = c.regional || 'Sin Regional';
+                    if (!porRegional[reg]) porRegional[reg] = { sumEncuestados: 0, sumAsignados: 0, count: 0 };
+                    porRegional[reg].sumEncuestados += encuestados;
+                    porRegional[reg].sumAsignados += docentesAsignados;
+                    porRegional[reg].count++;
                 });
-                const coberturaDocentesPct = countColegios > 0 ? (sumPct / countColegios).toFixed(0) : 0;
-                if(document.getElementById('dash_cobertura_docentes_pct')) document.getElementById('dash_cobertura_docentes_pct').innerText = coberturaDocentesPct + '%';
+
+                const arrAsist = Object.keys(porRegional).map(k => {
+                    const g = porRegional[k];
+                    const promEncuestados = g.sumEncuestados / g.count;
+                    const promAsignados = g.sumAsignados / g.count;
+                    const ratio = promAsignados > 0 ? (promEncuestados / promAsignados) * 100 : 0;
+                    return { name: k, ratio, promEncuestados, promAsignados };
+                }).sort((a,b) => b.ratio - a.ratio);
+
+                if (arrAsist.length === 0) {
+                    asistenciaChartEl.innerHTML = '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
+                } else {
+                    asistenciaChartEl.innerHTML = arrAsist.map(item => {
+                        const pct = Math.min(item.ratio, 100).toFixed(0);
+                        const color = item.ratio >= 80 ? '#16a34a' : item.ratio >= 40 ? '#FF5A00' : '#dc2626';
+                        return `<div><div class="flex justify-between text-xs font-bold mb-1.5 text-gray-600"><span>${escapeHtml(item.name)}</span><span style="color:${color}">${item.ratio.toFixed(0)}% <span class="text-gray-400 font-normal">(${item.promEncuestados.toFixed(1)} / ${item.promAsignados.toFixed(1)})</span></span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="h-2.5 rounded-full transition-all duration-1000" style="width:${pct}%;background-color:${color}"></div></div></div>`;
+                    }).join('');
+                }
             }
 
             const calc = (key) => { let sum = 0, count = 0; data.forEach(d => { const val = getQVal(d, key); if (!isNaN(val)) { sum += val; count++; } }); return count === 0 ? "0.0" : (sum / count).toFixed(1); };
@@ -572,35 +594,35 @@ window.App = {
                     return b.score - a.score;
                 });
 
-                if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
+                if (arr.length === 0) return '<tr><td colspan="3" class="text-center text-xs text-gray-400 italic py-4">Sin datos.</td></tr>';
                 let html = '';
-                arr.slice(0, 10).forEach((item, idx) => {
+                arr.slice(0, 10).forEach((item) => {
                     const coberturaTxt = item.cobertura.toFixed(0) + '%';
                     const coberturaColor = item.cobertura >= 80 ? 'text-green-700 bg-green-50' : item.cobertura >= 40 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50';
-                    html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50">
-                        <div class="flex items-center gap-2 overflow-hidden">
-                            <span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100 shrink-0">${idx+1}</span>
-                            <div class="truncate">
-                                <p class="text-xs font-bold text-gray-700 truncate">${escapeHtml(item.name)}</p>
-                                <p class="text-[10px] text-gray-400">Promedio: <span class="font-bold text-gray-600">${item.score.toFixed(1)}</span> · Cobertura: <span class="${coberturaColor} px-1 rounded font-bold">${coberturaTxt}</span> (${item.colegiosEncuestados}/${item.colegiosAsignados})</p>
-                            </div>
-                        </div>
-                        <div class="text-xs font-black ${item.cobertura >= 80 ? 'text-[#002C5F] bg-blue-50' : item.cobertura >= 40 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2 shrink-0">${coberturaTxt}</div>
-                    </div>`;
+                    html += `<tr class="border-b border-gray-50 hover:bg-gray-50">
+                        <td class="py-2 font-bold text-gray-700 truncate max-w-[120px]">${escapeHtml(item.name)}</td>
+                        <td class="py-2 text-center font-bold text-gray-600">${item.score.toFixed(1)}</td>
+                        <td class="py-2 text-right"><span class="${coberturaColor} px-1.5 py-0.5 rounded font-bold">${coberturaTxt}</span> <span class="text-gray-400 text-[10px]">(${item.colegiosEncuestados}/${item.colegiosAsignados})</span></td>
+                    </tr>`;
                 });
                 return html;
             };
 
             const rankCoachEl = document.getElementById('ranking_list_coach');
             const rankCoachSubtitle = document.getElementById('rank_coach_subtitle');
-            if (State.currentUserRole === 'admin' && rankCoachEl) {
-                if (coachF) {
-                    // Con un coach específico seleccionado, el ranking de coaches no aporta información nueva.
-                    rankCoachEl.innerHTML = '<div class="text-center text-xs text-gray-400 italic py-4">Selecciona "Todos" en el filtro de coach para ver el ranking comparativo.</div>';
-                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'No disponible: hay un coach específico seleccionado en los filtros.';
+            if (rankCoachEl) {
+                if (State.currentUserRole === 'admin') {
+                    if (coachF) {
+                        // Con un coach específico seleccionado, el ranking de coaches no aporta información nueva.
+                        rankCoachEl.innerHTML = '<tr><td colspan="3" class="text-center text-xs text-gray-400 italic py-4">Selecciona "Todos" en el filtro de coach para ver el ranking comparativo.</td></tr>';
+                        if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'No disponible: hay un coach específico seleccionado en los filtros.';
+                    } else {
+                        rankCoachEl.innerHTML = buildRanking('coach', data, masterFilterGlobal);
+                        if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Ordenado por % de cobertura (colegios encuestados / asignados); en caso de empate, por promedio de calificación.';
+                    }
                 } else {
-                    rankCoachEl.innerHTML = buildRanking('coach', data, masterFilterGlobal);
-                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Ordenado por % de cobertura (colegios encuestados / asignados); en caso de empate, por promedio de calificación.';
+                    rankCoachEl.innerHTML = '<tr><td colspan="3" class="text-center text-xs text-gray-400 italic py-4">No disponible en la vista de coach.</td></tr>';
+                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = '';
                 }
             }
             const rankRegEl = document.getElementById('ranking_list_regional');
@@ -1034,7 +1056,6 @@ window.App = {
 
     showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento.</p><div class="bg-green-50 p-4 rounded-xl">Colegios AAA: 6 talleres | Colegios Ri: 4 talleres | Colegios AA: 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl">Entendido</button>'); },
 
-    showCoberturaDocentesExplanation: function() { App.showModal('Sobre la Asistencia Promedio por Colegio', `<div class="space-y-4 text-sm"><p>Para cada colegio que ya recibió al menos una encuesta, se calcula el porcentaje de docentes encuestados respecto al total de docentes asignados al colegio (ej. si el colegio tiene 20 docentes y se recibieron 5 encuestas, ese colegio aporta 25%).</p><p>El indicador es el <strong>promedio simple</strong> de ese porcentaje entre todos los colegios atendidos. Cada colegio aporta máximo 100%, aunque haya recibido más encuestas que docentes asignados.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-amber-500 text-white rounded-xl">Entendido</button>'); },
 
     showDetractoresModal: function() {
         const detractores = Array.isArray(State.detractoresActuales) ? State.detractoresActuales : [];
