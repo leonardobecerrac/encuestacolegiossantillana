@@ -216,7 +216,8 @@ window.App = {
                     const cred = await signInWithEmailAndPassword(auth, emailInput, passInput);
                     userFound = { email: cred.user.email, nombre: 'JBECERRA' };
                 } catch (authErr) {
-                    throw new Error("Credenciales de administrador incorrectas.");
+                    console.error("Firebase Auth error:", authErr.code, authErr.message);
+                    throw new Error("Credenciales de administrador incorrectas. (" + authErr.code + ")");
                 }
             } else {
                 const safeCoaches = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
