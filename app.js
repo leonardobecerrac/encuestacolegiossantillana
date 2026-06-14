@@ -35,6 +35,18 @@ const State = {
     regSort: { col: 'timestamp', dir: 'desc' } // Control para Ordenamiento A-Z
 };
 
+// Escapa caracteres especiales de HTML para evitar inyección al renderizar
+// campos de texto libre (sugerencias, nombres, etc.) con innerHTML.
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 // Lee un campo qN respetando valores 0 (un 0 explícito no debe tratarse como "ausente").
@@ -482,14 +494,48 @@ window.App = {
             if(document.getElementById('dash_cobertura_colegios')) document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size; 
             if(document.getElementById('dash_total_colegios')) document.getElementById('dash_total_colegios').innerText = masterFilter.length;
 
+            // --- Punto 4: Asistencia promedio por colegio (encuestados / docentes asignados) ---
+            {
+                const encuestasPorColegio = {};
+                data.forEach(d => { const key = (d.colegio || "").trim().toUpperCase(); encuestasPorColegio[key] = (encuestasPorColegio[key] || 0) + 1; });
+                let sumPct = 0, countColegios = 0;
+                masterFilter.forEach(c => {
+                    const key = (c.colegio || "").trim().toUpperCase();
+                    const encuestados = encuestasPorColegio[key] || 0;
+                    if (encuestados === 0) return; // solo colegios atendidos
+                    const docentesAsignados = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
+                    if (docentesAsignados <= 0) return;
+                    sumPct += Math.min(encuestados / docentesAsignados, 1) * 100;
+                    countColegios++;
+                });
+                const coberturaDocentesPct = countColegios > 0 ? (sumPct / countColegios).toFixed(0) : 0;
+                if(document.getElementById('dash_cobertura_docentes_pct')) document.getElementById('dash_cobertura_docentes_pct').innerText = coberturaDocentesPct + '%';
+            }
+
             const calc = (key) => { let sum = 0, count = 0; data.forEach(d => { const val = getQVal(d, key); if (!isNaN(val)) { sum += val; count++; } }); return count === 0 ? "0.0" : (sum / count).toFixed(1); };
             ['q6', 'q7', 'q8', 'q9'].forEach(q => { const val = calc(q); const avgEl = document.getElementById(`avg_${q}`); const barEl = document.getElementById(`bar_${q}`); if(avgEl) avgEl.innerText = val; if(barEl) barEl.style.width = (val / 5 * 100) + '%'; });
 
-            let totalRespuestas = 0; let excelentes = 0;
-            data.forEach(d => { ['q6', 'q7', 'q8', 'q9'].forEach(q => { const score = getQVal(d, q); if (!isNaN(score)) { totalRespuestas++; if(score >= 4) excelentes++; } }); });
-            const csatScore = totalRespuestas > 0 ? Math.round((excelentes / totalRespuestas) * 100) : 0;
-            const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
-            if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
+            // --- Punto 2: Satisfacción promedio por regional (gráfica de barras) ---
+            const regionalChartEl = document.getElementById('chart_regional_satisfaccion');
+            if (regionalChartEl) {
+                const porRegional = {};
+                data.forEach(d => {
+                    const reg = d.regional || 'Sin Regional';
+                    let sum = 0, count = 0;
+                    ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = getQVal(d, q); if(!isNaN(s)){ sum += s; count++; } });
+                    if (count > 0) { if(!porRegional[reg]) porRegional[reg] = { sum: 0, count: 0 }; porRegional[reg].sum += (sum / count); porRegional[reg].count++; }
+                });
+                const arrReg = Object.keys(porRegional).map(k => ({ name: k, score: porRegional[k].sum / porRegional[k].count })).sort((a,b) => b.score - a.score);
+                if (arrReg.length === 0) {
+                    regionalChartEl.innerHTML = '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
+                } else {
+                    regionalChartEl.innerHTML = arrReg.map(item => {
+                        const pct = (item.score / 5 * 100).toFixed(0);
+                        const color = item.score >= 4.5 ? '#16a34a' : item.score >= 4.0 ? '#FF5A00' : '#dc2626';
+                        return `<div><div class="flex justify-between text-xs font-bold mb-1.5 text-gray-600"><span>${item.name}</span><span style="color:${color}">${item.score.toFixed(1)}</span></div><div class="w-full bg-gray-100 rounded-full h-2.5"><div class="h-2.5 rounded-full transition-all duration-1000" style="width:${pct}%;background-color:${color}"></div></div></div>`;
+                    }).join('');
+                }
+            }
 
             const buildRanking = (keyProp, dataset, colegiosDataset) => {
                 const rankMap = {};
@@ -512,12 +558,19 @@ window.App = {
                 const arr = Object.keys(rankMap).map(k => {
                     const promedioReal = rankMap[k].sum / rankMap[k].count;
                     const colegiosGrupo = colegiosPorGrupo[k] || [];
-                    const encuestasGrupo = dataset.filter(d => d[keyProp] === k);
-                    const { avance } = computeAvance(colegiosGrupo, encuestasGrupo);
-                    const cobertura = Math.min(avance, 100); // tope 100% para no inflar el ponderado
-                    const ponderado = promedioReal * (cobertura / 100);
-                    return { name: k, score: promedioReal, count: rankMap[k].count, cobertura, ponderado, avanceReal: avance };
-                }).filter(x => x.count > 0).sort((a,b) => b.ponderado - a.ponderado);
+                    const colegiosAsignados = new Set(colegiosGrupo.map(c => (c.colegio || "").trim().toUpperCase()));
+                    const colegiosEncuestados = new Set(
+                        dataset.filter(d => d[keyProp] === k).map(d => (d.colegio || "").trim().toUpperCase())
+                    );
+                    // Solo contar como "encuestado" un colegio que efectivamente está en la cartera asignada de este grupo.
+                    let encuestadosEnCartera = 0;
+                    colegiosAsignados.forEach(c => { if (colegiosEncuestados.has(c)) encuestadosEnCartera++; });
+                    const cobertura = colegiosAsignados.size > 0 ? (encuestadosEnCartera / colegiosAsignados.size) * 100 : 0;
+                    return { name: k, score: promedioReal, count: rankMap[k].count, cobertura, colegiosEncuestados: encuestadosEnCartera, colegiosAsignados: colegiosAsignados.size };
+                }).filter(x => x.count > 0).sort((a,b) => {
+                    if (b.cobertura !== a.cobertura) return b.cobertura - a.cobertura;
+                    return b.score - a.score;
+                });
 
                 if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
                 let html = '';
@@ -528,11 +581,11 @@ window.App = {
                         <div class="flex items-center gap-2 overflow-hidden">
                             <span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100 shrink-0">${idx+1}</span>
                             <div class="truncate">
-                                <p class="text-xs font-bold text-gray-700 truncate">${item.name}</p>
-                                <p class="text-[10px] text-gray-400">Real: ${item.score.toFixed(1)} · Cobertura: <span class="${coberturaColor} px-1 rounded font-bold">${coberturaTxt}</span></p>
+                                <p class="text-xs font-bold text-gray-700 truncate">${escapeHtml(item.name)}</p>
+                                <p class="text-[10px] text-gray-400">Promedio: <span class="font-bold text-gray-600">${item.score.toFixed(1)}</span> · Cobertura: <span class="${coberturaColor} px-1 rounded font-bold">${coberturaTxt}</span> (${item.colegiosEncuestados}/${item.colegiosAsignados})</p>
                             </div>
                         </div>
-                        <div class="text-xs font-black ${item.ponderado >= 4.0 ? 'text-[#002C5F] bg-blue-50' : item.ponderado >= 2.0 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2 shrink-0">${item.ponderado.toFixed(1)}</div>
+                        <div class="text-xs font-black ${item.cobertura >= 80 ? 'text-[#002C5F] bg-blue-50' : item.cobertura >= 40 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2 shrink-0">${coberturaTxt}</div>
                     </div>`;
                 });
                 return html;
@@ -547,16 +600,17 @@ window.App = {
                     if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'No disponible: hay un coach específico seleccionado en los filtros.';
                 } else {
                     rankCoachEl.innerHTML = buildRanking('coach', data, masterFilterGlobal);
-                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Ordenado por promedio ponderado por cobertura (real × % de avance vs meta de asistencias). Filtros aplicados aplican.';
+                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Ordenado por % de cobertura (colegios encuestados / asignados); en caso de empate, por promedio de calificación.';
                 }
             }
             const rankRegEl = document.getElementById('ranking_list_regional');
             const rankRegSubtitle = document.getElementById('rank_regional_subtitle');
             if(rankRegEl) rankRegEl.innerHTML = buildRanking('regional', dataGlobal, masterFilterGlobal);
-            if(rankRegSubtitle) rankRegSubtitle.textContent = (coachF ? 'Sin filtrar por coach. ' : '') + 'Ordenado por promedio ponderado por cobertura (real × % de avance vs meta de asistencias).';
+            if(rankRegSubtitle) rankRegSubtitle.textContent = (coachF ? 'Sin filtrar por coach. ' : '') + 'Ordenado por % de cobertura (colegios encuestados / asignados); en caso de empate, por promedio de calificación.';
 
 
-            const detractores = data.filter(d => { const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s)); return scores.some(s => s <= 2); });
+            const detractores = data.filter(d => { const scores = ['q6','q7','q8','q9'].map(q => getQVal(d, q)).filter(s => !isNaN(s)); return scores.some(s => s <= 2); });
+            State.detractoresActuales = detractores;
             const detBadge = document.getElementById('detractores_badge');
             if(detBadge) detBadge.innerText = `${detractores.length}`;
             const dList = document.getElementById('detractores_list');
@@ -565,16 +619,19 @@ window.App = {
                 if (detractores.length === 0) { dList.innerHTML = '<div class="text-center text-green-600 py-6 font-bold">¡Sin alertas críticas!</div>'; } 
                 else {
                     let detractoresHTML = '';
-                    detractores.forEach(d => {
-                        const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s));
+                    detractores.slice(0, 5).forEach(d => {
+                        const scores = ['q6','q7','q8','q9'].map(q => getQVal(d, q)).filter(s => !isNaN(s));
                         const minScore = scores.length > 0 ? Math.min(...scores) : 'N/A';
                         const f = formatFechaDisplay(d);
                         if (State.currentUserRole === 'admin') {
-                            detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors"><div class="flex items-start gap-3"><span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0">${minScore}</span><div class="flex-1 min-w-0"><p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p><div class="flex flex-col mt-1 gap-1"><p class="text-[10px] text-red-700 truncate"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> ${d.asistente || 'Anónimo'}</p><p class="text-[10px] font-bold text-gray-700 truncate"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${d.coach}</p></div></div></div><div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">"${d.sugerencias || 'Sin comentarios registrados.'}"</div></div>`;
+                            detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3"><div class="flex items-start gap-3"><span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0">${minScore}</span><div class="flex-1 min-w-0"><p class="font-bold text-red-900 text-xs truncate">${escapeHtml(d.colegio)}</p><div class="flex flex-col mt-1 gap-1"><p class="text-[10px] text-red-700 truncate"><i class="fa-solid fa-chalkboard-user mr-1 opacity-70"></i> ${escapeHtml(d.asistente || 'Anónimo')}</p><p class="text-[10px] font-bold text-gray-700 truncate"><i class="fa-solid fa-user-tie mr-1 opacity-70"></i> Coach: ${escapeHtml(d.coach)}</p></div></div></div></div>`;
                         } else {
-                            detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3 hover:bg-red-100 transition-colors"><div class="flex items-center gap-3"><span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0">${minScore}</span><div class="flex-1 min-w-0"><p class="font-bold text-red-900 text-xs truncate">${d.colegio}</p><p class="text-[9px] text-red-700 mt-0.5">${f}</p></div></div><div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-[11px] italic text-gray-800 shadow-inner">"${d.sugerencias || 'Sin comentarios registrados.'}"</div></div>`;
+                            detractoresHTML += `<div class="p-4 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-3"><div class="flex items-center gap-3"><span class="w-8 h-8 flex items-center justify-center bg-red-600 text-white rounded-lg text-sm font-black shadow-sm shrink-0">${minScore}</span><div class="flex-1 min-w-0"><p class="font-bold text-red-900 text-xs truncate">${escapeHtml(d.colegio)}</p><p class="text-[9px] text-red-700 mt-0.5">${f}</p></div></div></div>`;
                         }
                     });
+                    if (detractores.length > 5) {
+                        detractoresHTML += `<div class="text-center text-xs font-bold text-red-600 py-2">+ ${detractores.length - 5} más — clic para ver el detalle completo</div>`;
+                    }
                     dList.innerHTML = detractoresHTML;
                 }
             }
@@ -976,7 +1033,46 @@ window.App = {
     },
 
     showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento.</p><div class="bg-green-50 p-4 rounded-xl">Colegios AAA: 6 talleres | Colegios Ri: 4 talleres | Colegios AA: 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl">Entendido</button>'); },
-    showExcelenciaExplanation: function() { App.showModal('Sobre el Índice de Excelencia', `<div class="space-y-4 text-sm"><p>Porcentaje de calificaciones 4 y 5 en la encuesta.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl">Entendido</button>'); },
+
+    showCoberturaDocentesExplanation: function() { App.showModal('Sobre la Asistencia Promedio por Colegio', `<div class="space-y-4 text-sm"><p>Para cada colegio que ya recibió al menos una encuesta, se calcula el porcentaje de docentes encuestados respecto al total de docentes asignados al colegio (ej. si el colegio tiene 20 docentes y se recibieron 5 encuestas, ese colegio aporta 25%).</p><p>El indicador es el <strong>promedio simple</strong> de ese porcentaje entre todos los colegios atendidos. Cada colegio aporta máximo 100%, aunque haya recibido más encuestas que docentes asignados.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-amber-500 text-white rounded-xl">Entendido</button>'); },
+
+    showDetractoresModal: function() {
+        const detractores = Array.isArray(State.detractoresActuales) ? State.detractoresActuales : [];
+        const isAdmin = State.currentUserRole === 'admin';
+        let body = '';
+        if (detractores.length === 0) {
+            body = '<div class="text-center text-green-600 py-10 font-bold">¡Sin alertas críticas con los filtros actuales!</div>';
+        } else {
+            body = `<div class="space-y-3">` + detractores.map(d => {
+                const scores = { q6: getQVal(d,'q6'), q7: getQVal(d,'q7'), q8: getQVal(d,'q8'), q9: getQVal(d,'q9') };
+                const minScore = Math.min(...Object.values(scores).filter(s => !isNaN(s)));
+                const f = formatFechaDisplay(d);
+                const labels = { q6: 'Conocimiento', q7: 'Utilidad', q8: 'Dinamismo', q9: 'Recursos' };
+                const scoresHtml = Object.keys(scores).map(q => {
+                    const v = scores[q];
+                    if (isNaN(v)) return '';
+                    const color = v <= 2 ? 'bg-red-100 text-red-700' : v <= 3 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700';
+                    return `<span class="px-2 py-0.5 rounded text-[10px] font-bold ${color}">${labels[q]}: ${v}</span>`;
+                }).join(' ');
+                const coachLine = isAdmin ? `<p class="text-xs font-bold text-gray-700 mt-1"><i class="fa-solid fa-user-tie mr-1 opacity-60"></i> Coach: ${escapeHtml(d.coach || 'Sin asignar')}</p>` : '';
+                return `<div class="p-4 bg-red-50 rounded-xl border border-red-100">
+                    <div class="flex flex-wrap justify-between items-start gap-2 mb-2">
+                        <div>
+                            <p class="font-bold text-red-900 text-sm">${escapeHtml(d.colegio || 'Sin colegio')}</p>
+                            <p class="text-[10px] text-red-700">${f} ${d.taller ? '· ' + escapeHtml(d.taller) : ''}</p>
+                            ${coachLine}
+                            <p class="text-xs text-gray-600 mt-1"><i class="fa-solid fa-chalkboard-user mr-1 opacity-60"></i> ${escapeHtml(d.asistente || 'Anónimo')} ${d.perfil ? '(' + escapeHtml(d.perfil) + ')' : ''}</p>
+                        </div>
+                        <span class="w-9 h-9 flex items-center justify-center bg-red-600 text-white rounded-lg text-base font-black shadow-sm shrink-0">${minScore}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mb-2">${scoresHtml}</div>
+                    <div class="bg-white/70 p-2.5 rounded-lg border border-red-100/50 text-xs italic text-gray-800 shadow-inner">"${escapeHtml(d.sugerencias || 'Sin comentarios registrados.')}"</div>
+                </div>`;
+            }).join('') + `</div>`;
+        }
+        App.showModal(`Detractores (${detractores.length}) — calificación ≤ 2 en alguna pregunta`, body, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl">Cerrar</button>');
+    },
+
     
     mostrarEstadoCobertura: function() {
         const coachF = State.currentUserRole === 'admin' ? (document.getElementById('filter_coach')?.value || "") : (State.loginUser?.nombre || "");
