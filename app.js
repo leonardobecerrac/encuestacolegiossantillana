@@ -4,7 +4,7 @@ import { getFirestore, collection, addDoc, getDocs, doc, setDoc, deleteDoc, quer
 import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDrVXpZfLwn0iddsaQWyXzRCvZ0bXkwviA",
+    apiKey: "AIzaSyDrVXpZfLwm0iddsaQWyXzRCvZ0bXkwviA",
     authDomain: "encuesta-santillana.firebaseapp.com",
     projectId: "encuesta-santillana",
     storageBucket: "encuesta-santillana.firebasestorage.app",
