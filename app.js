@@ -448,21 +448,30 @@ window.App = {
             
             State.filteredEncuestas = data; 
 
+            // Calcula meta de asistencias (según metasCiclo, excluyendo colegios "PRODUCTO")
+            // y asistencias reales para un subconjunto de colegios y encuestas.
+            const computeAvance = (colegiosGrupo, encuestasGrupo) => {
+                const colegiosCiclo = colegiosGrupo.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
+                const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => (c.colegio || "").toUpperCase()));
+                let metaAsistencias = 0;
+                colegiosCiclo.forEach(c => {
+                    const docs = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
+                    const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
+                    const multiplicador = BusinessRules.metasCiclo[clasif] || 1;
+                    metaAsistencias += (docs * multiplicador);
+                });
+                const asistenciasReales = encuestasGrupo.filter(d => nombresColegiosCiclo.has((d.colegio || "").toUpperCase())).length;
+                const avance = metaAsistencias > 0 ? (asistenciasReales / metaAsistencias) * 100 : 0;
+                return { metaAsistencias, asistenciasReales, avance };
+            };
+
             const metaAlcance = masterFilter.reduce((s, c) => s + (parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0), 0);
-            const colegiosCiclo = masterFilter.filter(c => { const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : ''; return !clasif.includes('PRODUCTO'); });
-            const nombresColegiosCiclo = new Set(colegiosCiclo.map(c => (c.colegio || "").toUpperCase()));
-            
-            let metaAsistencias = 0;
-            colegiosCiclo.forEach(c => { 
-                const docs = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
-                const clasif = c.clasificacion ? c.clasificacion.toUpperCase().trim() : '';
-                const multiplicador = BusinessRules.metasCiclo[clasif] || 1;
-                metaAsistencias += (docs * multiplicador); 
-            });
+            const avanceGlobal = computeAvance(masterFilter, data);
+            const metaAsistencias = avanceGlobal.metaAsistencias;
+            const asistenciasReales = avanceGlobal.asistenciasReales;
+            const avanceCiclo = metaAsistencias > 0 ? avanceGlobal.avance.toFixed(1) : 0;
 
             const docs = data.filter(d => d.perfil === 'Docente').length; const dirs = data.filter(d => d.perfil === 'Directivo').length;
-            const asistenciasReales = data.filter(d => nombresColegiosCiclo.has((d.colegio || "").toUpperCase())).length; 
-            const avanceCiclo = metaAsistencias > 0 ? ((asistenciasReales / metaAsistencias) * 100).toFixed(1) : 0;
             
             if(document.getElementById('dash_docentes')) document.getElementById('dash_docentes').innerText = docs; 
             if(document.getElementById('dash_meta_docentes')) document.getElementById('dash_meta_docentes').innerText = metaAlcance === 0 ? "0" : metaAlcance;
@@ -482,7 +491,7 @@ window.App = {
             const circle = document.getElementById('csat_path'); const text = document.getElementById('csat_text');
             if (circle && text) { circle.setAttribute('stroke-dasharray', `${csatScore}, 100`); text.textContent = `${csatScore}%`; circle.setAttribute('stroke', csatScore >= 80 ? '#16a34a' : csatScore >= 60 ? '#ca8a04' : '#dc2626'); }
 
-            const buildRanking = (keyProp, dataset) => {
+            const buildRanking = (keyProp, dataset, colegiosDataset) => {
                 const rankMap = {};
                 dataset.forEach(d => { 
                     if(!d[keyProp]) return; 
@@ -490,10 +499,42 @@ window.App = {
                     ['q6', 'q7', 'q8', 'q9'].forEach(q => { const s = getQVal(d, q); if(!isNaN(s)){ sum += s; count++; } });
                     if(count > 0){ if(!rankMap[d[keyProp]]) rankMap[d[keyProp]] = { sum: 0, count: 0 }; rankMap[d[keyProp]].sum += (sum / count); rankMap[d[keyProp]].count++; }
                 });
-                const arr = Object.keys(rankMap).map(k => ({ name: k, score: rankMap[k].sum / rankMap[k].count, count: rankMap[k].count })).filter(x => x.count > 0).sort((a,b) => b.score - a.score);
+
+                // Agrupar colegios por la misma clave (coach o regional) para calcular cobertura.
+                const colegiosPorGrupo = {};
+                colegiosDataset.forEach(c => {
+                    const key = keyProp === 'coach' ? c.coach : c.regional;
+                    if (!key) return;
+                    if (!colegiosPorGrupo[key]) colegiosPorGrupo[key] = [];
+                    colegiosPorGrupo[key].push(c);
+                });
+
+                const arr = Object.keys(rankMap).map(k => {
+                    const promedioReal = rankMap[k].sum / rankMap[k].count;
+                    const colegiosGrupo = colegiosPorGrupo[k] || [];
+                    const encuestasGrupo = dataset.filter(d => d[keyProp] === k);
+                    const { avance } = computeAvance(colegiosGrupo, encuestasGrupo);
+                    const cobertura = Math.min(avance, 100); // tope 100% para no inflar el ponderado
+                    const ponderado = promedioReal * (cobertura / 100);
+                    return { name: k, score: promedioReal, count: rankMap[k].count, cobertura, ponderado, avanceReal: avance };
+                }).filter(x => x.count > 0).sort((a,b) => b.ponderado - a.ponderado);
+
                 if (arr.length === 0) return '<div class="text-center text-xs text-gray-400 italic py-4">Sin datos.</div>';
                 let html = '';
-                arr.slice(0, 10).forEach((item, idx) => { html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50"><div class="flex items-center gap-2 overflow-hidden"><span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100">${idx+1}</span><div class="truncate"><p class="text-xs font-bold text-gray-700">${item.name}</p></div></div><div class="text-xs font-black ${item.score >= 4.0 ? 'text-[#002C5F] bg-blue-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2">${item.score.toFixed(1)}</div></div>`; });
+                arr.slice(0, 10).forEach((item, idx) => {
+                    const coberturaTxt = item.cobertura.toFixed(0) + '%';
+                    const coberturaColor = item.cobertura >= 80 ? 'text-green-700 bg-green-50' : item.cobertura >= 40 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50';
+                    html += `<div class="flex justify-between items-center p-2 rounded-lg border border-gray-50 hover:bg-gray-50">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <span class="w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-black bg-gray-100 shrink-0">${idx+1}</span>
+                            <div class="truncate">
+                                <p class="text-xs font-bold text-gray-700 truncate">${item.name}</p>
+                                <p class="text-[10px] text-gray-400">Real: ${item.score.toFixed(1)} · Cobertura: <span class="${coberturaColor} px-1 rounded font-bold">${coberturaTxt}</span></p>
+                            </div>
+                        </div>
+                        <div class="text-xs font-black ${item.ponderado >= 4.0 ? 'text-[#002C5F] bg-blue-50' : item.ponderado >= 2.0 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50'} px-2 py-1 rounded ml-2 shrink-0">${item.ponderado.toFixed(1)}</div>
+                    </div>`;
+                });
                 return html;
             };
 
@@ -505,14 +546,14 @@ window.App = {
                     rankCoachEl.innerHTML = '<div class="text-center text-xs text-gray-400 italic py-4">Selecciona "Todos" en el filtro de coach para ver el ranking comparativo.</div>';
                     if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'No disponible: hay un coach específico seleccionado en los filtros.';
                 } else {
-                    rankCoachEl.innerHTML = buildRanking('coach', data);
-                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Promedio q6-q9 por coach, según filtros aplicados (regional, colegio, mes, etc.).';
+                    rankCoachEl.innerHTML = buildRanking('coach', data, masterFilterGlobal);
+                    if (rankCoachSubtitle) rankCoachSubtitle.textContent = 'Ordenado por promedio ponderado por cobertura (real × % de avance vs meta de asistencias). Filtros aplicados aplican.';
                 }
             }
             const rankRegEl = document.getElementById('ranking_list_regional');
             const rankRegSubtitle = document.getElementById('rank_regional_subtitle');
-            if(rankRegEl) rankRegEl.innerHTML = buildRanking('regional', dataGlobal);
-            if(rankRegSubtitle) rankRegSubtitle.textContent = coachF ? 'Promedio por regional, sin filtrar por coach (resto de filtros sí aplican).' : 'Promedio por regional, según filtros aplicados.';
+            if(rankRegEl) rankRegEl.innerHTML = buildRanking('regional', dataGlobal, masterFilterGlobal);
+            if(rankRegSubtitle) rankRegSubtitle.textContent = (coachF ? 'Sin filtrar por coach. ' : '') + 'Ordenado por promedio ponderado por cobertura (real × % de avance vs meta de asistencias).';
 
 
             const detractores = data.filter(d => { const scores = [parseFloat(d.q6), parseFloat(d.q7), parseFloat(d.q8), parseFloat(d.q9)].filter(s => !isNaN(s)); return scores.some(s => s <= 2); });
