@@ -175,6 +175,7 @@
                 <button onclick="App.switchDashSubTab('resultados')" id="btn-sub-resultados" class="py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white">Panel de Resultados</button>
                 <button onclick="App.switchDashSubTab('registros')" id="btn-sub-registros" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Registros y Feedback</button>
                 <button onclick="App.switchDashSubTab('edicion')" id="btn-sub-edicion" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Gestión de datos</button>
+                <button onclick="App.switchDashSubTab('avance')" id="btn-sub-avance" class="py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50">Avance por Colegio</button>
             </div>
 
             <div id="subTabResultados" class="space-y-6">
@@ -302,6 +303,65 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════
+                 SUB-TAB: AVANCE POR COLEGIO
+                 Tabla con todos los colegios del coach/filtro activo:
+                 - % avance del ciclo (encuestas recibidas / meta talleres×docentes)
+                 - Docentes únicos capacitados (deduplicados por nombre+colegio)
+                 - Promedio de satisfacción
+                 - Estado visual (sin iniciar / en progreso / completado)
+                 Generada en JS por App.renderAvanceColegios()
+            ═══════════════════════════════════════════════════════════════ -->
+            <div id="subTabAvance" class="hidden space-y-4 fade-in">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 border-b bg-gray-50">
+                        <div>
+                            <h3 class="text-base font-black text-[#002C5F] uppercase tracking-wide">Avance por Colegio</h3>
+                            <p class="text-xs text-gray-400 mt-0.5">Todos los colegios asignados · Encuestas recibidas vs meta · Docentes únicos</p>
+                        </div>
+                        <div class="flex gap-2 items-center flex-wrap">
+                            <select id="avance_filter_coach" onchange="App.renderAvanceColegios()" class="text-xs font-bold border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todos los Coaches</option>
+                            </select>
+                            <select id="avance_filter_regional" onchange="App.renderAvanceColegios()" class="text-xs font-bold border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todas las Regionales</option>
+                            </select>
+                            <select id="avance_filter_estado" onchange="App.renderAvanceColegios()" class="text-xs font-bold border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF5A00]">
+                                <option value="">Todos los estados</option>
+                                <option value="sin">Sin iniciar</option>
+                                <option value="en">En progreso</option>
+                                <option value="completo">Completado</option>
+                            </select>
+                            <button onclick="App.exportAvanceColegios()" class="text-xs font-bold bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-100 transition-colors">
+                                <i class="fa-solid fa-file-excel mr-1 text-green-600"></i> Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Resumen rápido -->
+                    <div id="avance_summary" class="grid grid-cols-2 sm:grid-cols-4 gap-0 border-b text-center divide-x divide-gray-100"></div>
+                    <!-- Tabla -->
+                    <div class="overflow-x-auto max-h-[600px]">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-[10px] text-gray-400 uppercase tracking-widest sticky top-0 bg-gray-50 z-10 border-b">
+                                <tr>
+                                    <th class="px-4 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('colegio')">Colegio <i class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-4 py-3">Regional</th>
+                                    <th class="px-4 py-3">Coach</th>
+                                    <th class="px-4 py-3">Clasif.</th>
+                                    <th class="px-4 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('avance')">Avance <i class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-4 py-3">Docentes únicos</th>
+                                    <th class="px-4 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('satisfaccion')">Satisfacción <i class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-4 py-3">Talleres</th>
+                                    <th class="px-4 py-3">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="avance_tbody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                    <div id="avance_empty" class="hidden text-center py-12 text-gray-400 text-sm italic">Sin colegios para mostrar con los filtros activos.</div>
                 </div>
             </div>
 
