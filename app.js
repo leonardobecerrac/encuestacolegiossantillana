@@ -175,6 +175,16 @@ function normalizarColegioKey(colegio) {
 }
 
 function normalizarTallerKey(d) {
+    // El avance se mide por taller. Para evitar que "1", "Taller 1" o
+    // "TALLER 1" se cuenten como talleres distintos, se intenta extraer primero
+    // el número del taller. Si no hay número, se usa el texto normalizado.
+    const raw = normalizarTextoBase(`${d.numTaller || ''} ${d.taller || ''}`);
+    const match = raw.match(/\b(?:taller\s*)?([1-9][0-9]*)\b/);
+
+    if (match && match[1]) {
+        return `TALLER_${match[1]}`;
+    }
+
     return normalizarTextoBase(d.numTaller || d.taller || 'SIN_TALLER').toUpperCase();
 }
 
@@ -1550,7 +1560,44 @@ window.App = {
     },
 
     showAvanceExplanation: function() {
-        App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad del acompañamiento ejecutado frente a lo planeado.</p><div class="bg-green-50 p-4 rounded-xl">Colegios AAA: 6 talleres | Colegios RI: 4 talleres | Colegios AA: 3 talleres.</div><p>La medición usa <strong>docente-talleres únicos</strong>: si un docente responde dos veces la encuesta del mismo taller, cuenta una sola vez. Si el mismo docente participa en varios talleres, cuenta una vez por cada taller.</p></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl">Entendido</button>');
+        App.showModal(
+            'Sobre el Avance del Ciclo Anual',
+            `<div class="space-y-4 text-sm leading-relaxed">
+                <p>
+                    El <strong>Avance del Ciclo Anual</strong> mide el cumplimiento acumulado de las
+                    <strong>participaciones docentes esperadas</strong> frente a las participaciones realmente ejecutadas.
+                </p>
+
+                <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                    <p class="font-black text-green-800 mb-2">Meta planeada por colegio</p>
+                    <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                        <li><strong>AA:</strong> docentes del colegio × 3 talleres</li>
+                        <li><strong>RI:</strong> docentes del colegio × 4 talleres</li>
+                        <li><strong>AAA:</strong> docentes del colegio × 6 talleres</li>
+                        <li><strong>Producto:</strong> no se incluye en esta métrica</li>
+                    </ul>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <p class="font-black text-blue-900 mb-2">Fórmula usada</p>
+                    <p class="font-mono text-xs bg-white border border-blue-100 rounded-lg p-3 text-blue-900">
+                        Avance = docente-talleres únicos ejecutados / docente-talleres planeados
+                    </p>
+                </div>
+
+                <p>
+                    Una participación válida corresponde a un <strong>docente único dentro de un colegio y un taller específico</strong>.
+                    Si el mismo docente responde dos veces la encuesta del mismo taller, cuenta una sola vez.
+                    Si el mismo docente participa en varios talleres, cuenta una vez por cada taller.
+                </p>
+
+                <p class="text-xs text-gray-500 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    Esta métrica no es igual al total de encuestas aplicadas. Las encuestas aplicadas miden volumen de formularios;
+                    el avance del ciclo mide profundidad real del acompañamiento frente a lo planeado.
+                </p>
+            </div>`,
+            '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl font-bold">Entendido</button>'
+        );
     },
 
     showDetractoresModal: function() {
