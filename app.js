@@ -483,16 +483,38 @@ window.App = {
             const asistenciasReales = avanceGlobal.asistenciasReales;
             const avanceCiclo = metaAsistencias > 0 ? avanceGlobal.avance.toFixed(1) : 0;
 
-            const docs = data.filter(d => d.perfil === 'Docente').length; const dirs = data.filter(d => d.perfil === 'Directivo').length;
-            
-            if(document.getElementById('dash_docentes')) document.getElementById('dash_docentes').innerText = docs; 
-            if(document.getElementById('dash_meta_docentes')) document.getElementById('dash_meta_docentes').innerText = metaAlcance === 0 ? "0" : metaAlcance;
-            if(document.getElementById('dash_avance_porcentaje')) document.getElementById('dash_avance_porcentaje').innerText = avanceCiclo + '%'; 
-            if(document.getElementById('dash_asistencias_reales')) document.getElementById('dash_asistencias_reales').innerText = asistenciasReales;
-            if(document.getElementById('dash_asistencias_meta')) document.getElementById('dash_asistencias_meta').innerText = metaAsistencias === 0 ? "0" : metaAsistencias;
-            if(document.getElementById('dash_directivos')) document.getElementById('dash_directivos').innerText = dirs;
-            if(document.getElementById('dash_cobertura_colegios')) document.getElementById('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size; 
-            if(document.getElementById('dash_total_colegios')) document.getElementById('dash_total_colegios').innerText = masterFilter.length;
+            const docs = data.filter(d => d.perfil === 'Docente').length;
+            const dirs = data.filter(d => d.perfil === 'Directivo').length;
+
+            // Docentes únicos: deduplica por nombre normalizado dentro de cada colegio,
+            // luego suma entre colegios. Dos personas con el mismo nombre en colegios
+            // distintos cuentan como docentes distintos.
+            const _normDoc = n => (n || '').trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, ' ');
+            const docentesPorColegio = {};
+            data.filter(d => d.perfil === 'Docente').forEach(d => {
+                const col = (d.colegio || '').toUpperCase().trim();
+                const nom = _normDoc(d.asistente);
+                if (nom.length < 3) return; // ignorar vacíos y strings triviales
+                if (!docentesPorColegio[col]) docentesPorColegio[col] = new Set();
+                // Agrupar nombres que se contienen mutuamente (mismo docente, nombre abreviado)
+                let merged = false;
+                for (const existing of docentesPorColegio[col]) {
+                    if (existing.includes(nom) || nom.includes(existing)) { merged = true; break; }
+                }
+                if (!merged) docentesPorColegio[col].add(nom);
+            });
+            const docentesUnicos = Object.values(docentesPorColegio).reduce((s, set) => s + set.size, 0);
+
+            const el = id => document.getElementById(id);
+            if(el('dash_docentes'))          el('dash_docentes').innerText = docs;
+            if(el('dash_directivos'))        el('dash_directivos').innerText = dirs;
+            if(el('dash_docentes_unicos'))   el('dash_docentes_unicos').innerText = docentesUnicos;
+            if(el('dash_meta_docentes'))     el('dash_meta_docentes').innerText = metaAlcance || 0;
+            if(el('dash_avance_porcentaje')) el('dash_avance_porcentaje').innerText = avanceCiclo + '%';
+            if(el('dash_asistencias_reales')) el('dash_asistencias_reales').innerText = asistenciasReales;
+            if(el('dash_asistencias_meta'))  el('dash_asistencias_meta').innerText = metaAsistencias || 0;
+            if(el('dash_cobertura_colegios')) el('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size;
+            if(el('dash_total_colegios'))    el('dash_total_colegios').innerText = masterFilter.length;
 
             // --- Asistencia promedio por regional (gráfica de barras) ---
             // Por regional: promedio de (docentes encuestados por colegio) / promedio de (docentes asignados por colegio),
@@ -1068,57 +1090,63 @@ window.App = {
             this._avanceSort.col = col;
             this._avanceSort.dir = 'desc';
         }
-        // Actualizar iconos de ordenamiento
-        ['colegio','regional','coach','avancePct','docentes','satisfaccion','talleresRealizados'].forEach(c => {
+        const allCols = ['colegio','regional','coach','docentes','docentesUnicos','asistenciasReales','avancePct','satisfaccion','talleresRealizados'];
+        allCols.forEach(c => {
             const el = document.getElementById('sort-icon-' + c);
             if (!el) return;
-            if (c === col) {
-                el.className = 'fa-solid ml-1 ' + (this._avanceSort.dir === 'asc' ? 'fa-sort-up text-[#FF5A00]' : 'fa-sort-down text-[#FF5A00]');
-            } else {
-                el.className = 'fa-solid fa-sort text-gray-300 ml-1';
-            }
+            el.className = c === col
+                ? 'fa-solid ml-1 ' + (this._avanceSort.dir === 'asc' ? 'fa-sort-up text-[#FF5A00]' : 'fa-sort-down text-[#FF5A00]')
+                : 'fa-solid fa-sort text-gray-300 ml-1';
         });
         this.renderAvanceColegios();
     },
 
+    // Deduplica nombres de asistentes dentro de un array de encuestas de un colegio.
+    // Devuelve el número de docentes únicos estimados.
+    _deduplicarDocentes: function(encuestas) {
+        const normDoc = n => (n || '').trim().toLowerCase().normalize("NFD").replace(/\u0300-\u036f/g, "").replace(/\s+/g, ' ');
+        const grupos = [];
+        encuestas.forEach(d => {
+            const nom = normDoc(d.asistente);
+            if (nom.length < 3) return;
+            const grupoExistente = grupos.find(g => g.some(n => n.includes(nom) || nom.includes(n)));
+            if (grupoExistente) grupoExistente.push(nom);
+            else grupos.push([nom]);
+        });
+        return grupos.length;
+    },
+
     _buildAvanceData: function() {
-        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
-        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData : [];
-        const isAdmin = State.currentUserRole === 'admin';
-        const coachForzado = !isAdmin ? (State.loginUser?.nombre || '') : '';
+        const safeColegios  = Array.isArray(State.colegiosBD)    ? State.colegiosBD    : [];
+        const safeEncuestas = Array.isArray(State.encuestasData)  ? State.encuestasData : [];
+        const isAdmin       = State.currentUserRole === 'admin';
+        const coachForzado  = !isAdmin ? (State.loginUser?.nombre || '') : '';
+        const filterCoach   = coachForzado || (document.getElementById('avance_filter_coach')?.value   || '');
+        const filterReg     = document.getElementById('avance_filter_regional')?.value || '';
 
-        const filterCoach = coachForzado || (document.getElementById('avance_filter_coach')?.value || '');
-        const filterReg   = document.getElementById('avance_filter_regional')?.value || '';
-
-        // Colegios activos: excluir PRODUCTO, aplicar filtros
         const colegios = safeColegios.filter(c => {
             const clasif = (c.clasificacion || '').toUpperCase().trim();
             if (clasif.includes('PRODUCTO')) return false;
             if (filterCoach && (c.coach || '').trim().toLowerCase() !== filterCoach.trim().toLowerCase()) return false;
-            if (filterReg && (c.regional || '') !== filterReg) return false;
+            if (filterReg   && (c.regional || '') !== filterReg) return false;
             return true;
         });
 
         return colegios.map(c => {
-            const nombreKey = (c.colegio || '').toUpperCase().trim();
-            const clasif    = (c.clasificacion || '').toUpperCase().trim();
+            const nombreKey      = (c.colegio || '').toUpperCase().trim();
+            const clasif         = (c.clasificacion || '').toUpperCase().trim();
             const metaTalleres   = BusinessRules.metasCiclo[clasif] || 1;
             const docentes       = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
             const metaAsistencias = docentes * metaTalleres;
 
-            // Encuestas de este colegio
-            const encColegio = safeEncuestas.filter(d =>
-                (d.colegio || '').toUpperCase().trim() === nombreKey
-            );
+            const encColegio      = safeEncuestas.filter(d => (d.colegio || '').toUpperCase().trim() === nombreKey);
             const asistenciasReales = encColegio.length;
-            const avancePct = metaAsistencias > 0 ? (asistenciasReales / metaAsistencias) * 100 : 0;
+            const avancePct       = metaAsistencias > 0 ? (asistenciasReales / metaAsistencias) * 100 : 0;
 
-            // Talleres distintos realizados (por numTaller)
-            const talleresRealizados = new Set(
-                encColegio.map(d => (d.numTaller || '').trim()).filter(Boolean)
-            ).size;
+            // Docentes únicos encuestados (solo perfil Docente, deduplicados por nombre)
+            const docentesUnicos  = this._deduplicarDocentes(encColegio.filter(d => d.perfil === 'Docente'));
 
-            // Satisfacción promedio (q6-q9)
+            // Satisfacción promedio
             let sumSat = 0, countSat = 0;
             encColegio.forEach(d => {
                 ['q6','q7','q8','q9'].forEach(q => {
@@ -1128,19 +1156,15 @@ window.App = {
             });
             const satisfaccion = countSat > 0 ? sumSat / countSat : null;
 
+            // Talleres distintos realizados
+            const talleresRealizados = new Set(encColegio.map(d => (d.numTaller || '').trim()).filter(Boolean)).size;
+
             return {
-                colegio: c.colegio || '',
-                regional: c.regional || '',
-                coach: c.coach || '',
-                clasificacion: c.clasificacion || '',
-                clasifKey: clasif,
-                metaTalleres,
-                docentes,
-                metaAsistencias,
-                asistenciasReales,
-                avancePct,
-                satisfaccion,
-                talleresRealizados,
+                colegio: c.colegio || '', regional: c.regional || '', coach: c.coach || '',
+                clasificacion: c.clasificacion || '', clasifKey: clasif,
+                metaTalleres, docentes, metaAsistencias,
+                asistenciasReales, avancePct, docentesUnicos,
+                satisfaccion, talleresRealizados
             };
         });
     },
@@ -1149,59 +1173,53 @@ window.App = {
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         const isAdmin = State.currentUserRole === 'admin';
 
-        // ── Poblar selectores de filtro (solo la primera vez) ──────────
+        // Poblar selectores
         const coachSel = document.getElementById('avance_filter_coach');
         const regSel   = document.getElementById('avance_filter_regional');
-
         if (coachSel) {
             if (!isAdmin) {
                 coachSel.classList.add('hidden');
             } else if (coachSel.options.length <= 1) {
-                const coaches = [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort();
-                coaches.forEach(c => {
-                    const o = document.createElement('option'); o.value = c; o.textContent = c;
-                    coachSel.appendChild(o);
+                [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => {
+                    const o = document.createElement('option'); o.value = c; o.textContent = c; coachSel.appendChild(o);
                 });
             }
         }
         if (regSel && regSel.options.length <= 1) {
-            const regs = [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort();
-            regs.forEach(r => {
-                const o = document.createElement('option'); o.value = r; o.textContent = r;
-                regSel.appendChild(o);
+            [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => {
+                const o = document.createElement('option'); o.value = r; o.textContent = r; regSel.appendChild(o);
             });
         }
 
-        // ── Calcular filas ──────────────────────────────────────────────
         let filas = this._buildAvanceData();
 
-        // ── Ordenar ────────────────────────────────────────────────────
+        // Ordenar
         const { col, dir } = this._avanceSort;
         filas.sort((a, b) => {
             let va = a[col], vb = b[col];
-            if (va === null || va === undefined) va = dir === 'asc' ? Infinity : -Infinity;
-            if (vb === null || vb === undefined) vb = dir === 'asc' ? Infinity : -Infinity;
+            if (va === null || va === undefined) va = dir === 'asc' ?  Infinity : -Infinity;
+            if (vb === null || vb === undefined) vb = dir === 'asc' ?  Infinity : -Infinity;
             if (typeof va === 'string') {
                 va = va.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                vb = (vb + '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                vb = (vb+'').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             }
-            if (va < vb) return dir === 'asc' ? -1 : 1;
-            if (va > vb) return dir === 'asc' ? 1 : -1;
-            return 0;
+            return va < vb ? (dir === 'asc' ? -1 : 1) : va > vb ? (dir === 'asc' ? 1 : -1) : 0;
         });
 
-        // ── Resumen ─────────────────────────────────────────────────────
-        const totalColegios  = filas.length;
-        const conEncuesta    = filas.filter(f => f.asistenciasReales > 0).length;
-        const completados    = filas.filter(f => f.avancePct >= 100).length;
-        const totalDocentes  = filas.reduce((s, f) => s + f.docentes, 0);
+        // Banner resumen: 5 indicadores
+        const totalColegios      = filas.length;
+        const conEncuesta        = filas.filter(f => f.asistenciasReales > 0).length;
+        const completados        = filas.filter(f => f.avancePct >= 100).length;
+        const totalEncuestas     = filas.reduce((s, f) => s + f.asistenciasReales, 0);
+        const totalDocUnicos     = filas.reduce((s, f) => s + f.docentesUnicos, 0);
         const summaryEl = document.getElementById('avance_summary');
         if (summaryEl) {
             summaryEl.innerHTML = [
-                { label: 'Colegios activos',   value: totalColegios,          color: 'text-[#002C5F]' },
-                { label: 'Con encuestas',       value: conEncuesta + ' / ' + totalColegios, color: 'text-[#FF5A00]' },
-                { label: 'Ciclo completado',    value: completados,            color: 'text-green-600' },
-                { label: 'Total docentes BD',   value: totalDocentes,          color: 'text-blue-600' },
+                { label: 'Colegios activos',       value: totalColegios,  color: 'text-[#002C5F]' },
+                { label: 'Con encuestas',           value: conEncuesta,    color: 'text-[#FF5A00]' },
+                { label: 'Ciclo completado',        value: completados,    color: 'text-green-600' },
+                { label: 'Total encuestas',         value: totalEncuestas, color: 'text-blue-600'  },
+                { label: 'Docentes únicos',         value: totalDocUnicos, color: 'text-purple-600'},
             ].map(s =>
                 '<div class="py-4 px-2">' +
                   '<p class="text-xl font-black ' + s.color + '">' + s.value + '</p>' +
@@ -1210,12 +1228,11 @@ window.App = {
             ).join('');
         }
 
-        // ── Renderizar tabla ────────────────────────────────────────────
+        // Tabla
         const tbody   = document.getElementById('avance_tbody');
         const emptyEl = document.getElementById('avance_empty');
         if (!tbody) return;
-
-        if (filas.length === 0) {
+        if (!filas.length) {
             tbody.innerHTML = '';
             if (emptyEl) emptyEl.classList.remove('hidden');
             return;
@@ -1228,37 +1245,35 @@ window.App = {
             const barColor = pct >= 100 ? '#16a34a' : pct >= 50 ? '#FF5A00' : '#dc2626';
             const barW     = Math.min(pct, 100).toFixed(0);
 
-            // Columna Avance: solo la barra + %
             const avanceCol =
-                '<div class="flex items-center gap-2 min-w-[120px]">' +
+                '<div class="flex items-center gap-2 min-w-[110px]">' +
                   '<div class="flex-1 bg-gray-100 rounded-full h-2">' +
-                    '<div class="h-2 rounded-full transition-all duration-700" style="width:' + barW + '%;background-color:' + barColor + '"></div>' +
+                    '<div class="h-2 rounded-full" style="width:' + barW + '%;background-color:' + barColor + '"></div>' +
                   '</div>' +
-                  '<span class="text-xs font-black w-12 text-right" style="color:' + barColor + '">' + pctDisp + '</span>' +
+                  '<span class="text-xs font-black w-11 text-right" style="color:' + barColor + '">' + pctDisp + '</span>' +
                 '</div>';
 
-            // Columna Satisfacción
             const satCol = f.satisfaccion !== null
                 ? '<span class="font-bold" style="color:' +
                     (f.satisfaccion >= 4.5 ? '#16a34a' : f.satisfaccion >= 4.0 ? '#FF5A00' : '#dc2626') +
-                    '">' + f.satisfaccion.toFixed(2) + '</span>' +
-                  '<span class="text-gray-300 text-[10px]"> / 5</span>'
+                    '">' + f.satisfaccion.toFixed(2) + '</span><span class="text-gray-300 text-[10px]"> /5</span>'
                 : '<span class="text-gray-300 text-xs">—</span>';
 
-            // Columna Talleres: "2 / 6"
             const tallCol =
                 '<span class="font-bold text-[#002C5F]">' + f.talleresRealizados + '</span>' +
                 '<span class="text-gray-400 text-xs"> / ' + f.metaTalleres + '</span>';
 
             return '<tr class="hover:bg-orange-50 transition-colors">' +
-                '<td class="px-4 py-3 font-bold text-[#002C5F] text-xs max-w-[180px]" title="' + escapeHtml(f.colegio) + '">' + escapeHtml(f.colegio) + '</td>' +
-                '<td class="px-4 py-3 text-xs text-gray-500">' + escapeHtml(f.regional) + '</td>' +
-                '<td class="px-4 py-3 text-xs text-gray-600">' + escapeHtml(f.coach) + '</td>' +
-                '<td class="px-4 py-3 text-xs"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold text-[10px]">' + escapeHtml(f.clasificacion) + '</span></td>' +
-                '<td class="px-4 py-3">' + avanceCol + '</td>' +
-                '<td class="px-4 py-3 text-xs text-center font-bold text-[#002C5F]">' + f.docentes + '</td>' +
-                '<td class="px-4 py-3 text-xs">' + satCol + '</td>' +
-                '<td class="px-4 py-3 text-xs text-center">' + tallCol + '</td>' +
+                '<td class="px-3 py-3 font-bold text-[#002C5F] text-xs max-w-[160px] truncate" title="' + escapeHtml(f.colegio) + '">' + escapeHtml(f.colegio) + '</td>' +
+                '<td class="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">' + escapeHtml(f.regional) + '</td>' +
+                '<td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">' + escapeHtml(f.coach) + '</td>' +
+                '<td class="px-3 py-3 text-xs"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold text-[10px]">' + escapeHtml(f.clasificacion) + '</span></td>' +
+                '<td class="px-3 py-3 text-xs text-center font-bold text-[#002C5F]">' + f.docentes + '</td>' +
+                '<td class="px-3 py-3 text-xs text-center font-bold text-[#FF5A00]">' + f.docentesUnicos + '</td>' +
+                '<td class="px-3 py-3 text-xs text-center font-bold text-blue-600">' + f.asistenciasReales + '</td>' +
+                '<td class="px-3 py-3">' + avanceCol + '</td>' +
+                '<td class="px-3 py-3 text-xs">' + satCol + '</td>' +
+                '<td class="px-3 py-3 text-xs text-center">' + tallCol + '</td>' +
             '</tr>';
         }).join('');
     },
@@ -1266,12 +1281,11 @@ window.App = {
     exportAvanceColegios: function() {
         const filas = this._buildAvanceData();
         if (!filas.length) { alert("No hay datos para exportar."); return; }
-
-        const rows = [['Colegio','Regional','Coach','Clasificación','Talleres meta','Docentes BD','Meta asistencias','Asistencias reales','Avance %','Satisfacción','Talleres realizados']];
+        const rows = [['Colegio','Regional','Coach','Clasificación','Talleres meta','# Docentes BD','Doc. únicos encuestados','Total encuestas','Avance %','Satisfacción','Talleres realizados']];
         filas.forEach(f => {
             rows.push([
                 f.colegio, f.regional, f.coach, f.clasificacion,
-                f.metaTalleres, f.docentes, f.metaAsistencias,
+                f.metaTalleres, f.docentes, f.docentesUnicos,
                 f.asistenciasReales, f.avancePct.toFixed(1),
                 f.satisfaccion !== null ? f.satisfaccion.toFixed(2) : '',
                 f.talleresRealizados
@@ -1279,10 +1293,8 @@ window.App = {
         });
         const csv  = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href = url; a.download = 'avance_colegios.csv'; a.click();
-        URL.revokeObjectURL(url);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'avance_colegios.csv'; a.click();
     },
 
     showAvanceExplanation: function() { App.showModal('Sobre el Avance del Ciclo Anual', `<div class="space-y-4 text-sm"><p>El <strong>Avance del Ciclo Anual</strong> mide la profundidad de nuestro acompañamiento.</p><div class="bg-green-50 p-4 rounded-xl">Colegios AAA: 6 talleres | Colegios Ri: 4 talleres | Colegios AA: 3 talleres.</div></div>`, '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-green-600 text-white rounded-xl">Entendido</button>'); },
@@ -1429,20 +1441,17 @@ window.App = {
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
     switchDashSubTab: function(id) {
         ['subTabResultados', 'subTabRegistros', 'subTabEdicion', 'subTabAvance'].forEach(t => {
-            const el = document.getElementById(t);
-            if (el) el.classList.add('hidden');
+            const el = document.getElementById(t); if (el) el.classList.add('hidden');
         });
         const capId = id.charAt(0).toUpperCase() + id.slice(1);
         const target = document.getElementById('subTab' + capId);
         if (target) target.classList.remove('hidden');
-
         ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion', 'btn-sub-avance'].forEach(b => {
             const btn = document.getElementById(b);
             if (btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50";
         });
         const activeBtn = document.getElementById('btn-sub-' + id);
         if (activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white";
-
         const edContainer = document.getElementById('edicionTableContainer');
         if (id === 'edicion' && edContainer) edContainer.classList.add('hidden');
         if (id === 'avance') this.renderAvanceColegios();
