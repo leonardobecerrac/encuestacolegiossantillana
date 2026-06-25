@@ -1130,13 +1130,18 @@ window.App = {
                 const clasif       = (c.clasificacion||'').toUpperCase().trim();
                 const metaTalleres = BusinessRules.metasCiclo[clasif] || null; // null = clasificación no reconocida
                 const docentes     = parseInt(c.docentes||c.Docentes||c.DOCENTES) || 0;
-                const metaAsistencias = (metaTalleres && docentes) ? docentes * metaTalleres : null;
+                // metaAsistencias: null solo si clasificación inválida (metaTalleres===null)
+                // Si docentes===0, la meta es 0 pero la clasificación sí es válida
+                const metaAsistencias = metaTalleres !== null ? docentes * metaTalleres : null;
 
                 const enc = safeEncuestas.filter(d => (d.colegio||'').toUpperCase().trim() === key);
                 const asistenciasReales = enc.length;
 
-                // Avance % — null si no hay meta definida (clasificación inválida)
-                const avancePct = metaAsistencias ? (asistenciasReales / metaAsistencias) * 100 : null;
+                // Avance %: null solo si clasificación inválida.
+                // Si docentes===0, avancePct=0 (evita división por cero con toFixed).
+                const avancePct = metaTalleres === null ? null
+                    : metaAsistencias > 0 ? (asistenciasReales / metaAsistencias) * 100
+                    : 0;
 
                 // Docentes únicos encuestados (solo perfil Docente)
                 const docentesUnicos = this._deduplicarDocentes(enc.filter(d => d.perfil === 'Docente'));
@@ -1161,7 +1166,8 @@ window.App = {
                     metaTalleres, docentes, metaAsistencias, asistenciasReales,
                     avancePct, docentesUnicos, satisfaccion,
                     talleresRealizados, estaCompleto,
-                    clasificacionInvalida: metaTalleres === null
+                    clasificacionInvalida: metaTalleres === null,
+                    sinDocentes: metaTalleres !== null && docentes === 0
                 };
             });
     },
@@ -1241,8 +1247,10 @@ window.App = {
             let avanceCol;
             if (f.clasificacionInvalida) {
                 avanceCol = '<span class="text-[10px] text-red-400 font-bold">Clasif. inválida</span>';
+            } else if (f.sinDocentes) {
+                avanceCol = '<span class="text-[10px] text-amber-500 font-bold">Sin docentes en BD</span>';
             } else {
-                const pct      = f.avancePct;
+                const pct      = f.avancePct ?? 0;
                 const pctDisp  = pct.toFixed(1) + '%';
                 const barColor = f.estaCompleto ? '#16a34a' : pct >= 50 ? '#FF5A00' : '#dc2626';
                 const barW     = Math.min(pct, 100).toFixed(0);
