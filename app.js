@@ -486,35 +486,28 @@ window.App = {
             const docs = data.filter(d => d.perfil === 'Docente').length;
             const dirs = data.filter(d => d.perfil === 'Directivo').length;
 
-            // Docentes únicos: deduplica por nombre normalizado dentro de cada colegio,
-            // luego suma entre colegios. Dos personas con el mismo nombre en colegios
-            // distintos cuentan como docentes distintos.
-            const _normDoc = n => (n || '').trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, ' ');
-            const docentesPorColegio = {};
+            // Docentes únicos: normaliza y deduplica por nombre dentro de cada colegio
+            const _normD = n => (n || '').trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g,' ');
+            const _docPorCol = {};
             data.filter(d => d.perfil === 'Docente').forEach(d => {
-                const col = (d.colegio || '').toUpperCase().trim();
-                const nom = _normDoc(d.asistente);
-                if (nom.length < 3) return; // ignorar vacíos y strings triviales
-                if (!docentesPorColegio[col]) docentesPorColegio[col] = new Set();
-                // Agrupar nombres que se contienen mutuamente (mismo docente, nombre abreviado)
-                let merged = false;
-                for (const existing of docentesPorColegio[col]) {
-                    if (existing.includes(nom) || nom.includes(existing)) { merged = true; break; }
-                }
-                if (!merged) docentesPorColegio[col].add(nom);
+                const col = (d.colegio||'').toUpperCase().trim();
+                const nom = _normD(d.asistente);
+                if (nom.length < 3) return;
+                if (!_docPorCol[col]) _docPorCol[col] = [];
+                if (!_docPorCol[col].some(e => e.includes(nom) || nom.includes(e))) _docPorCol[col].push(nom);
             });
-            const docentesUnicos = Object.values(docentesPorColegio).reduce((s, set) => s + set.size, 0);
+            const docentesUnicos = Object.values(_docPorCol).reduce((s,arr) => s + arr.length, 0);
 
-            const el = id => document.getElementById(id);
-            if(el('dash_docentes'))          el('dash_docentes').innerText = docs;
-            if(el('dash_directivos'))        el('dash_directivos').innerText = dirs;
-            if(el('dash_docentes_unicos'))   el('dash_docentes_unicos').innerText = docentesUnicos;
-            if(el('dash_meta_docentes'))     el('dash_meta_docentes').innerText = metaAlcance || 0;
-            if(el('dash_avance_porcentaje')) el('dash_avance_porcentaje').innerText = avanceCiclo + '%';
-            if(el('dash_asistencias_reales')) el('dash_asistencias_reales').innerText = asistenciasReales;
-            if(el('dash_asistencias_meta'))  el('dash_asistencias_meta').innerText = metaAsistencias || 0;
-            if(el('dash_cobertura_colegios')) el('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio || "").toUpperCase())).size;
-            if(el('dash_total_colegios'))    el('dash_total_colegios').innerText = masterFilter.length;
+            const _el = id => document.getElementById(id);
+            if(_el('dash_docentes'))           _el('dash_docentes').innerText = docs;
+            if(_el('dash_directivos'))         _el('dash_directivos').innerText = dirs;
+            if(_el('dash_docentes_unicos'))    _el('dash_docentes_unicos').innerText = docentesUnicos;
+            if(_el('dash_meta_docentes'))      _el('dash_meta_docentes').innerText = metaAlcance || 0;
+            if(_el('dash_avance_porcentaje'))  _el('dash_avance_porcentaje').innerText = avanceCiclo + '%';
+            if(_el('dash_asistencias_reales')) _el('dash_asistencias_reales').innerText = asistenciasReales;
+            if(_el('dash_asistencias_meta'))   _el('dash_asistencias_meta').innerText = metaAsistencias || 0;
+            if(_el('dash_cobertura_colegios')) _el('dash_cobertura_colegios').innerText = new Set(data.map(d => (d.colegio||"").toUpperCase())).size;
+            if(_el('dash_total_colegios'))     _el('dash_total_colegios').innerText = masterFilter.length;
 
             // --- Asistencia promedio por regional (gráfica de barras) ---
             // Por regional: promedio de (docentes encuestados por colegio) / promedio de (docentes asignados por colegio),
@@ -1077,9 +1070,12 @@ window.App = {
     },
 
 
-    // ══════════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════════════
     // PESTAÑA: AVANCE POR COLEGIO
-    // ══════════════════════════════════════════════════════════════════
+    // Regla de negocio: ciclo completado = talleres realizados === meta
+    // (no porcentaje). Un colegio con 154% NO está completo si el número
+    // de talleres distintos recibidos < metaTalleres.
+    // ══════════════════════════════════════════════════════════════════════
 
     _avanceSort: { col: 'avancePct', dir: 'desc' },
 
@@ -1090,8 +1086,8 @@ window.App = {
             this._avanceSort.col = col;
             this._avanceSort.dir = 'desc';
         }
-        const allCols = ['colegio','regional','coach','docentes','docentesUnicos','asistenciasReales','avancePct','satisfaccion','talleresRealizados'];
-        allCols.forEach(c => {
+        const cols = ['colegio','regional','coach','docentes','docentesUnicos','asistenciasReales','avancePct','satisfaccion','talleresRealizados'];
+        cols.forEach(c => {
             const el = document.getElementById('sort-icon-' + c);
             if (!el) return;
             el.className = c === col
@@ -1101,93 +1097,94 @@ window.App = {
         this.renderAvanceColegios();
     },
 
-    // Deduplica nombres de asistentes dentro de un array de encuestas de un colegio.
-    // Devuelve el número de docentes únicos estimados.
     _deduplicarDocentes: function(encuestas) {
-        const normDoc = n => (n || '').trim().toLowerCase().normalize("NFD").replace(/\u0300-\u036f/g, "").replace(/\s+/g, ' ');
+        const norm = n => (n||'').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g,' ');
         const grupos = [];
         encuestas.forEach(d => {
-            const nom = normDoc(d.asistente);
+            const nom = norm(d.asistente);
             if (nom.length < 3) return;
-            const grupoExistente = grupos.find(g => g.some(n => n.includes(nom) || nom.includes(n)));
-            if (grupoExistente) grupoExistente.push(nom);
-            else grupos.push([nom]);
+            const g = grupos.find(gr => gr.some(e => e.includes(nom) || nom.includes(e)));
+            if (g) g.push(nom); else grupos.push([nom]);
         });
         return grupos.length;
     },
 
     _buildAvanceData: function() {
-        const safeColegios  = Array.isArray(State.colegiosBD)    ? State.colegiosBD    : [];
-        const safeEncuestas = Array.isArray(State.encuestasData)  ? State.encuestasData : [];
+        const safeColegios  = Array.isArray(State.colegiosBD)   ? State.colegiosBD   : [];
+        const safeEncuestas = Array.isArray(State.encuestasData) ? State.encuestasData: [];
         const isAdmin       = State.currentUserRole === 'admin';
         const coachForzado  = !isAdmin ? (State.loginUser?.nombre || '') : '';
-        const filterCoach   = coachForzado || (document.getElementById('avance_filter_coach')?.value   || '');
+        const filterCoach   = coachForzado || (document.getElementById('avance_filter_coach')?.value || '');
         const filterReg     = document.getElementById('avance_filter_regional')?.value || '';
 
-        const colegios = safeColegios.filter(c => {
-            const clasif = (c.clasificacion || '').toUpperCase().trim();
-            if (clasif.includes('PRODUCTO')) return false;
-            if (filterCoach && (c.coach || '').trim().toLowerCase() !== filterCoach.trim().toLowerCase()) return false;
-            if (filterReg   && (c.regional || '') !== filterReg) return false;
-            return true;
-        });
+        return safeColegios
+            .filter(c => {
+                const clasif = (c.clasificacion || '').toUpperCase().trim();
+                if (clasif.includes('PRODUCTO')) return false;
+                if (filterCoach && (c.coach||'').trim().toLowerCase() !== filterCoach.trim().toLowerCase()) return false;
+                if (filterReg   && (c.regional||'') !== filterReg) return false;
+                return true;
+            })
+            .map(c => {
+                const key          = (c.colegio||'').toUpperCase().trim();
+                const clasif       = (c.clasificacion||'').toUpperCase().trim();
+                const metaTalleres = BusinessRules.metasCiclo[clasif] || null; // null = clasificación no reconocida
+                const docentes     = parseInt(c.docentes||c.Docentes||c.DOCENTES) || 0;
+                const metaAsistencias = (metaTalleres && docentes) ? docentes * metaTalleres : null;
 
-        return colegios.map(c => {
-            const nombreKey      = (c.colegio || '').toUpperCase().trim();
-            const clasif         = (c.clasificacion || '').toUpperCase().trim();
-            const metaTalleres   = BusinessRules.metasCiclo[clasif] || 1;
-            const docentes       = parseInt(c.docentes || c.Docentes || c.DOCENTES) || 0;
-            const metaAsistencias = docentes * metaTalleres;
+                const enc = safeEncuestas.filter(d => (d.colegio||'').toUpperCase().trim() === key);
+                const asistenciasReales = enc.length;
 
-            const encColegio      = safeEncuestas.filter(d => (d.colegio || '').toUpperCase().trim() === nombreKey);
-            const asistenciasReales = encColegio.length;
-            const avancePct       = metaAsistencias > 0 ? (asistenciasReales / metaAsistencias) * 100 : 0;
+                // Avance % — null si no hay meta definida (clasificación inválida)
+                const avancePct = metaAsistencias ? (asistenciasReales / metaAsistencias) * 100 : null;
 
-            // Docentes únicos encuestados (solo perfil Docente, deduplicados por nombre)
-            const docentesUnicos  = this._deduplicarDocentes(encColegio.filter(d => d.perfil === 'Docente'));
+                // Docentes únicos encuestados (solo perfil Docente)
+                const docentesUnicos = this._deduplicarDocentes(enc.filter(d => d.perfil === 'Docente'));
 
-            // Satisfacción promedio
-            let sumSat = 0, countSat = 0;
-            encColegio.forEach(d => {
-                ['q6','q7','q8','q9'].forEach(q => {
-                    const v = getQVal(d, q);
-                    if (!isNaN(v)) { sumSat += v; countSat++; }
-                });
+                // Satisfacción promedio q6-q9
+                let sumS = 0, cntS = 0;
+                enc.forEach(d => { ['q6','q7','q8','q9'].forEach(q => { const v = getQVal(d,q); if(!isNaN(v)){sumS+=v;cntS++;} }); });
+                const satisfaccion = cntS > 0 ? sumS/cntS : null;
+
+                // Talleres distintos realizados (por numTaller)
+                const talleresSet = new Set(enc.map(d => (d.numTaller||'').trim()).filter(Boolean));
+                const talleresRealizados = talleresSet.size;
+
+                // ── REGLA DE NEGOCIO: completado = talleres realizados === meta ──
+                // NO se usa el porcentaje. Solo si se han recibido encuestas de
+                // exactamente los N talleres esperados (3, 4 o 6) se considera completo.
+                const estaCompleto = metaTalleres !== null && talleresRealizados >= metaTalleres;
+
+                return {
+                    id: c.id, colegio: c.colegio||'', regional: c.regional||'',
+                    coach: c.coach||'', clasificacion: c.clasificacion||'', clasif,
+                    metaTalleres, docentes, metaAsistencias, asistenciasReales,
+                    avancePct, docentesUnicos, satisfaccion,
+                    talleresRealizados, estaCompleto,
+                    clasificacionInvalida: metaTalleres === null
+                };
             });
-            const satisfaccion = countSat > 0 ? sumSat / countSat : null;
-
-            // Talleres distintos realizados
-            const talleresRealizados = new Set(encColegio.map(d => (d.numTaller || '').trim()).filter(Boolean)).size;
-
-            return {
-                colegio: c.colegio || '', regional: c.regional || '', coach: c.coach || '',
-                clasificacion: c.clasificacion || '', clasifKey: clasif,
-                metaTalleres, docentes, metaAsistencias,
-                asistenciasReales, avancePct, docentesUnicos,
-                satisfaccion, talleresRealizados
-            };
-        });
     },
 
     renderAvanceColegios: function() {
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         const isAdmin = State.currentUserRole === 'admin';
 
-        // Poblar selectores
+        // Poblar selectores de filtro
         const coachSel = document.getElementById('avance_filter_coach');
         const regSel   = document.getElementById('avance_filter_regional');
         if (coachSel) {
             if (!isAdmin) {
                 coachSel.classList.add('hidden');
             } else if (coachSel.options.length <= 1) {
-                [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => {
-                    const o = document.createElement('option'); o.value = c; o.textContent = c; coachSel.appendChild(o);
+                [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(v => {
+                    const o = document.createElement('option'); o.value = v; o.textContent = v; coachSel.appendChild(o);
                 });
             }
         }
         if (regSel && regSel.options.length <= 1) {
-            [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => {
-                const o = document.createElement('option'); o.value = r; o.textContent = r; regSel.appendChild(o);
+            [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(v => {
+                const o = document.createElement('option'); o.value = v; o.textContent = v; regSel.appendChild(o);
             });
         }
 
@@ -1200,30 +1197,30 @@ window.App = {
             if (va === null || va === undefined) va = dir === 'asc' ?  Infinity : -Infinity;
             if (vb === null || vb === undefined) vb = dir === 'asc' ?  Infinity : -Infinity;
             if (typeof va === 'string') {
-                va = va.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                vb = (vb+'').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                va = va.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+                vb = (vb+'').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
             }
-            return va < vb ? (dir === 'asc' ? -1 : 1) : va > vb ? (dir === 'asc' ? 1 : -1) : 0;
+            return va < vb ? (dir==='asc'?-1:1) : va > vb ? (dir==='asc'?1:-1) : 0;
         });
 
-        // Banner resumen: 5 indicadores
-        const totalColegios      = filas.length;
-        const conEncuesta        = filas.filter(f => f.asistenciasReales > 0).length;
-        const completados        = filas.filter(f => f.avancePct >= 100).length;
-        const totalEncuestas     = filas.reduce((s, f) => s + f.asistenciasReales, 0);
-        const totalDocUnicos     = filas.reduce((s, f) => s + f.docentesUnicos, 0);
-        const summaryEl = document.getElementById('avance_summary');
-        if (summaryEl) {
-            summaryEl.innerHTML = [
-                { label: 'Colegios activos',       value: totalColegios,  color: 'text-[#002C5F]' },
-                { label: 'Con encuestas',           value: conEncuesta,    color: 'text-[#FF5A00]' },
-                { label: 'Ciclo completado',        value: completados,    color: 'text-green-600' },
-                { label: 'Total encuestas',         value: totalEncuestas, color: 'text-blue-600'  },
-                { label: 'Docentes únicos',         value: totalDocUnicos, color: 'text-purple-600'},
+        // Banner resumen (5 indicadores)
+        const total      = filas.length;
+        const conEnc     = filas.filter(f => f.asistenciasReales > 0).length;
+        const completos  = filas.filter(f => f.estaCompleto).length;   // usa la regla real
+        const totalEnc   = filas.reduce((s,f) => s + f.asistenciasReales, 0);
+        const totalDocU  = filas.reduce((s,f) => s + f.docentesUnicos, 0);
+        const sumEl = document.getElementById('avance_summary');
+        if (sumEl) {
+            sumEl.innerHTML = [
+                { label:'Colegios activos',  value:total,    color:'text-[#002C5F]' },
+                { label:'Con encuestas',     value:conEnc,   color:'text-[#FF5A00]' },
+                { label:'Ciclo completado',  value:completos,color:'text-green-600'  },
+                { label:'Total encuestas',   value:totalEnc, color:'text-blue-600'   },
+                { label:'Docentes únicos',   value:totalDocU,color:'text-purple-600' },
             ].map(s =>
                 '<div class="py-4 px-2">' +
-                  '<p class="text-xl font-black ' + s.color + '">' + s.value + '</p>' +
-                  '<p class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">' + s.label + '</p>' +
+                '<p class="text-xl font-black ' + s.color + '">' + s.value + '</p>' +
+                '<p class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">' + s.label + '</p>' +
                 '</div>'
             ).join('');
         }
@@ -1239,60 +1236,174 @@ window.App = {
         }
         if (emptyEl) emptyEl.classList.add('hidden');
 
-        tbody.innerHTML = filas.map(f => {
-            const pct      = f.avancePct;
-            const pctDisp  = pct.toFixed(1) + '%';
-            const barColor = pct >= 100 ? '#16a34a' : pct >= 50 ? '#FF5A00' : '#dc2626';
-            const barW     = Math.min(pct, 100).toFixed(0);
-
-            const avanceCol =
-                '<div class="flex items-center gap-2 min-w-[110px]">' +
-                  '<div class="flex-1 bg-gray-100 rounded-full h-2">' +
+        tbody.innerHTML = filas.map((f, idx) => {
+            // Avance %
+            let avanceCol;
+            if (f.clasificacionInvalida) {
+                avanceCol = '<span class="text-[10px] text-red-400 font-bold">Clasif. inválida</span>';
+            } else {
+                const pct      = f.avancePct;
+                const pctDisp  = pct.toFixed(1) + '%';
+                const barColor = f.estaCompleto ? '#16a34a' : pct >= 50 ? '#FF5A00' : '#dc2626';
+                const barW     = Math.min(pct, 100).toFixed(0);
+                avanceCol =
+                    '<div class="flex items-center gap-2 min-w-[110px]">' +
+                    '<div class="flex-1 bg-gray-100 rounded-full h-2">' +
                     '<div class="h-2 rounded-full" style="width:' + barW + '%;background-color:' + barColor + '"></div>' +
-                  '</div>' +
-                  '<span class="text-xs font-black w-11 text-right" style="color:' + barColor + '">' + pctDisp + '</span>' +
-                '</div>';
+                    '</div>' +
+                    '<span class="text-xs font-black w-11 text-right" style="color:' + barColor + '">' + pctDisp + '</span>' +
+                    '</div>';
+            }
 
+            // Satisfacción
             const satCol = f.satisfaccion !== null
                 ? '<span class="font-bold" style="color:' +
-                    (f.satisfaccion >= 4.5 ? '#16a34a' : f.satisfaccion >= 4.0 ? '#FF5A00' : '#dc2626') +
-                    '">' + f.satisfaccion.toFixed(2) + '</span><span class="text-gray-300 text-[10px]"> /5</span>'
+                  (f.satisfaccion>=4.5?'#16a34a':f.satisfaccion>=4.0?'#FF5A00':'#dc2626') +
+                  '">' + f.satisfaccion.toFixed(2) + '</span><span class="text-gray-300 text-[10px]"> /5</span>'
                 : '<span class="text-gray-300 text-xs">—</span>';
 
+            // Talleres: color verde si completado
+            const tallColor = f.estaCompleto ? '#16a34a' : '#002C5F';
             const tallCol =
-                '<span class="font-bold text-[#002C5F]">' + f.talleresRealizados + '</span>' +
-                '<span class="text-gray-400 text-xs"> / ' + f.metaTalleres + '</span>';
+                '<span class="font-black" style="color:' + tallColor + '">' + f.talleresRealizados + '</span>' +
+                '<span class="text-gray-400 text-xs"> / ' + (f.metaTalleres || '?') + '</span>';
+
+            // Botones de acción (solo admin)
+            const accionesCol = isAdmin
+                ? '<div class="flex gap-1 justify-center">' +
+                  '<button onclick="App.openEditAvanceColegio(\'' + f.id + '\')" class="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Editar"><i class="fa-solid fa-pen-to-square text-xs"></i></button>' +
+                  '<button onclick="App.deleteAvanceColegio(\'' + f.id + '\',\'' + escapeHtml(f.colegio) + '\')" class="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar"><i class="fa-solid fa-trash text-xs"></i></button>' +
+                  '</div>'
+                : '';
 
             return '<tr class="hover:bg-orange-50 transition-colors">' +
                 '<td class="px-3 py-3 font-bold text-[#002C5F] text-xs max-w-[160px] truncate" title="' + escapeHtml(f.colegio) + '">' + escapeHtml(f.colegio) + '</td>' +
                 '<td class="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">' + escapeHtml(f.regional) + '</td>' +
                 '<td class="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">' + escapeHtml(f.coach) + '</td>' +
-                '<td class="px-3 py-3 text-xs"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold text-[10px]">' + escapeHtml(f.clasificacion) + '</span></td>' +
+                '<td class="px-3 py-3"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold text-[10px]">' + escapeHtml(f.clasificacion) + '</span></td>' +
                 '<td class="px-3 py-3 text-xs text-center font-bold text-[#002C5F]">' + f.docentes + '</td>' +
                 '<td class="px-3 py-3 text-xs text-center font-bold text-[#FF5A00]">' + f.docentesUnicos + '</td>' +
                 '<td class="px-3 py-3 text-xs text-center font-bold text-blue-600">' + f.asistenciasReales + '</td>' +
                 '<td class="px-3 py-3">' + avanceCol + '</td>' +
                 '<td class="px-3 py-3 text-xs">' + satCol + '</td>' +
                 '<td class="px-3 py-3 text-xs text-center">' + tallCol + '</td>' +
+                '<td class="px-3 py-3">' + accionesCol + '</td>' +
             '</tr>';
         }).join('');
+    },
+
+    openEditAvanceColegio: function(colegioId) {
+        this.openEditColegioAvance(colegioId);
+    },
+
+    // Eliminar colegio desde la tabla Avance con doble confirmación
+    deleteAvanceColegio: async function(colegioId, nombreColegio) {
+        const conf1 = confirm('¿Eliminar el colegio "' + nombreColegio + '"?\n\nEsta acción eliminará el colegio de la base de datos. Las encuestas asociadas NO se borran automáticamente.');
+        if (!conf1) return;
+        const conf2 = confirm('SEGUNDA CONFIRMACIÓN requerida.\n\n¿Confirmas que deseas eliminar definitivamente "' + nombreColegio + '"? Esta acción no se puede deshacer.');
+        if (!conf2) return;
+        try {
+            await deleteDoc(doc(db, "colegios", colegioId));
+            State.colegiosBD = State.colegiosBD.filter(c => c.id !== colegioId);
+            await invalidateRemoteCache();
+            this.renderAvanceColegios();
+            // Refrescar también la tabla de Gestión si está activa
+            if (State.currentEdicionView === 'colegios') this.renderActiveEdicionTable();
+        } catch(e) {
+            console.error("Error eliminando colegio:", e);
+            alert("Error al eliminar. Intenta de nuevo.");
+        }
+    },
+
+    // Modal de edición específico para la pestaña Avance
+    // Solo expone los campos editables: nombre, regional, coach, clasificación, docentes
+    openEditColegioAvance: function(colegioId) {
+        const idx = State.colegiosBD.findIndex(c => c.id === colegioId);
+        if (idx < 0) { alert("Colegio no encontrado."); return; }
+        const data = State.colegiosBD[idx];
+        const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
+        const safeCoaches  = Array.isArray(State.coachesAuth) ? State.coachesAuth : [];
+
+        let regOpts = '<option value="">Seleccione Regional...</option>';
+        [...new Set(safeColegios.map(c => c.regional).filter(Boolean))].sort().forEach(r => {
+            regOpts += '<option value="' + r + '" ' + (data.regional===r?'selected':'') + '>' + r + '</option>';
+        });
+        let coachOpts = '<option value="">Seleccione Coach...</option>';
+        [...safeCoaches].sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'')).forEach(co => {
+            coachOpts += '<option value="' + co.nombre + '" ' + (data.coach===co.nombre?'selected':'') + '>' + co.nombre + '</option>';
+        });
+        const clasifOpts = ['AA','AAA','Ri','PRODUCTO'].map(cl =>
+            '<option value="' + cl + '" ' + (data.clasificacion===cl?'selected':'') + '>' + cl + '</option>'
+        ).join('');
+
+        this.showModal("Editar Colegio",
+            '<div class="space-y-4">' +
+            '<div><label class="text-xs font-bold text-gray-600 block mb-1">Nombre del Colegio</label>' +
+            '<input type="text" id="ea_nombre" value="' + escapeHtml(data.colegio) + '" class="w-full border rounded-xl px-4 py-2 text-sm"></div>' +
+            '<div class="grid grid-cols-2 gap-3">' +
+            '<div><label class="text-xs font-bold text-gray-600 block mb-1">Regional</label>' +
+            '<select id="ea_regional" class="w-full border rounded-xl px-3 py-2 text-sm">' + regOpts + '</select>' +
+            '<input type="text" id="ea_regional_nueva" placeholder="O escribe una nueva..." class="w-full border rounded-xl px-3 py-2 mt-2 text-xs text-gray-500"></div>' +
+            '<div><label class="text-xs font-bold text-gray-600 block mb-1">Coach</label>' +
+            '<select id="ea_coach" class="w-full border rounded-xl px-3 py-2 text-sm">' + coachOpts + '</select></div>' +
+            '</div>' +
+            '<div class="grid grid-cols-2 gap-3 pt-2 border-t">' +
+            '<div><label class="text-xs font-bold text-gray-600 block mb-1">Clasificación</label>' +
+            '<select id="ea_clasif" class="w-full border rounded-xl px-3 py-2 text-sm">' + clasifOpts + '</select></div>' +
+            '<div><label class="text-xs font-bold text-gray-600 block mb-1"># Docentes</label>' +
+            '<input type="number" id="ea_docentes" value="' + (data.docentes||0) + '" min="0" class="w-full border rounded-xl px-3 py-2 text-sm"></div>' +
+            '</div>' +
+            '<p class="text-[10px] text-gray-400 pt-1">Los demás datos (encuestas, avance, satisfacción) se calculan automáticamente y no son editables aquí.</p>' +
+            '</div>',
+            '<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-gray-200 rounded-xl text-sm">Cancelar</button>' +
+            '<button type="button" onclick="App.saveEditColegioAvance(\'' + colegioId + '\',' + idx + ')" class="px-6 py-2 bg-[#FF5A00] text-white rounded-xl font-bold text-sm">Guardar en Firebase</button>'
+        );
+    },
+
+    saveEditColegioAvance: async function(colegioId, idx) {
+        const regionalNueva = (document.getElementById('ea_regional_nueva')?.value || '').trim();
+        const regional      = regionalNueva || document.getElementById('ea_regional')?.value || '';
+        const nombre        = (document.getElementById('ea_nombre')?.value || '').trim().toUpperCase();
+        const coach         = document.getElementById('ea_coach')?.value || '';
+        const clasificacion = document.getElementById('ea_clasif')?.value || '';
+        const docentes      = parseInt(document.getElementById('ea_docentes')?.value) || 0;
+
+        if (!nombre || !regional || !coach || !clasificacion) {
+            alert("Todos los campos son obligatorios.");
+            return;
+        }
+
+        const colData = { ...State.colegiosBD[idx], colegio: nombre, regional, coach, clasificacion, docentes };
+        delete colData.id;
+
+        try {
+            await setDoc(doc(db, "colegios", colegioId), colData);
+            State.colegiosBD[idx] = { id: colegioId, ...colData };
+            await invalidateRemoteCache();
+            this.hideModal();
+            this.renderAvanceColegios();
+            if (State.currentEdicionView === 'colegios') this.renderActiveEdicionTable();
+            this.handleFilterTrigger();
+        } catch(e) {
+            console.error("Error guardando colegio:", e);
+            alert("Error al guardar en Firebase. Revisa la consola.");
+        }
     },
 
     exportAvanceColegios: function() {
         const filas = this._buildAvanceData();
         if (!filas.length) { alert("No hay datos para exportar."); return; }
-        const rows = [['Colegio','Regional','Coach','Clasificación','Talleres meta','# Docentes BD','Doc. únicos encuestados','Total encuestas','Avance %','Satisfacción','Talleres realizados']];
-        filas.forEach(f => {
-            rows.push([
-                f.colegio, f.regional, f.coach, f.clasificacion,
-                f.metaTalleres, f.docentes, f.docentesUnicos,
-                f.asistenciasReales, f.avancePct.toFixed(1),
-                f.satisfaccion !== null ? f.satisfaccion.toFixed(2) : '',
-                f.talleresRealizados
-            ]);
-        });
-        const csv  = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const rows = [['Colegio','Regional','Coach','Clasificación','# Docentes BD','Doc. únicos encuestados','Total encuestas','Avance %','Satisfacción','Talleres realizados','Talleres meta','Ciclo completo']];
+        filas.forEach(f => rows.push([
+            f.colegio, f.regional, f.coach, f.clasificacion,
+            f.docentes, f.docentesUnicos, f.asistenciasReales,
+            f.avancePct !== null ? f.avancePct.toFixed(1) : 'N/A',
+            f.satisfaccion !== null ? f.satisfaccion.toFixed(2) : '',
+            f.talleresRealizados, f.metaTalleres || '?',
+            f.estaCompleto ? 'Sí' : 'No'
+        ]));
+        const csv  = rows.map(r => r.map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob); a.download = 'avance_colegios.csv'; a.click();
     },
@@ -1440,21 +1551,20 @@ window.App = {
     showModal: function(title, body, footer) { document.getElementById('modalHeader').innerText = title; document.getElementById('modalBody').innerHTML = body; document.getElementById('modalFooter').innerHTML = footer; document.getElementById('customModal').classList.remove('hidden'); },
     hideModal: function() { document.getElementById('customModal').classList.add('hidden'); },
     switchDashSubTab: function(id) {
-        ['subTabResultados', 'subTabRegistros', 'subTabEdicion', 'subTabAvance'].forEach(t => {
-            const el = document.getElementById(t); if (el) el.classList.add('hidden');
+        ['subTabResultados','subTabRegistros','subTabEdicion','subTabAvance'].forEach(t => {
+            const el = document.getElementById(t); if(el) el.classList.add('hidden');
         });
-        const capId = id.charAt(0).toUpperCase() + id.slice(1);
-        const target = document.getElementById('subTab' + capId);
-        if (target) target.classList.remove('hidden');
-        ['btn-sub-resultados', 'btn-sub-registros', 'btn-sub-edicion', 'btn-sub-avance'].forEach(b => {
+        const target = document.getElementById('subTab' + id.charAt(0).toUpperCase() + id.slice(1));
+        if(target) target.classList.remove('hidden');
+        ['btn-sub-resultados','btn-sub-registros','btn-sub-edicion','btn-sub-avance'].forEach(b => {
             const btn = document.getElementById(b);
-            if (btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50";
+            if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50";
         });
         const activeBtn = document.getElementById('btn-sub-' + id);
-        if (activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white";
+        if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white";
         const edContainer = document.getElementById('edicionTableContainer');
-        if (id === 'edicion' && edContainer) edContainer.classList.add('hidden');
-        if (id === 'avance') this.renderAvanceColegios();
+        if(id === 'edicion' && edContainer) edContainer.classList.add('hidden');
+        if(id === 'avance') this.renderAvanceColegios();
     },
     
     handleEdicionFilterTrigger: function() { this.refreshEdicionFilters(); this.renderActiveEdicionTable(); },

@@ -202,30 +202,22 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-
-                    <!-- 1. Encuestas Docentes -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border-b-4 border-blue-500 flex flex-col gap-1">
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Encuestas Docentes</div>
                         <div class="text-4xl font-black text-blue-600 mt-1" id="dash_docentes">0</div>
-                        <div class="text-[10px] text-gray-400">Total encuestas con perfil Docente</div>
+                        <div class="text-[10px] text-gray-400">Total encuestas perfil Docente</div>
                     </div>
-
-                    <!-- 2. Encuestas Directivos -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border-b-4 border-purple-500 flex flex-col gap-1">
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Encuestas Directivos</div>
                         <div class="text-4xl font-black text-purple-600 mt-1" id="dash_directivos">0</div>
-                        <div class="text-[10px] text-gray-400">Total encuestas con perfil Directivo</div>
+                        <div class="text-[10px] text-gray-400">Total encuestas perfil Directivo</div>
                     </div>
-
-                    <!-- 3. Avance del Ciclo -->
                     <div onclick="App.showAvanceExplanation()" class="bg-white p-5 rounded-2xl shadow-sm border-b-4 border-green-500 flex flex-col gap-1 cursor-pointer hover:bg-green-50 transition-colors group relative overflow-hidden">
                         <div class="absolute right-3 top-3 text-green-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs"><i class="fa-solid fa-circle-info"></i></div>
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Avance del Ciclo</div>
                         <div class="text-4xl font-black text-green-600 mt-1" id="dash_avance_porcentaje">0%</div>
                         <div class="text-[10px] text-gray-400"><span id="dash_asistencias_reales">0</span> de <span id="dash_asistencias_meta">0</span> encuestas esperadas</div>
                     </div>
-
-                    <!-- 4. Docentes Únicos -->
                     <div class="bg-white p-5 rounded-2xl shadow-sm border-b-4 border-[#FF5A00] flex flex-col gap-1">
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Docentes Únicos</div>
                         <div class="flex items-end gap-1 mt-1">
@@ -235,8 +227,6 @@
                         </div>
                         <div class="text-[10px] text-gray-400">Docentes únicos encuestados / total BD</div>
                     </div>
-
-                    <!-- 5. Colegios Encuestados -->
                     <div onclick="App.mostrarEstadoCobertura()" class="bg-white p-5 rounded-2xl shadow-sm border-b-4 border-[#002C5F] flex flex-col gap-1 cursor-pointer hover:bg-blue-50 transition-colors group relative overflow-hidden">
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Colegios Encuestados</div>
                         <div class="flex items-end gap-1 mt-1">
@@ -246,7 +236,6 @@
                         </div>
                         <div class="text-[10px] text-[#002C5F] font-bold opacity-0 group-hover:opacity-100 transition-opacity">Ver estado de cobertura <i class="fa-solid fa-arrow-right ml-1"></i></div>
                     </div>
-
                 </div>
 
 
@@ -360,8 +349,6 @@
 
             <div id="subTabAvance" class="hidden space-y-4 fade-in">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-
-                    <!-- Cabecera con filtros -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 border-b bg-gray-50">
                         <div>
                             <h3 class="text-base font-black text-[#002C5F] uppercase tracking-wide">Avance por Colegio</h3>
@@ -379,25 +366,22 @@
                             </button>
                         </div>
                     </div>
-
-                    <!-- Banner resumen global -->
                     <div id="avance_summary" class="grid grid-cols-2 sm:grid-cols-5 gap-0 border-b text-center divide-x divide-gray-100"></div>
-
-                    <!-- Tabla -->
                     <div class="overflow-x-auto max-h-[600px]">
                         <table class="w-full text-sm text-left">
                             <thead class="text-[10px] text-gray-400 uppercase tracking-widest sticky top-0 bg-gray-50 z-10 border-b select-none">
                                 <tr>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('colegio')">Colegio <i id="sort-icon-colegio" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('regional')">Regional <i id="sort-icon-regional" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('coach')">Coach <i id="sort-icon-coach" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 whitespace-nowrap">Clasif.</th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('docentes')"># Docentes <i id="sort-icon-docentes" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('docentesUnicos')">Doc. Encuestados <i id="sort-icon-docentesUnicos" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('asistenciasReales')">Total Encuestas <i id="sort-icon-asistenciasReales" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('avancePct')">Avance % <i id="sort-icon-avancePct" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('satisfaccion')">Satisfacción <i id="sort-icon-satisfaccion" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
-                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00] whitespace-nowrap" onclick="App.sortAvance('talleresRealizados')">Talleres <i id="sort-icon-talleresRealizados" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('colegio')">Colegio <i id="sort-icon-colegio" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('regional')">Regional <i id="sort-icon-regional" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('coach')">Coach <i id="sort-icon-coach" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3">Clasif.</th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('docentes')"># Docentes <i id="sort-icon-docentes" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('docentesUnicos')">Doc. Encuestados <i id="sort-icon-docentesUnicos" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('asistenciasReales')">Total Enc. <i id="sort-icon-asistenciasReales" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('avancePct')">Avance % <i id="sort-icon-avancePct" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('satisfaccion')">Satisfacción <i id="sort-icon-satisfaccion" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 cursor-pointer hover:text-[#FF5A00]" onclick="App.sortAvance('talleresRealizados')">Talleres <i id="sort-icon-talleresRealizados" class="fa-solid fa-sort text-gray-300 ml-1"></i></th>
+                                    <th class="px-3 py-3 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="avance_tbody" class="divide-y divide-gray-100"></tbody>
