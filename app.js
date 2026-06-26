@@ -485,9 +485,7 @@ window.App = {
 
             const docs = data.filter(d => d.perfil === 'Docente').length;
             const dirs = data.filter(d => d.perfil === 'Directivo').length;
-
-            // Docentes únicos: normaliza y deduplica por nombre dentro de cada colegio
-            const _normD = n => (n || '').trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g,' ');
+            const _normD = n => (n||'').trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g,' ');
             const _docPorCol = {};
             data.filter(d => d.perfil === 'Docente').forEach(d => {
                 const col = (d.colegio||'').toUpperCase().trim();
@@ -497,7 +495,6 @@ window.App = {
                 if (!_docPorCol[col].some(e => e.includes(nom) || nom.includes(e))) _docPorCol[col].push(nom);
             });
             const docentesUnicos = Object.values(_docPorCol).reduce((s,arr) => s + arr.length, 0);
-
             const _el = id => document.getElementById(id);
             if(_el('dash_docentes'))           _el('dash_docentes').innerText = docs;
             if(_el('dash_directivos'))         _el('dash_directivos').innerText = dirs;
@@ -1130,15 +1127,11 @@ window.App = {
                 const clasif       = (c.clasificacion||'').toUpperCase().trim();
                 const metaTalleres = BusinessRules.metasCiclo[clasif] || null; // null = clasificación no reconocida
                 const docentes     = parseInt(c.docentes||c.Docentes||c.DOCENTES) || 0;
-                // metaAsistencias: null solo si clasificación inválida (metaTalleres===null)
-                // Si docentes===0, la meta es 0 pero la clasificación sí es válida
                 const metaAsistencias = metaTalleres !== null ? docentes * metaTalleres : null;
 
                 const enc = safeEncuestas.filter(d => (d.colegio||'').toUpperCase().trim() === key);
                 const asistenciasReales = enc.length;
 
-                // Avance %: null solo si clasificación inválida.
-                // Si docentes===0, avancePct=0 (evita división por cero con toFixed).
                 const avancePct = metaTalleres === null ? null
                     : metaAsistencias > 0 ? (asistenciasReales / metaAsistencias) * 100
                     : 0;
@@ -1300,9 +1293,7 @@ window.App = {
         }).join('');
     },
 
-    openEditAvanceColegio: function(colegioId) {
-        this.openEditColegioAvance(colegioId);
-    },
+    openEditAvanceColegio: function(colegioId) { this.openEditColegioAvance(colegioId); },
 
     // Eliminar colegio desde la tabla Avance con doble confirmación
     deleteAvanceColegio: async function(colegioId, nombreColegio) {
@@ -1528,6 +1519,42 @@ window.App = {
         App.showModal(`Estado de Cobertura`, bodyHtml, `<button type="button" onclick="App.hideModal()" class="px-6 py-2 bg-[#002C5F] text-white rounded-xl font-bold transition-colors hover:bg-blue-900">Cerrar Panel</button>`);
     },
 
+    // Navegar de pantalla 1 a pantalla 2
+    goToStep2: function() {
+        const colegio = (document.getElementById('q1_colegio')?.value || '').trim();
+        const coach   = document.getElementById('q4_coach')?.value || '';
+        if (!colegio) { alert("Por favor selecciona un colegio antes de continuar."); return; }
+        const valid = (Array.isArray(State.colegiosBD) ? State.colegiosBD : [])
+            .some(c => c.colegio.toUpperCase().trim() === colegio.toUpperCase().trim());
+        if (!valid) { alert("Por favor selecciona un colegio válido de la lista."); return; }
+        if (!coach) { alert("Por favor selecciona el coach antes de continuar."); return; }
+        // Mostrar nombre del colegio en el indicador de pantalla 2
+        const label = document.getElementById('step2_colegio_label');
+        if (label) label.textContent = colegio;
+        document.getElementById('formStep1').classList.add('hidden');
+        document.getElementById('formStep2').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    // Volver a pantalla 1 sin perder el colegio seleccionado
+    goToStep1: function() {
+        document.getElementById('formStep2').classList.add('hidden');
+        document.getElementById('formStep1').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    // Después del envío: cerrar overlay, limpiar todo y volver a pantalla 1
+    resetForm: function() {
+        document.getElementById('successOverlay').classList.add('hidden');
+        document.getElementById('encuestaForm').reset();
+        document.getElementById('q1_colegio').value = '';
+        const coachSel = document.getElementById('q4_coach');
+        if (coachSel) { coachSel.value = ''; }
+        document.getElementById('formStep2').classList.add('hidden');
+        document.getElementById('formStep1').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
     submitForm: async function(e) {
         e.preventDefault();
         const inputColegio = document.getElementById('q1_colegio').value;
@@ -1538,7 +1565,7 @@ window.App = {
         try {
             const docRef = await addDoc(collection(db, "encuestas"), formData); 
             if(Array.isArray(State.encuestasData)) State.encuestasData.push({ id: docRef.id, ...formData });
-            document.getElementById('encuestaForm').reset(); document.getElementById('successMsg').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('successOverlay').classList.remove('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
             try { const resumenRef = doc(db, "metricas", "resumen_global"); await updateDoc(resumenRef, { total_encuestas: increment(1) }); } catch (e) { if (e.code === 'not-found') await setDoc(doc(db, "metricas", "resumen_global"), { total_encuestas: 1 }); }
             if (State.currentUserRole) App.handleFilterTrigger(); 
         } catch (error) { alert("Hubo un error guardando la encuesta. Intenta de nuevo."); } finally { btn.disabled = false; btn.innerHTML = '<span>Enviar Feedback</span>'; }
@@ -1549,7 +1576,26 @@ window.App = {
         if(!val) { list.classList.add('hidden'); return; }
         const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : [];
         const matches = safeColegios.filter(c => (c.colegio || '').toLowerCase().includes(val)).slice(0, 10);
-        if(matches.length > 0) { matches.forEach(m => { const li = document.createElement('li'); li.className = 'px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b flex justify-between'; li.innerHTML = `<span>${m.colegio}</span> <span class="text-[10px] text-gray-400 font-bold">${m.regional}</span>`; li.onclick = () => { document.getElementById('q1_colegio').value = m.colegio; document.getElementById('q4_coach').value = m.coach; list.classList.add('hidden'); }; list.appendChild(li); }); list.classList.remove('hidden'); } else list.classList.add('hidden');
+        if(matches.length > 0) { matches.forEach(m => { const li = document.createElement('li'); li.className = 'px-4 py-3 hover:bg-orange-50 cursor-pointer text-sm border-b flex justify-between'; li.innerHTML = `<span>${m.colegio}</span> <span class="text-[10px] text-gray-400 font-bold">${m.regional}</span>`; li.onclick = () => {
+                    document.getElementById('q1_colegio').value = m.colegio;
+                    // Precargar el coach correspondiente al colegio seleccionado
+                    const coachSel = document.getElementById('q4_coach');
+                    if (coachSel) {
+                        // Poblar el select si no tiene opciones aún
+                        if (coachSel.options.length <= 1) App.poblarCoaches();
+                        // Buscar y seleccionar el coach del colegio
+                        const opt = Array.from(coachSel.options).find(o => o.value === m.coach);
+                        if (opt) coachSel.value = m.coach;
+                        else {
+                            // Si el coach no estaba en la lista, añadirlo
+                            const newOpt = document.createElement('option');
+                            newOpt.value = m.coach; newOpt.textContent = m.coach;
+                            coachSel.appendChild(newOpt);
+                            coachSel.value = m.coach;
+                        }
+                    }
+                    list.classList.add('hidden');
+                }; list.appendChild(li); }); list.classList.remove('hidden'); } else list.classList.add('hidden');
     },
 
     poblarCoaches: function() { const sel = document.getElementById('q4_coach'); if(sel) { sel.innerHTML = '<option value="">Seleccione coach...</option>'; const safeColegios = Array.isArray(State.colegiosBD) ? State.colegiosBD : []; [...new Set(safeColegios.map(c => c.coach).filter(Boolean))].sort().forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`); } },
@@ -1568,10 +1614,10 @@ window.App = {
             const btn = document.getElementById(b);
             if(btn) btn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all text-gray-500 hover:bg-gray-50";
         });
-        const activeBtn = document.getElementById('btn-sub-' + id);
-        if(activeBtn) activeBtn.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white";
-        const edContainer = document.getElementById('edicionTableContainer');
-        if(id === 'edicion' && edContainer) edContainer.classList.add('hidden');
+        const ab = document.getElementById('btn-sub-' + id);
+        if(ab) ab.className = "py-2 px-6 rounded-lg text-sm font-bold transition-all bg-[#FF5A00] text-white";
+        const edC = document.getElementById('edicionTableContainer');
+        if(id === 'edicion' && edC) edC.classList.add('hidden');
         if(id === 'avance') this.renderAvanceColegios();
     },
     
